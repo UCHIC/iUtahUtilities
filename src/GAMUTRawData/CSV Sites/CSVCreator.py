@@ -24,49 +24,47 @@ def handleConnection(database, location):
     ss = sm.get_series_service()
     sites = ss.get_all_sites()
     
-    #Creating files for each site. REMEMBER TO NOT LIMIT VALUES TO 96
     logger.info("Started getting sites for " + database)
 
     for site in sites:
         gotSourceInfo = False
         sourceInfo = SourceInfo()
-        file_str = ""
+        file_site_str = ""
 
-        file_str = "# ------------------------------------------------------------------------------------------\n"
-        file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
-        file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
-        file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
-        file_str += "# resulting from thier use. The following metadata describe the data in this file:\n"
-        file_str += "# ------------------------------------------------------------------------------------------\n"
-        file_str += "#\n"
-        file_str += "# Site Information\n"
-        file_str += "# ----------------------------------\n"
-        file_str += "# Network: "+ location + "\n"
-        file_str += "# SiteCode: " + str(site.code) + "\n"
-        file_str += "# SiteName: " + str(site.name) + "\n"
-        file_str += "# Latitude: " + str(site.latitude) + "\n"
-        file_str += "# Longitude: " + str(site.longitude) + "\n"
-        file_str += "# Elevation_m: " + str(site.elevation_m) +"\n"
-        file_str += "# ElevationDatum: " + str(site.vertical_datum) +"\n"
-        file_str += "# State: " + str(site.state) +"\n"
-        file_str += "# County: " + str(site.county) + "\n"
-        file_str += "# Comments: " + str(site.comments) +"\n"
-        file_str += "# SiteType: " + str(site.type) + "\n"
-        file_str += "#\n"
-        file_str += "# Variable and Method Information\n"
-        file_str += "# ---------------------------\n"
+        file_site_str = "# ------------------------------------------------------------------------------------------\n"
+        file_site_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
+        file_site_str += "# They are provisional and subject to revision. The data are released on the condition \n"
+        file_site_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
+        file_site_str += "# resulting from thier use. The following metadata describe the data in this file:\n"
+        file_site_str += "# ------------------------------------------------------------------------------------------\n"
+        file_site_str += "#\n"
+        file_site_str += "# Site Information\n"
+        file_site_str += "# ----------------------------------\n"
+        file_site_str += "# Network: "+ location + "\n"
+        file_site_str += "# SiteCode: " + str(site.code) + "\n"
+        file_site_str += "# SiteName: " + str(site.name) + "\n"
+        file_site_str += "# Latitude: " + str(site.latitude) + "\n"
+        file_site_str += "# Longitude: " + str(site.longitude) + "\n"
+        file_site_str += "# Elevation_m: " + str(site.elevation_m) +"\n"
+        file_site_str += "# ElevationDatum: " + str(site.vertical_datum) +"\n"
+        file_site_str += "# State: " + str(site.state) +"\n"
+        file_site_str += "# County: " + str(site.county) + "\n"
+        file_site_str += "# Comments: " + str(site.comments) +"\n"
+        file_site_str += "# SiteType: " + str(site.type) + "\n"
+        file_site_str += "#\n"
+        file_site_str += "# Variable and Method Information\n"
+        file_site_str += "# ---------------------------\n"
 
         # Getting and organizing all the data
         var_data = VariableData()
         variables = ss.get_variables_by_site_code(site.code)
 
-        vars_to_show = getVariableCodes(site.type)
         for var_print in variables:
             gotMethod = False
             var_data.addData(var_print.code, var_print.name, var_print.value_type, var_print.data_type, var_print.general_category,
                              var_print.sample_medium, var_print.variable_unit.name, var_print.variable_unit.type, var_print.variable_unit.abbreviation,
                              var_print.no_data_value, var_print.time_support, var_print.time_unit.abbreviation, var_print.time_unit.name,
-                             var_print.time_unit.type) #method description and link?
+                             var_print.time_unit.type) 
             var_options = ss.get_all_values_and_dates_by_site_id_and_var_id(site.id, var_print.id)
             for x in var_options[0]:
                 var_data.addDataValue(x);
@@ -79,13 +77,20 @@ def handleConnection(database, location):
                                              x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
                     
        
-        file_str += var_data.printToFile()
-        file_str += "#\n"
-        file_str += sourceInfo.outputSourceInfo()
-        file_str += "#\n"
+        file_site_str += var_data.printToFile()
+        file_site_str += "#\n"
+        file_site_str += sourceInfo.outputSourceInfo()
+        file_site_str += "#\n"
 
         #only if file is empty
-        file_str += outputValues(ss, var_data, site.id)
+        file_site_str += "LocalDateTime, UTCOffset, DateTimeUTC, "
+        
+        for varCode in var_data.varCode:
+            file_site_str += varCode + ", "
+
+        file_site_str = file_site_str[:-2] + "\n"
+        
+        outputValues(ss, var_data, site, file_site_str, dump_location)
         #if file is not empty then get the latest value only (make another function)
                 
         logger.info("Started "+ location + "-" + site.code + "-" + " CVS File.")
@@ -95,22 +100,26 @@ def handleConnection(database, location):
         
         text_file.write(file_str)
         
-        text_file.close()
+        
         logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
 
-def outputValues(ss, dvObjects, site):
-    outputStr = "LocalDateTime, UTCOffset, DateTimeUTC, "
-    timeIndexes = ss.get_all_local_date_times_by_siteid(site)
-    for varCode in dvObjects.varCode:
-        outputStr += varCode + ", "
-
-    outputStr = outputStr[:-2] + "\n"
-
-    print len(timeIndexes)
-
+def outputValues(ss, dvObjects, site, header_str, dump_location):
+    timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
+    currentYear = 1900
+    #gotta optimize this for loop somehow.
     for time in timeIndexes:
+        outputStr = ""
+        if time.local_date_time.year != currentYear:
+            if currentYear != 1900:
+                text_file.close()
+                logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + " CSV file. ")
+            currentYear = time.local_date_time.year
+            text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + ".csv", "w")
+            text_file.write(header_str)
+                
         outputStr += str(time[0]) + ", " + str(time[1]) + ", " + str(time[2]) + ", "
         counter = 0
+                
         for var in dvObjects.varCode:
             var_print = next((dv for dv in dvObjects.dataValues[counter] if dv.local_date_time == time[0]), None)
             if var_print != None:
@@ -122,11 +131,13 @@ def outputValues(ss, dvObjects, site):
                 print "Not Found!"
 
             counter += 1
+        
         outputStr = outputStr[:-2]
         outputStr += "\n"
-    return outputStr
-    
+        text_file.write(outputStr)
+    pass
 
+    
 def dataParser():
     logger.info("\n========================================================\n")
     #logan database is loaded here

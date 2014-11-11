@@ -29,7 +29,7 @@ class SeriesService():
     def get_all_sites(self):
         print "getting sites"
         sites = self._edit_session.query(Site).order_by(Site.code).all()
-        print "finished getting sites"
+        #print "finished getting sites"
         return sites
 
     def get_site_by_id(self, site_id):
@@ -179,10 +179,10 @@ class SeriesService():
 
     def get_all_values_and_dates_by_site_id_and_var_id(self, my_site_id, var_id):
         #try:
-        print "getting values by site and var"
+        print "getting values site: %s and var: %s" % (my_site_id, var_id)
         dataValues = []
         dataValues.append(self._edit_session.query(DataValue).filter_by(site_id=my_site_id, variable_id=var_id).order_by((DataValue.local_date_time)).all())
-        print "finished getting values by site and var"
+        #print "finished getting values by site and var"
         return dataValues
         #except:
         #    return []
@@ -191,7 +191,7 @@ class SeriesService():
         #dataValues = [] #localDateTime | UTCOffset | UTCDateTime
         print "getting dates"
         dataValues = self._edit_session.query(DataValue.local_date_time, DataValue.utc_offset, DataValue.date_time_utc).filter_by(site_id=my_site_id).order_by((DataValue.local_date_time)).distinct().all()
-        print "finished getting dates!"
+        #print "finished getting dates!"
         #dataValues.append(self._edit_session.query(DataValue.utc_offset).filter_by(site_id=my_site_id).order_by(desc(DataValue.local_date_time)).all())
         #dataValues.append(self._edit_session.query(DataValue.utc_date_time).filter_by(site_id=my_site_id).order_by(desc(DataValue.local_date_time)).all())
         return dataValues

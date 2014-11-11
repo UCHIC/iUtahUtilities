@@ -92,16 +92,6 @@ def handleConnection(database, location):
         
         outputValues(ss, var_data, site, file_site_str, dump_location)
         #if file is not empty then get the latest value only (make another function)
-                
-        logger.info("Started "+ location + "-" + site.code + "-" + " CVS File.")
-        text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + ".csv", "w")
-        logger.info("Started creating " + location + "-" + site.code + "-" + " CSV file. ")
-        #JSON File begins
-        
-        text_file.write(file_str)
-        
-        
-        logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
 
 def outputValues(ss, dvObjects, site, header_str, dump_location):
     timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
@@ -125,7 +115,7 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
             if var_print != None:
                 outputStr += str(var_print.data_value) + ", "
                 dvObjects.dataValues[counter].remove(var_print)
-                print len(dvObjects.dataValues[counter])
+                #print len(dvObjects.dataValues[counter])
             else:
                 outputStr += ", "
                 print "Not Found!"
@@ -135,6 +125,9 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
         outputStr = outputStr[:-2]
         outputStr += "\n"
         text_file.write(outputStr)
+
+    text_file.close()
+    
     pass
 
     

@@ -85,3 +85,17 @@
 
 2014-11-11 13:19:02,887 - INFO - __main__.dataParser() (175): Started creating files.
 2014-11-11 13:19:03,746 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_Logan_OD
+2014-11-12 11:05:37,746 - INFO - __main__.dataParser() (170): 
+========================================================
+
+2014-11-12 11:05:37,746 - INFO - __main__.dataParser() (172): Started creating files.
+2014-11-12 11:05:37,927 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_Logan_OD
+2014-11-12 11:06:49,233 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_FB_BA_RawData_(insertYear) CSV file. 
+2014-11-12 11:19:21,072 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_FB_C_RawData_(insertYear) CSV file. 
+2014-11-12 11:40:16,836 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_GC_C_RawData_(insertYear) CSV file. 
+2014-11-12 11:42:48,032 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_LR_MainStreet_BA_RawData_2013 CSV file. 
+2014-11-12 11:51:36,905 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_MainStreet_BA_RawData_(insertYear) CSV file. 
+2014-11-12 12:00:10,885 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_LR_Mendon_AA_RawData_2013 CSV file. 
+2014-11-12 12:05:32,677 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_Mendon_AA_RawData_(insertYear) CSV file. 
+2014-11-12 12:07:24,069 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_TG_BA_RawData_(insertYear) CSV file. 
+2014-11-12 12:15:47,437 - INFO - __main__.handleConnection() (85): Finished creating iUTAH_GAMUT_LR_TG_C_RawData_(insertYear) CSV file. 

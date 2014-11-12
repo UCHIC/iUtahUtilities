@@ -65,6 +65,7 @@ def handleConnection(database, location):
         file_site_str = file_str[:-2] + "\n"
 
         outputValues(ss, var_data, site, file_str, dump_location)
+        
         #if file is not empty then get the latest value only (make another function)
 
 
@@ -117,12 +118,7 @@ def generateHeader(site, location):
     file_str += "# ---------------------------\n"
     return file_str
 
-def outputValues(ss, dvObjects, site):
-    pass
 
-
-    #print len(timeIndexes)
-#>>>>>>> a little reorganization of the code
 
 def outputValues(ss, dvObjects, site, header_str, dump_location):
     timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
@@ -149,24 +145,21 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
                 #print len(dvObjects.dataValues[counter])
             else:
                 outputStr += ", "
-                print "Not Found!"
+                #print "Not Found!"
 
             counter += 1
 
         outputStr = outputStr[:-2]
         outputStr += "\n"
-        '''
-<<<<<<< HEAD
+
         text_file.write(outputStr)
 
     text_file.close()
 
     pass
-=======
-        '''
-    return outputStr
 
-#>>>>>>> a little reorganization of the code
+
+
 
 
 def dataParser():

@@ -1,8 +1,8 @@
 import sys
 import os
-import pyodbc
-import shutil
+
 import logging
+import pandas as pd
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
@@ -23,10 +23,16 @@ def handleConnection(database, location):
     sm._current_connection= {'engine':'mssql', 'user':'webapplication' , 'password':'W3bAppl1c4t10n!', 'address':'iutahdbs.uwrl.usu.edu', 'db':database}
     ss = sm.get_series_service()
     sites = ss.get_all_sites()
-    
+
     logger.info("Started getting sites for " + database)
 
     for site in sites:
+        tempvals = ss.get_all_values_by_site_id(site.id)
+        db = [x.list_repr() for x in tempvals]
+        df  = pd.DataFrame(db, columns = tempvals[0].get_columns())
+
+        pv=df.pivot(index= "LocalDateTime", columns = "VariableCode", values = "DataValue")
+
         gotSourceInfo = False
         sourceInfo = SourceInfo()
 
@@ -155,18 +161,15 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
 
         outputStr = outputStr[:-2]
         outputStr += "\n"
-        '''
-<<<<<<< HEAD
+
         text_file.write(outputStr)
 
     text_file.close()
 
     pass
-=======
-        '''
-    return outputStr
 
-#>>>>>>> a little reorganization of the code
+
+
 
 
 def dataParser():

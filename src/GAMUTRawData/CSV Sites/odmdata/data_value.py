@@ -65,10 +65,15 @@ class DataValue(Base):
 
 	def list_repr(self):
 		return [self.id, self.data_value, self.value_accuracy, self.local_date_time,
-			self.utc_offset, self.date_time_utc, self.site_id, self.variable_id, 
+			self.utc_offset, self.date_time_utc, self.site.code, self.variable.code,
 			self.offset_value, self.offset_type_id, self.censor_code, self.qualifier_id,
 			self.method_id, self.source_id, self.sample_id, self.derived_from_id,
 			self.quality_control_level_id]
 
 	def __repr__(self):
 		return "<DataValue('%s', '%s', '%s')>" % (self.data_value, self.local_date_time, self.value_accuracy)
+
+	def get_columns(self):
+		return ["ValueID"     ,"DataValue"      ,"ValueAccuracy"      ,"LocalDateTime"     ,"UTCOffset"
+      ,"DateTimeUTC"      ,"SiteCode"      ,"VariableCode"      ,"OffsetValue"     ,"OffsetTypeID"      ,"CensorCode"      ,"QualifierID"
+      ,"MethodID"      ,"SourceID"      ,"SampleID"      ,"DerivedFromID"      ,"QualityControlLevelID"]

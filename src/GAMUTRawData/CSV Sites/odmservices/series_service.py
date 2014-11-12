@@ -1,19 +1,9 @@
-from sqlalchemy import distinct
-from sqlalchemy import desc
-import sqlalchemy.exc
+from sqlalchemy import distinct, desc, func
+from datetime import date
 
-from odmdata import SessionFactory
-from odmdata import Site
-from odmdata import Variable
-from odmdata import Unit
-from odmdata import Series
-from odmdata import DataValue
-from odmdata import Qualifier
-from odmdata import OffsetType
-from odmdata import Sample
-from odmdata import Method
-from odmdata import QualityControlLevel
-from odmdata import ODMVersion
+
+from odmdata import SessionFactory,Site,Variable, Unit, Series, DataValue, \
+    Qualifier, OffsetType,Sample, Method, QualityControlLevel, ODMVersion
 
 class SeriesService():
     # Accepts a string for creating a SessionFactory, default uses odmdata/connection.cfg
@@ -37,6 +27,7 @@ class SeriesService():
             return self._edit_session.query(Site).filter_by(id=site_id).one()
         except:
             return None
+
 
     # Variables methods
     def get_all_variables(self):
@@ -203,9 +194,11 @@ class SeriesService():
         except:
             return []
 
+
+
     def get_all_values_by_var_id(self, var_id):
         try:
-            return self._edit_session.query(DataValue).filter_by(variable_id=var_id).all()
+            return self._edit_session.query(DataValue).filter_by(variable_id=var_id ).all()
         except:
             return []
 

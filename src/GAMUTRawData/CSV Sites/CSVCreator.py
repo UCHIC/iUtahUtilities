@@ -1,8 +1,8 @@
 import sys
 import os
-
+import pyodbc
+import shutil
 import logging
-import pandas as pd
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
@@ -27,12 +27,6 @@ def handleConnection(database, location):
     logger.info("Started getting sites for " + database)
 
     for site in sites:
-        tempvals = ss.get_all_values_by_site_id(site.id)
-        db = [x.list_repr() for x in tempvals]
-        df  = pd.DataFrame(db, columns = tempvals[0].get_columns())
-
-        pv=df.pivot(index= "LocalDateTime", columns = "VariableCode", values = "DataValue")
-
         gotSourceInfo = False
         sourceInfo = SourceInfo()
 
@@ -71,6 +65,7 @@ def handleConnection(database, location):
         file_site_str = file_str[:-2] + "\n"
 
         outputValues(ss, var_data, site, file_str, dump_location)
+
         #if file is not empty then get the latest value only (make another function)
 
 
@@ -123,12 +118,7 @@ def generateHeader(site, location):
     file_str += "# ---------------------------\n"
     return file_str
 
-def outputValues(ss, dvObjects, site):
-    pass
 
-
-    #print len(timeIndexes)
-#>>>>>>> a little reorganization of the code
 
 def outputValues(ss, dvObjects, site, header_str, dump_location):
     timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
@@ -155,7 +145,7 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
                 #print len(dvObjects.dataValues[counter])
             else:
                 outputStr += ", "
-                print "Not Found!"
+                #print "Not Found!"
 
             counter += 1
 
@@ -186,6 +176,31 @@ def dataParser():
 
     logger.info("Finished Program and Provo Site. ")
     logger.info("\n========================================================\n")
+
+
+    #TODO:loop through each site
+    #get current year,
+    #generate file name
+
+    #if file exists
+        #start date , colcount = call mario function
+        #
+    #if file not exists:
+        #set start date to jan 1 of curr year
+        #colcount = 0
+    #dvs= get data at site since startdate
+    #dvs
+    # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
+        #generate header
+        #print header
+        #dvs.to_csv(include headers)
+    #else
+    #   #open file for appending
+        #dvs.to_csv(no header)
+
+
+
+
 
 class SourceInfo:
     def __init__(self):

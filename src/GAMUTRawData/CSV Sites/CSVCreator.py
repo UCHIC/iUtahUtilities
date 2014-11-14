@@ -158,9 +158,43 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
 
     pass
 
+def parseCSVData(filePath):
+    csvFile = open(filePath, "r")
+    lastLine = getLastLine(csvFile)
+    csvFile.close()
+    return getDateAndNumCols(lastLine)
 
+def getLastLine(targetFile):
+    firstCharSeek = ''
+    readPosition = -3
+    prevLine = result = ""
+    while firstCharSeek != '\n':
+        targetFile.seek(readPosition, os.SEEK_END)
+        readPosition -= 1
+        result = prevLine #last line was being deleted. So I saved a temp to keep it
+        prevLine = targetFile.readline()
+        firstCharSeek = prevLine[0]
+    return result
 
+def getDateAndNumCols(lastLine):
+    strList = lastLine.split(",")
+    dateTime = datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
+    count = 0
+    for value in strList:
+        isValueCorrect = strList.index(value) > 2 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
+        if isValueCorrect:
+            count += 1
+    return ReturnValue(dateTime, count)
 
+class ReturnValue:
+    def __init__(self, dateTime, noOfVars):
+        self.localDateTime = dateTime
+        self.numCols = noOfVars
+
+# Test case for parseCSVData and related functions 
+#dateAndColsObj = parseCSVData("C:\\iUTAH_GAMUT_PR_BD_C_RawData_2013.csv")
+#print dateAndColsObj.localDateTime
+#print dateAndColsObj.numCols
 
 def dataParser():
     logger.info("\n========================================================\n")

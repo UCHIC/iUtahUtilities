@@ -46,3 +46,128 @@
 2014-11-14 13:25:53,348 - INFO - __main__.handleConnection() (34): Started getting values for RB_FortD_SD
 2014-11-14 13:32:01,946 - INFO - __main__.handleConnection() (80): Finished creating iUTAH_GAMUT_RB_FortD_SD_RawData_(insertYear) CSV file. 
 2014-11-14 13:32:01,947 - INFO - __main__.handleConnection() (34): Started getting values for RB_GIRF_C
+2014-11-14 16:23:43,584 - INFO - __main__.dataParser() (207): 
+========================================================
+
+2014-11-14 16:23:43,595 - INFO - __main__.dataParser() (209): Started creating files.
+2014-11-14 16:23:45,818 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:23:46,232 - INFO - __main__.handleConnection() (35): Started getting values for RB_CR_SD
+2014-11-14 16:43:27,700 - INFO - __main__.dataParser() (173): 
+========================================================
+
+2014-11-14 16:43:27,700 - INFO - __main__.dataParser() (175): Started creating files.
+2014-11-14 16:43:28,226 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_Logan_OD
+2014-11-14 16:43:28,226 - INFO - __main__.handleConnection() (34): Started getting values for LR_FB_BA
+2014-11-14 16:43:30,904 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_FB_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:30,905 - INFO - __main__.handleConnection() (34): Started getting values for LR_FB_C
+2014-11-14 16:43:36,209 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_FB_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:36,210 - INFO - __main__.handleConnection() (34): Started getting values for LR_GC_C
+2014-11-14 16:43:44,180 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_GC_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:44,180 - INFO - __main__.handleConnection() (34): Started getting values for LR_MainStreet_BA
+2014-11-14 16:43:47,230 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_LR_MainStreet_BA_RawData_2013 CSV file. 
+2014-11-14 16:43:47,427 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_MainStreet_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:47,427 - INFO - __main__.handleConnection() (34): Started getting values for LR_Mendon_AA
+2014-11-14 16:43:51,072 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_LR_Mendon_AA_RawData_2013 CSV file. 
+2014-11-14 16:43:51,269 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_Mendon_AA_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:51,269 - INFO - __main__.handleConnection() (34): Started getting values for LR_TG_BA
+2014-11-14 16:43:53,319 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_TG_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:53,319 - INFO - __main__.handleConnection() (34): Started getting values for LR_TG_C
+2014-11-14 16:43:57,190 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_TG_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:43:57,190 - INFO - __main__.handleConnection() (34): Started getting values for LR_TWDEF_C
+2014-11-14 16:44:04,619 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_TWDEF_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:04,621 - INFO - __main__.handleConnection() (34): Started getting values for LR_WaterLab_AA
+2014-11-14 16:44:10,632 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_LR_WaterLab_AA_RawData_2013 CSV file. 
+2014-11-14 16:44:10,828 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_WaterLab_AA_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:10,829 - INFO - __main__.handleConnection() (34): Started getting values for LR_Wilkins_R
+2014-11-14 16:44:12,319 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_LR_Wilkins_R_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:12,836 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_Provo_OD
+2014-11-14 16:44:12,836 - INFO - __main__.handleConnection() (34): Started getting values for PR_BD_C
+2014-11-14 16:44:13,288 - INFO - __main__.dataParser() (206): 
+========================================================
+
+2014-11-14 16:44:13,289 - INFO - __main__.dataParser() (208): Started creating files.
+2014-11-14 16:44:13,763 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:44:13,763 - INFO - __main__.handleConnection() (34): Started getting values for RB_CR_SD
+2014-11-14 16:44:16,813 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_PR_BD_C_RawData_2013 CSV file. 
+2014-11-14 16:44:16,983 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_BD_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:16,983 - INFO - __main__.handleConnection() (34): Started getting values for PR_BJ_AA
+2014-11-14 16:44:19,838 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_PR_BJ_AA_RawData_2013 CSV file. 
+2014-11-14 16:44:20,022 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_PR_BJ_AA_RawData_2014 CSV file. 
+2014-11-14 16:44:20,039 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_BJ_AA_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:20,039 - INFO - __main__.handleConnection() (34): Started getting values for PR_BJ_CUWCD
+2014-11-14 16:44:20,605 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_BJ_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:20,605 - INFO - __main__.handleConnection() (34): Started getting values for PR_CH_AA
+2014-11-14 16:44:23,490 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_CH_AA_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:23,490 - INFO - __main__.handleConnection() (34): Started getting values for PR_CH_C
+2014-11-14 16:44:26,654 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_CH_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:26,654 - INFO - __main__.handleConnection() (34): Started getting values for PR_CH_CUWCD
+2014-11-14 16:44:27,220 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_CH_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:27,220 - INFO - __main__.handleConnection() (34): Started getting values for PR_LM_BA
+2014-11-14 16:44:29,667 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_LM_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:29,668 - INFO - __main__.handleConnection() (34): Started getting values for PR_TC_CUWCD
+2014-11-14 16:44:30,509 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_TC_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:30,509 - INFO - __main__.handleConnection() (34): Started getting values for PR_TL_C
+2014-11-14 16:44:35,446 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_PR_TL_C_RawData_2013 CSV file. 
+2014-11-14 16:44:35,601 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_TL_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:35,601 - INFO - __main__.handleConnection() (34): Started getting values for PR_UM_CUWCD
+2014-11-14 16:44:36,384 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_PR_UM_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:36,736 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:44:36,736 - INFO - __main__.handleConnection() (34): Started getting values for RB_CR_SD
+2014-11-14 16:44:37,684 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_CR_SD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:37,684 - INFO - __main__.handleConnection() (34): Started getting values for RB_GIRF_C
+2014-11-14 16:44:44,111 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_RB_GIRF_C_RawData_2013 CSV file. 
+2014-11-14 16:44:44,325 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_GIRF_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:44,326 - INFO - __main__.handleConnection() (34): Started getting values for RB_GIRF_SD
+2014-11-14 16:44:47,108 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_GIRF_SD_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:47,108 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_BA
+2014-11-14 16:44:52,177 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_RB_KF_BA_RawData_2013 CSV file. 
+2014-11-14 16:44:52,390 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_KF_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:52,391 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_C
+2014-11-14 16:44:59,710 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_RB_KF_C_RawData_2013 CSV file. 
+2014-11-14 16:44:59,930 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_KF_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:44:59,931 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_R
+2014-11-14 16:45:00,897 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_KF_R_RawData_(insertYear) CSV file. 
+2014-11-14 16:45:00,897 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_S
+2014-11-14 16:45:02,016 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_KF_S_RawData_(insertYear) CSV file. 
+2014-11-14 16:45:02,016 - INFO - __main__.handleConnection() (34): Started getting values for RB_RBG_BA
+2014-11-14 16:45:05,525 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_RBG_BA_RawData_(insertYear) CSV file. 
+2014-11-14 16:45:05,525 - INFO - __main__.handleConnection() (34): Started getting values for RB_RBR_CUWCD
+2014-11-14 16:45:06,841 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_RBR_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-14 16:45:06,841 - INFO - __main__.handleConnection() (34): Started getting values for RB_TM_C
+2014-11-14 16:45:12,717 - INFO - __main__.outputValues() (136): Finished creating iUTAH_GAMUT_RB_TM_C_RawData_2013 CSV file. 
+2014-11-14 16:45:12,920 - INFO - __main__.handleConnection() (83): Finished creating iUTAH_GAMUT_RB_TM_C_RawData_(insertYear) CSV file. 
+2014-11-14 16:45:12,921 - INFO - __main__.dataParser() (184): Finished Program and Provo Site. 
+2014-11-14 16:45:12,921 - INFO - __main__.dataParser() (185): 
+========================================================
+
+2014-11-14 16:46:22,960 - INFO - __main__.dataParser() (206): 
+========================================================
+
+2014-11-14 16:46:22,960 - INFO - __main__.dataParser() (208): Started creating files.
+2014-11-14 16:46:23,369 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:46:23,371 - INFO - __main__.handleConnection() (34): Started getting values for RB_CR_SD
+2014-11-14 16:46:34,415 - INFO - __main__.dataParser() (174): 
+========================================================
+
+2014-11-14 16:46:34,415 - INFO - __main__.dataParser() (176): Started creating files.
+2014-11-14 16:46:34,885 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_Logan_OD
+2014-11-14 16:46:51,822 - INFO - __main__.dataParser() (174): 
+========================================================
+
+2014-11-14 16:46:51,822 - INFO - __main__.dataParser() (176): Started creating files.
+2014-11-14 16:46:52,332 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_Logan_OD
+2014-11-14 16:46:52,707 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_Provo_OD
+2014-11-14 16:46:52,973 - INFO - __main__.handleConnection() (28): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:46:52,974 - INFO - __main__.handleConnection() (34): Started getting values for RB_CR_SD
+2014-11-14 16:46:53,786 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_CR_SD_RawData_(insertYear) CSV file. 
+2014-11-14 16:46:53,788 - INFO - __main__.handleConnection() (34): Started getting values for RB_GIRF_C
+2014-11-14 16:52:21,309 - INFO - __main__.dataParser() (209): 
+========================================================
+
+2014-11-14 16:52:21,309 - INFO - __main__.dataParser() (211): Started creating files.
+2014-11-14 16:52:22,131 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 16:55:06,721 - INFO - __main__.dataParser() (209): 
+========================================================
+
+2014-11-14 16:55:06,721 - INFO - __main__.dataParser() (211): Started creating files.
+2014-11-14 16:55:24,361 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD

@@ -3,7 +3,8 @@ import os
 import pyodbc
 import shutil
 import logging
-
+import datetime
+import pandas as pd
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
@@ -28,6 +29,8 @@ def handleConnection(database, location):
     logger.info("Started getting sites for " + database)
 
     for site in sites:
+        year = datetime.now().strftime('%y')
+        print year
 
         file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_2014.csv"
         if not fileexists(file_path):
@@ -42,7 +45,8 @@ def handleConnection(database, location):
             variables = ss.get_variables_by_site_code(site.code)
 
 
-
+            df=pd.DataFrame(ss.get_all_values_by_site_id())
+            df.pivot(index= "LocalDateTime")
 
             #vars_to_show = getVariableCodes(site.type)
             for var_print in variables:
@@ -58,7 +62,6 @@ def handleConnection(database, location):
                     if not gotSourceInfo:
                         sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
                                                  x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
-
 
             file_str += var_data.printToFile()
 
@@ -164,6 +167,38 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
 
 
 
+def parseCSVData(filePath):
+    csvFile = open(filePath, "r")
+    lastLine = getLastLine(csvFile)
+    csvFile.close()
+    return getDateAndNumCols(lastLine)
+
+def getLastLine(targetFile):
+    firstCharSeek = ''
+    readPosition = -3
+    prevLine = result = ""
+    while firstCharSeek != '\n':
+        targetFile.seek(readPosition, os.SEEK_END)
+        readPosition -= 1
+        result = prevLine #last line was being deleted. So I saved a temp to keep it
+        prevLine = targetFile.readline()
+        firstCharSeek = prevLine[0]
+    return result
+
+def getDateAndNumCols(lastLine):
+    strList = lastLine.split(",")
+    dateTime = datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
+    count = 0
+    for value in strList:
+        isValueCorrect = strList.index(value) > 2 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
+        if isValueCorrect:
+            count += 1
+    return ReturnValue(dateTime, count)
+
+class ReturnValue:
+    def __init__(self, dateTime, noOfVars):
+        self.localDateTime = dateTime
+        self.numCols = noOfVars
 
 # Test case for parseCSVData and related functions
 #dateAndColsObj = parseCSVData("C:\\iUTAH_GAMUT_PR_BD_C_RawData_2013.csv")
@@ -174,10 +209,10 @@ def dataParser():
     logger.info("\n========================================================\n")
     #logan database is loaded here
     logger.info("Started creating files.")
-    handleConnection('iUTAH_Logan_OD', 'Logan')
+    #handleConnection('iUTAH_Logan_OD', 'Logan')
 
     #provo database is loaded here
-    handleConnection('iUTAH_Provo_OD', 'Provo')
+    #handleConnection('iUTAH_Provo_OD', 'Provo')
 
     #red butte creek database is loaded here
     handleConnection('iUTAH_RedButte_OD', 'RedButte')
@@ -185,6 +220,26 @@ def dataParser():
     logger.info("Finished Program and Provo Site. ")
     logger.info("\n========================================================\n")
 
+
+    #TODO:loop through each site
+    #get current year,
+    #generate file name
+
+    #if file exists
+        #start date , colcount = call mario function
+        #
+    #if file not exists:
+        #set start date to jan 1 of curr year
+        #colcount = 0
+    #dvs= get data at site since startdate
+    #dvs
+    # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
+        #generate header
+        #print header
+        #dvs.to_csv(include headers)
+    #else
+    #   #open file for appending
+        #dvs.to_csv(no header)
 
 
 

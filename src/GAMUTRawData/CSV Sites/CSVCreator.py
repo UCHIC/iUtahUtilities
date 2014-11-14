@@ -3,6 +3,7 @@ import os
 import pyodbc
 import shutil
 import logging
+import datetime
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))

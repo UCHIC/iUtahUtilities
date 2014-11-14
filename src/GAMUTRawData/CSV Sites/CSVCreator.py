@@ -3,6 +3,7 @@ import os
 import pyodbc
 import shutil
 import logging
+import datetime
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
@@ -27,69 +28,69 @@ def handleConnection(database, location):
     logger.info("Started getting sites for " + database)
 
     for site in sites:
-        gotSourceInfo = False
-        sourceInfo = SourceInfo()
 
-        file_str = generateHeader(site, location)
-        # Getting and organizing all the data
-        var_data = VariableData()
-        variables = ss.get_variables_by_site_code(site.code)
+        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_2014.csv"
+        if not fileexists(file_path):
+            logger.info("Started getting values for " + site.code)
 
+            gotSourceInfo = False
+            sourceInfo = SourceInfo()
 
-        #vars_to_show = getVariableCodes(site.type)
-        for var_print in variables:
-            gotMethod = False
-            var_data.addData(var_print) #method description and link?
-            var_options = ss.get_all_values_and_dates_by_site_id_and_var_id(site.id, var_print.id)
-            for x in var_options[0]:
-                var_data.addDataValue(x)
-                if not gotMethod:
-                    var_data.addMethodInfo(x.method.description, x.method.link)
-                    gotMethod = True
-
-                if not gotSourceInfo:
-                    sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
-                                             x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
-
-        file_str += var_data.printToFile()
-
-        file_str += "#\n"
-        file_str += sourceInfo.outputSourceInfo()
-        file_str += "#\n"
-        #only if file is empty
-        file_str += "LocalDateTime, UTCOffset, DateTimeUTC, "
-
-        for varCode in var_data.varCode:
-            file_str += varCode + ", "
-
-        file_site_str = file_str[:-2] + "\n"
-
-        outputValues(ss, var_data, site, file_str, dump_location)
-
-        #if file is not empty then get the latest value only (make another function)
+            file_str = generateHeader(site, location)
+            # Getting and organizing all the data
+            var_data = VariableData()
+            variables = ss.get_variables_by_site_code(site.code)
 
 
+            #vars_to_show = getVariableCodes(site.type)
+            for var_print in variables:
+                gotMethod = False
+                var_data.addData(var_print) #method description and link?
+                var_options = ss.get_all_values_and_dates_by_site_id_and_var_id(site.id, var_print.id)
+                for x in var_options[0]:
+                    var_data.addDataValue(x)
+                    if not gotMethod:
+                        var_data.addMethodInfo(x.method.description, x.method.link)
+                        gotMethod = True
 
-        #only if file is empty
-        '''file_str += outputValues(ss, var_data, site.id)
-        #if file is not empty then get the latest value only (make another function)
+                    if not gotSourceInfo:
+                        sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
+                                                 x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
 
-        logger.info("Started "+ location + "-" + site.code + "-" + " CSV File.")
-        text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + ".csv", "w")
-        #logger.info("Started creating " + location + "-" + site.code + "-" + " CSV file. ")
-        #JSON File begins
+            file_str += var_data.printToFile()
 
-        text_file.write(file_str)
+            file_str += "#\n"
+            file_str += sourceInfo.outputSourceInfo()
+            file_str += "#\n"
+            #only if file is empty
+            file_str += "LocalDateTime, UTCOffset, DateTimeUTC, "
 
-        text_file.close()
-        '''
-        logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
-        del gotSourceInfo
-        del sourceInfo
-        del variables
-        del var_data
-        del file_str
-       # del text_file
+            for varCode in var_data.varCode:
+                file_str += varCode + ", "
+
+
+            file_str = file_str[:-2] + "\n"
+
+            outputValues(ss, var_data, site, file_str, dump_location)
+
+            #if file is not empty then get the latest value only (make another function)
+
+
+
+
+            logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+            del gotSourceInfo
+            del sourceInfo
+            del variables
+            del var_data
+            del file_str
+           # del text_file
+
+
+def fileexists(file_path):
+    import os
+    return os.path.exists(file_path)
+
 def generateHeader(site, location):
     file_str = ""
 
@@ -119,57 +120,93 @@ def generateHeader(site, location):
     return file_str
 
 
-
 def outputValues(ss, dvObjects, site, header_str, dump_location):
     timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
     currentYear = 1900
     #gotta optimize this for loop somehow.
-    for time in timeIndexes:
-        outputStr = ""
-        if time.local_date_time.year != currentYear:
-            if currentYear != 1900:
-                text_file.close()
-                logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + " CSV file. ")
-            currentYear = time.local_date_time.year
-            text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + ".csv", "w")
-            text_file.write(header_str)
 
-        outputStr += str(time[0]) + ", " + str(time[1]) + ", " + str(time[2]) + ", "
-        counter = 0
+    if len(timeIndexes)>0:
+        for time in timeIndexes:
+            outputStr = ""
+            if time.local_date_time.year != currentYear:
+                if currentYear != 1900:
+                    text_file.close()
+                    logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + " CSV file. ")
+                currentYear = time.local_date_time.year
+                text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + ".csv", "w")
+                text_file.write(header_str)
 
-        for var in dvObjects.varCode:
-            var_print = next((dv for dv in dvObjects.dataValues[counter] if dv.local_date_time == time[0]), None)
-            if var_print != None:
-                outputStr += str(var_print.data_value) + ", "
-                dvObjects.dataValues[counter].remove(var_print)
-                #print len(dvObjects.dataValues[counter])
-            else:
-                outputStr += ", "
-                #print "Not Found!"
+            outputStr += str(time[0]) + ", " + str(time[1]) + ", " + str(time[2]) + ", "
+            counter = 0
 
-            counter += 1
-
-        outputStr = outputStr[:-2]
-        outputStr += "\n"
-
-        text_file.write(outputStr)
-
-    text_file.close()
-
-    pass
+            for var in dvObjects.varCode:
+                var_print = next((dv for dv in dvObjects.dataValues[counter] if dv.local_date_time == time[0]), None)
+                if var_print != None:
+                    outputStr += str(var_print.data_value) + ", "
+                    dvObjects.dataValues[counter].remove(var_print)
+                    #print len(dvObjects.dataValues[counter])
+                else:
+                    outputStr += ", "
+                    #print "Not Found!"
 
 
+                counter += 1
+
+            ouputStr = outputStr[:-2]
+            outputStr += "\n"
+
+            text_file.write(outputStr)
+
+        text_file.close()
 
 
+
+def parseCSVData(filePath):
+    csvFile = open(filePath, "r")
+    lastLine = getLastLine(csvFile)
+    csvFile.close()
+    return getDateAndNumCols(lastLine)
+
+def getLastLine(targetFile):
+    firstCharSeek = ''
+    readPosition = -3
+    prevLine = result = ""
+    while firstCharSeek != '\n':
+        targetFile.seek(readPosition, os.SEEK_END)
+        readPosition -= 1
+        result = prevLine #last line was being deleted. So I saved a temp to keep it
+        prevLine = targetFile.readline()
+        firstCharSeek = prevLine[0]
+    return result
+
+def getDateAndNumCols(lastLine):
+    strList = lastLine.split(",")
+    dateTime = datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
+    count = 0
+    for value in strList:
+        isValueCorrect = strList.index(value) > 2 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
+        if isValueCorrect:
+            count += 1
+    return ReturnValue(dateTime, count)
+
+class ReturnValue:
+    def __init__(self, dateTime, noOfVars):
+        self.localDateTime = dateTime
+        self.numCols = noOfVars
+
+# Test case for parseCSVData and related functions
+#dateAndColsObj = parseCSVData("C:\\iUTAH_GAMUT_PR_BD_C_RawData_2013.csv")
+#print dateAndColsObj.localDateTime
+#print dateAndColsObj.numCols
 
 def dataParser():
     logger.info("\n========================================================\n")
     #logan database is loaded here
     logger.info("Started creating files.")
-    handleConnection('iUTAH_Logan_OD', 'Logan')
+    #handleConnection('iUTAH_Logan_OD', 'Logan')
 
     #provo database is loaded here
-    handleConnection('iUTAH_Provo_OD', 'Provo')
+    #handleConnection('iUTAH_Provo_OD', 'Provo')
 
     #red butte creek database is loaded here
     handleConnection('iUTAH_RedButte_OD', 'RedButte')

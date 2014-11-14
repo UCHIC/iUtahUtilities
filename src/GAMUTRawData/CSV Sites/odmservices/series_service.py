@@ -5,6 +5,12 @@ from datetime import date
 from odmdata import SessionFactory,Site,Variable, Unit, Series, DataValue, \
     Qualifier, OffsetType,Sample, Method, QualityControlLevel, ODMVersion
 
+import logging
+from logger import LoggerTool
+
+tool = LoggerTool()
+logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
+
 class SeriesService():
     # Accepts a string for creating a SessionFactory, default uses odmdata/connection.cfg
     def __init__(self, connection_string="", debug=False):
@@ -17,9 +23,9 @@ class SeriesService():
 
     # Site methods
     def get_all_sites(self):
-        print "getting sites"
+        logger.info("getting sites")
         sites = self._edit_session.query(Site).order_by(Site.code).all()
-        #print "finished getting sites"
+        #logger.info( "finished getting sites")
         return sites
 
     def get_site_by_id(self, site_id):
@@ -46,7 +52,7 @@ class SeriesService():
             return None
 
     def get_variables_by_site_code(self, site_code):  # covers NoDV, VarUnits, TimeUnits
-        print "getting vars by site"
+        logger.info( "getting vars by site")
         try:
             var_ids = [x[0] for x in self._edit_session.query(distinct(Series.variable_id)).filter_by(
                 site_code=site_code).all()]
@@ -56,7 +62,7 @@ class SeriesService():
         variables = []
         for var_id in var_ids:
             variables.append(self._edit_session.query(Variable).filter_by(id=var_id).one())
-        print "finished getting vars by site"
+        logger.info( "finished getting vars by site")
         return variables
 
     # Unit methods
@@ -160,8 +166,8 @@ class SeriesService():
         times.append(self._edit_session.query(DataValue.local_date_time).filter_by(site_id=my_site_id).order_by(DataValue.local_date_time).first())
         times.append(self._edit_session.query(DataValue.local_date_time).filter_by(site_id=my_site_id).order_by(desc(DataValue.local_date_time)).first())
         return times
- 
-        
+
+
     def get_ninety_six_values_by_site_id_and_var_id(self, my_site_id, var_id):
         try:
             return self._edit_session.query(DataValue).filter_by(site_id=my_site_id, variable_id=var_id).order_by(desc(DataValue.local_date_time)).limit(96).all()#descending
@@ -170,26 +176,33 @@ class SeriesService():
 
     def get_all_values_and_dates_by_site_id_and_var_id(self, my_site_id, var_id):
         #try:
-        print "getting values site: %s and var: %s" % (my_site_id, var_id)
+        logger.info( "getting values site: %s and var: %s" % (my_site_id, var_id))
         dataValues = []
         dataValues.append(self._edit_session.query(DataValue).filter_by(site_id=my_site_id, variable_id=var_id).order_by((DataValue.local_date_time)).all())
-        #print "finished getting values by site and var"
+        #logger.info( "finished getting values by site and var")
         return dataValues
         #except:
         #    return []
 
+
     def get_all_local_date_times_by_siteid(self, my_site_id):
         #dataValues = [] #localDateTime | UTCOffset | UTCDateTime
-        print "getting dates"
+        logger.info( "getting dates")
         dataValues = self._edit_session.query(DataValue.local_date_time, DataValue.utc_offset, DataValue.date_time_utc).filter_by(site_id=my_site_id).order_by((DataValue.local_date_time)).distinct().all()
-        #print "finished getting dates!"
+        logger.info("finished getting dates!")
         #dataValues.append(self._edit_session.query(DataValue.utc_offset).filter_by(site_id=my_site_id).order_by(desc(DataValue.local_date_time)).all())
         #dataValues.append(self._edit_session.query(DataValue.utc_date_time).filter_by(site_id=my_site_id).order_by(desc(DataValue.local_date_time)).all())
         return dataValues
-			
+
     def get_all_values_by_site_id(self, my_site_id):
         try:
             array = self._edit_session.query(DataValue).filter_by(site_id=my_site_id).all()
+            return array
+        except:
+            return []
+    def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
+        try:
+            array = self._edit_session.query(DataValue).filter(DataValue.site_id==my_site_id, DataValue.local_date_time >= local_date_time).all()
             return array
         except:
             return []

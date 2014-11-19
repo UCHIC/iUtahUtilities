@@ -171,3 +171,136 @@
 
 2014-11-14 16:55:06,721 - INFO - __main__.dataParser() (211): Started creating files.
 2014-11-14 16:55:24,361 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 17:00:52,141 - INFO - __main__.dataParser() (209): 
+========================================================
+
+2014-11-14 17:00:52,142 - INFO - __main__.dataParser() (211): Started creating files.
+2014-11-14 17:00:59,216 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-14 17:00:59,611 - INFO - __main__.handleConnection() (37): Started getting values for RB_CR_SD
+2014-11-14 22:21:47,957 - INFO - __main__.outputValues() (137): Finished creating iUTAH_GAMUT_RB_GIRF_C_RawData_2013 CSV file. 
+2014-11-14 22:57:16,586 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_GIRF_C_RawData_(insertYear) CSV file. 
+2014-11-14 22:57:17,681 - INFO - __main__.handleConnection() (34): Started getting values for RB_GIRF_SD
+2014-11-14 23:18:31,622 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_GIRF_SD_RawData_(insertYear) CSV file. 
+2014-11-14 23:18:31,624 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_BA
+2014-11-14 23:36:40,177 - INFO - __main__.outputValues() (137): Finished creating iUTAH_GAMUT_RB_KF_BA_RawData_2013 CSV file. 
+2014-11-14 23:55:28,250 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_KF_BA_RawData_(insertYear) CSV file. 
+2014-11-14 23:55:28,575 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_C
+2014-11-15 07:37:21,032 - INFO - __main__.outputValues() (137): Finished creating iUTAH_GAMUT_RB_KF_C_RawData_2013 CSV file. 
+2014-11-15 08:23:12,042 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_KF_C_RawData_(insertYear) CSV file. 
+2014-11-15 08:23:13,411 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_R
+2014-11-15 08:23:19,309 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_KF_R_RawData_(insertYear) CSV file. 
+2014-11-15 08:23:19,309 - INFO - __main__.handleConnection() (34): Started getting values for RB_KF_S
+2014-11-15 08:23:27,625 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_KF_S_RawData_(insertYear) CSV file. 
+2014-11-15 08:23:27,628 - INFO - __main__.handleConnection() (34): Started getting values for RB_RBG_BA
+2014-11-15 08:34:31,250 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_RBG_BA_RawData_(insertYear) CSV file. 
+2014-11-15 08:34:31,690 - INFO - __main__.handleConnection() (34): Started getting values for RB_RBR_CUWCD
+2014-11-15 08:34:37,282 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_RBR_CUWCD_RawData_(insertYear) CSV file. 
+2014-11-15 08:34:37,283 - INFO - __main__.handleConnection() (34): Started getting values for RB_TM_C
+2014-11-15 09:56:43,650 - INFO - __main__.outputValues() (137): Finished creating iUTAH_GAMUT_RB_TM_C_RawData_2013 CSV file. 
+2014-11-15 10:44:36,667 - INFO - __main__.handleConnection() (84): Finished creating iUTAH_GAMUT_RB_TM_C_RawData_(insertYear) CSV file. 
+2014-11-15 10:44:37,525 - INFO - __main__.dataParser() (185): Finished Program and Provo Site. 
+2014-11-15 10:44:42,029 - INFO - __main__.dataParser() (186): 
+========================================================
+
+2014-11-17 12:31:44,992 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:31:44,993 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:31:46,365 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:33:58,861 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:34:35,996 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:34:35,996 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:34:36,983 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:34:39,946 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:35:41,535 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:35:41,536 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:35:42,569 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:36:02,441 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:36:45,022 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:36:45,023 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:36:46,017 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:41:19,153 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:50:27,709 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:50:27,710 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:50:29,260 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:50:42,151 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:53:22,973 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:53:22,973 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:53:23,460 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:53:23,460 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:54:28,801 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:54:28,802 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:54:29,667 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:54:36,131 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 12:55:44,515 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 12:55:44,516 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 12:55:45,378 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 12:56:27,451 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 13:01:28,575 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 13:01:28,575 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 13:01:30,002 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 13:01:30,003 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-17 13:19:05,813 - INFO - __main__.dataParser() (266): 
+========================================================
+
+2014-11-17 13:19:05,815 - INFO - __main__.dataParser() (268): Started creating files.
+2014-11-17 13:19:07,657 - INFO - __main__.handleConnection() (29): Started getting sites for iUTAH_RedButte_OD
+2014-11-17 13:19:07,657 - INFO - __main__.handleConnection() (56): Started getting values for RB_ARBR_AA
+2014-11-18 18:24:53,349 - INFO - __main__.dataParser() (211): 
+========================================================
+
+2014-11-18 18:24:53,351 - INFO - __main__.dataParser() (213): Started creating files.
+2014-11-18 18:24:53,711 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:24:53,711 - INFO - __main__.handleConnection() (40): Started getting values for RB_ARBR_AA
+2014-11-18 18:25:21,434 - INFO - __main__.dataParser() (211): 
+========================================================
+
+2014-11-18 18:25:21,434 - INFO - __main__.dataParser() (213): Started creating files.
+2014-11-18 18:25:22,073 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:25:22,073 - INFO - __main__.handleConnection() (40): Started getting values for RB_ARBR_AA
+2014-11-18 18:25:50,415 - INFO - __main__.dataParser() (211): 
+========================================================
+
+2014-11-18 18:25:50,415 - INFO - __main__.dataParser() (213): Started creating files.
+2014-11-18 18:25:52,355 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:25:52,355 - INFO - __main__.handleConnection() (40): Started getting values for RB_ARBR_AA
+2014-11-18 18:26:20,460 - INFO - __main__.dataParser() (211): 
+========================================================
+
+2014-11-18 18:26:20,460 - INFO - __main__.dataParser() (213): Started creating files.
+2014-11-18 18:26:23,184 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:26:23,184 - INFO - __main__.handleConnection() (40): Started getting values for RB_ARBR_AA
+2014-11-18 18:27:11,841 - INFO - __main__.dataParser() (211): 
+========================================================
+
+2014-11-18 18:27:11,842 - INFO - __main__.dataParser() (213): Started creating files.
+2014-11-18 18:27:13,315 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:27:13,315 - INFO - __main__.handleConnection() (40): Started getting values for RB_ARBR_AA
+2014-11-18 18:32:37,667 - INFO - __main__.dataParser() (206): 
+========================================================
+
+2014-11-18 18:32:37,668 - INFO - __main__.dataParser() (208): Started creating files.
+2014-11-18 18:32:39,029 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-18 18:32:39,030 - INFO - __main__.handleConnection() (35): Started getting values for RB_ARBR_AA
+2014-11-19 14:46:40,713 - INFO - __main__.dataParser() (207): 
+========================================================
+
+2014-11-19 14:46:40,726 - INFO - __main__.dataParser() (209): Started creating files.
+2014-11-19 14:46:41,951 - INFO - __main__.handleConnection() (27): Started getting sites for iUTAH_RedButte_OD
+2014-11-19 14:46:41,953 - INFO - __main__.handleConnection() (35): Started getting values for RB_ARBR_AA

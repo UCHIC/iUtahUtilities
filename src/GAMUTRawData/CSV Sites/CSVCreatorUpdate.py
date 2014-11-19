@@ -1,7 +1,5 @@
 import sys
 import os
-import pyodbc
-import shutil
 import logging
 import datetime
 import pandas as pd
@@ -22,75 +20,79 @@ dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\"
 
 def handleConnection(database, location):
     #Getting the data
-    sm._current_connection= {'engine':'mssql', 'user':'webapplication' , 'password':'W3bAppl1c4t10n!', 'address':'iutahdbs.uwrl.usu.edu', 'db':database}
+    sm._current_connection={'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!', 'address': 'iutahdbs.uwrl.usu.edu', 'db': database}
     ss = sm.get_series_service()
     sites = ss.get_all_sites()
 
     logger.info("Started getting sites for " + database)
-
+    #get current year,
+    year = datetime.datetime.now().strftime('%Y')
+    #loop through each site
     for site in sites:
-        year = datetime.now().strftime('%y')
-        print year
 
-        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_2014.csv"
-        if not fileexists(file_path):
-            logger.info("Started getting values for " + site.code)
+        #generate file name
+        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
+        logger.info("Started getting values for " + site.code)
 
-            gotSourceInfo = False
-            sourceInfo = SourceInfo()
+        if fileexists(file_path):
+             #start date , colcount = call mario function
+            startdate, colcount = parseCSVData(file_path)
+
+        else:
+             #set start date to jan 1 of curr year
+            #colcount = 0
+            startdate = datetime.datetime(int(year),01,01,0,0,0)
+            colcount = 0
+        #dvs= get data at site since startdate
+        dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
+        assert len(dvs) > 0
+        df=pd.DataFrame([x.list_repr() for x in dvs], columns=dvs[0].get_columns())
+        del dvs
+        df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+        pv=pd.pivot_table(df, columns = "VariableCode", values = "DataValue")
+        #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
+        del df
+
+        # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
+        if colcount != len(pv.columns):
+            f=open(file_path,'w')
+            #generate header
+
 
             file_str = generateHeader(site, location)
             # Getting and organizing all the data
             var_data = VariableData()
             variables = ss.get_variables_by_site_code(site.code)
 
+            #var_data.addMethodInfo(x.method.description, x.method.link)
 
-            df=pd.DataFrame(ss.get_all_values_by_site_id())
-            df.pivot(index= "LocalDateTime")
-
-            #vars_to_show = getVariableCodes(site.type)
-            for var_print in variables:
-                gotMethod = False
-                var_data.addData(var_print) #method description and link?
-                var_options = ss.get_all_values_and_dates_by_site_id_and_var_id(site.id, var_print.id)
-                for x in var_options[0]:
-                    var_data.addDataValue(x)
-                    if not gotMethod:
-                        var_data.addMethodInfo(x.method.description, x.method.link)
-                        gotMethod = True
-
-                    if not gotSourceInfo:
-                        sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
-                                                 x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
-
+            sourceInfo = SourceInfo()
+            #sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
+            #                                     x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
+            #print header
             file_str += var_data.printToFile()
 
             file_str += "#\n"
             file_str += sourceInfo.outputSourceInfo()
             file_str += "#\n"
-            #only if file is empty
-            file_str += "LocalDateTime, UTCOffset, DateTimeUTC, "
 
-            for varCode in var_data.varCode:
-                file_str += varCode + ", "
+            #print data and headers to file
+            f.write("text\n\n\n")
+            pv.to_csv(f)
+            f.close()
+        else:
+        #   open file for appending
+            with open('my_csv.csv', 'a') as f:
+                #append values to CSV
+                pv.to_csv(f, header=False)
 
-
-            file_str = file_str[:-2] + "\n"
-
-            outputValues(ss, var_data, site, file_str, dump_location)
-
-            #if file is not empty then get the latest value only (make another function)
-
-
-
-
-            logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
-            del gotSourceInfo
-            del sourceInfo
-            del variables
-            del var_data
-            del file_str
-           # del text_file
+        #if file is not empty then get the latest value only (make another function)
+        logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+        del sourceInfo
+        del variables
+        del var_data
+        del file_str
+       # del text_file
 
 
 def fileexists(file_path):
@@ -187,18 +189,14 @@ def getLastLine(targetFile):
 
 def getDateAndNumCols(lastLine):
     strList = lastLine.split(",")
-    dateTime = datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
+    dateTime = datetime.datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
     count = 0
     for value in strList:
         isValueCorrect = strList.index(value) > 2 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
         if isValueCorrect:
             count += 1
-    return ReturnValue(dateTime, count)
+    return dateTime, count
 
-class ReturnValue:
-    def __init__(self, dateTime, noOfVars):
-        self.localDateTime = dateTime
-        self.numCols = noOfVars
 
 # Test case for parseCSVData and related functions
 #dateAndColsObj = parseCSVData("C:\\iUTAH_GAMUT_PR_BD_C_RawData_2013.csv")
@@ -221,25 +219,6 @@ def dataParser():
     logger.info("\n========================================================\n")
 
 
-    #TODO:loop through each site
-    #get current year,
-    #generate file name
-
-    #if file exists
-        #start date , colcount = call mario function
-        #
-    #if file not exists:
-        #set start date to jan 1 of curr year
-        #colcount = 0
-    #dvs= get data at site since startdate
-    #dvs
-    # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
-        #generate header
-        #print header
-        #dvs.to_csv(include headers)
-    #else
-    #   #open file for appending
-        #dvs.to_csv(no header)
 
 
 

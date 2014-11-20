@@ -27,71 +27,88 @@ def handleConnection(database, location):
     logger.info("Started getting sites for " + database)
     #get current year,
     year = datetime.datetime.now().strftime('%Y')
+
     #loop through each site
     for site in sites:
+
+
 
         #generate file name
         file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
         logger.info("Started getting values for " + site.code)
-
+        variables = ss.get_variables_by_site_code(site.code)
+        numvar= len(variables)
         if fileexists(file_path):
              #start date , colcount = call mario function
             startdate, colcount = parseCSVData(file_path)
 
-        else:
+        if not fileexists(file_path) or colcount != numvar :
              #set start date to jan 1 of curr year
             #colcount = 0
             startdate = datetime.datetime(int(year),01,01,0,0,0)
             colcount = 0
+
+
+            #this line is just for testing, to shorten the amount of test data
+            startdate = datetime.datetime(int(year),11,18,0,0,0)
         #dvs= get data at site since startdate
+
+
+
         dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
-        assert len(dvs) > 0
-        df=pd.DataFrame([x.list_repr() for x in dvs], columns=dvs[0].get_columns())
-        del dvs
-        df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
-        pv=pd.pivot_table(df, columns = "VariableCode", values = "DataValue")
-        #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-        del df
+        if len(dvs) > 0:
+            df=pd.DataFrame([x.list_repr() for x in dvs], columns=dvs[0].get_columns())
+            s=df.levels["SourceID"]
+            m=df.levels["MethodID"]
+            del dvs
+            df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+            pv=pd.pivot_table(df, index = "LocalDateTime", columns = "VariableCode", values = "DataValue")
+            #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
+            del df
 
-        # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
-        if colcount != len(pv.columns):
-            f=open(file_path,'w')
-            #generate header
+            # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
+            if colcount != len(pv.columns):
+                f=open(file_path,'w')
+                #generate header
 
 
-            file_str = generateHeader(site, location)
-            # Getting and organizing all the data
-            var_data = VariableData()
-            variables = ss.get_variables_by_site_code(site.code)
+                file_str = generateHeader(site, location)
+                # Getting and organizing all the data
+                var_data = VariableData()
 
-            #var_data.addMethodInfo(x.method.description, x.method.link)
 
-            sourceInfo = SourceInfo()
-            #sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
-            #                                     x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
-            #print header
-            file_str += var_data.printToFile()
+                #var_data.addMethodInfo(x.method.description, x.method.link)
 
-            file_str += "#\n"
-            file_str += sourceInfo.outputSourceInfo()
-            file_str += "#\n"
+                sourceInfo = SourceInfo()
+                #sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
+                #                                     x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
+                #print header
+                file_str += var_data.printToFile()
 
-            #print data and headers to file
-            f.write("text\n\n\n")
-            pv.to_csv(f)
-            f.close()
+                file_str += "#\n"
+                file_str += sourceInfo.outputSourceInfo()
+                file_str += "#\n"
+
+                #print data and headers to file
+                f.write("text\n\n\n")
+                pv.to_csv(f)
+                f.close()
+                logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+            else:
+            #   open file for appending
+                with open(file_path, 'a') as f:
+                    #append values to CSV
+                    pv.to_csv(f, header=False)
+                logger.info("Finished updating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+
+            #if file is not empty then get the latest value only (make another function)
+            del file_str
+            del sourceInfo
+            del variables
+            del var_data
         else:
-        #   open file for appending
-            with open('my_csv.csv', 'a') as f:
-                #append values to CSV
-                pv.to_csv(f, header=False)
+            del dvs
 
-        #if file is not empty then get the latest value only (make another function)
-        logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
-        del sourceInfo
-        del variables
-        del var_data
-        del file_str
        # del text_file
 
 
@@ -189,12 +206,15 @@ def getLastLine(targetFile):
 
 def getDateAndNumCols(lastLine):
     strList = lastLine.split(",")
-    dateTime = datetime.datetime.strptime(strList[0], '%Y-%m-%d %H:%M:%S')
+    dateTime = datetime.datetime.strptime(strList.pop(0), '%Y-%m-%d %H:%M:%S')
+    '''
     count = 0
     for value in strList:
-        isValueCorrect = strList.index(value) > 2 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
+        isValueCorrect = strList.index(value) > 0 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
         if isValueCorrect:
             count += 1
+    '''
+    count = len (strList)
     return dateTime, count
 
 

@@ -31,13 +31,11 @@ def handleConnection(database, location):
     #loop through each site
     for site in sites:
 
-
-
         #generate file name
         file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
         logger.info("Started getting values for " + site.code)
-        variables = ss.get_variables_by_site_code(site.code)
-        numvar= len(variables)
+        series = ss.get_series_by_site_code(site.code)
+        numvar= len(series)
         if fileexists(file_path):
              #start date , colcount = call mario function
             startdate, colcount = parseCSVData(file_path)
@@ -50,24 +48,20 @@ def handleConnection(database, location):
 
 
             #this line is just for testing, to shorten the amount of test data
-            startdate = datetime.datetime(int(year),11,18,0,0,0)
+            #startdate = datetime.datetime(int(year),11,18,0,0,0)
+
         #dvs= get data at site since startdate
-
-
-
         dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
         if len(dvs) > 0:
             df=pd.DataFrame([x.list_repr() for x in dvs], columns=dvs[0].get_columns())
-            s=df.levels["SourceID"]
-            m=df.levels["MethodID"]
             del dvs
-            df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
-            pv=pd.pivot_table(df, index = "LocalDateTime", columns = "VariableCode", values = "DataValue")
+            #df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+            df=pd.pivot_table(df, index= ["LocalDateTime", "UTCOffset","DateTimeUTC"], columns = "VariableCode", values = "DataValue")
             #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-            del df
+
 
             # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
-            if colcount != len(pv.columns):
+            if colcount != len(df.columns):
                 f=open(file_path,'w')
                 #generate header
 
@@ -76,12 +70,14 @@ def handleConnection(database, location):
                 # Getting and organizing all the data
                 var_data = VariableData()
 
+                for s in series:
+                    var_data.addData(s.variable)
+                    var_data.addMethodInfo(s.method.description, s.method.link)
 
-                #var_data.addMethodInfo(x.method.description, x.method.link)
-
+                source= series[0].source
                 sourceInfo = SourceInfo()
-                #sourceInfo.setSourceInfo(x.source.organization, x.source.description, x.source.link,
-                #                                     x.source.contact_name, x.source.phone, x.source.email, x.source.citation)
+                sourceInfo.setSourceInfo(source.organization, source.description, source.link,
+                                                     source.contact_name, source.phone, source.email, source.citation)
                 #print header
                 file_str += var_data.printToFile()
 
@@ -90,22 +86,26 @@ def handleConnection(database, location):
                 file_str += "#\n"
 
                 #print data and headers to file
-                f.write("text\n\n\n")
-                pv.to_csv(f)
+                #f.write("text\n\n\n")
+                f.write(file_str)
+                del file_str
+                del sourceInfo
+                del source
+                del series
+                del var_data
+                df.to_csv(f)
                 f.close()
                 logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
             else:
             #   open file for appending
                 with open(file_path, 'a') as f:
                     #append values to CSV
-                    pv.to_csv(f, header=False)
+                    df.to_csv(f, header=False)
                 logger.info("Finished updating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
 
             #if file is not empty then get the latest value only (make another function)
-            del file_str
-            del sourceInfo
-            del variables
-            del var_data
+
+
         else:
             del dvs
 
@@ -227,10 +227,10 @@ def dataParser():
     logger.info("\n========================================================\n")
     #logan database is loaded here
     logger.info("Started creating files.")
-    #handleConnection('iUTAH_Logan_OD', 'Logan')
+    handleConnection('iUTAH_Logan_OD', 'Logan')
 
     #provo database is loaded here
-    #handleConnection('iUTAH_Provo_OD', 'Provo')
+    handleConnection('iUTAH_Provo_OD', 'Provo')
 
     #red butte creek database is loaded here
     handleConnection('iUTAH_RedButte_OD', 'RedButte')

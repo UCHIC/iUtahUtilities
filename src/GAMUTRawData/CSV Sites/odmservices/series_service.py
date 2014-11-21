@@ -3,7 +3,7 @@ from datetime import date
 
 
 from odmdata import SessionFactory,Site,Variable, Unit, Series, DataValue, \
-    Qualifier, OffsetType,Sample, Method, QualityControlLevel, ODMVersion
+    Qualifier, OffsetType,Sample, Method, QualityControlLevel, ODMVersion, Source
 
 import logging
 from logger import LoggerTool
@@ -106,6 +106,12 @@ class SeriesService():
         except:
             return None
 
+    def get_series_by_site_code(self, site_code):
+        try:
+            return self._edit_session.query(Series).filter_by(site_code=site_code, quality_control_level_id = 0).all()
+        except Exception as ex:
+            return None
+
     def get_series_by_id_quint(self, site_id, var_id, method_id, source_id, qcl_id):
         try:
             return self._edit_session.query(Series).filter_by(
@@ -202,7 +208,7 @@ class SeriesService():
             return []
     def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
         try:
-            array = self._edit_session.query(DataValue).filter(DataValue.site_id==my_site_id, DataValue.local_date_time >= local_date_time).all()
+            array = self._edit_session.query(DataValue).filter(DataValue.site_id==my_site_id, DataValue.local_date_time > local_date_time).all()
             return array
         except:
             return []
@@ -250,6 +256,14 @@ class SeriesService():
     def get_method_by_description(self, method_code):
         try:
             result = self._edit_session.query(Method).filter_by(description=method_code).one()
+        except:
+            result = None
+        return result
+
+    #Soruce Methods
+    def get_source_by_id(self, source_id):
+        try:
+            result = self._edit_session.query(Source).filter_by(id=source_id).one()
         except:
             result = None
         return result

@@ -80,7 +80,7 @@ def create_resource(url, **kwargs):  # phase 3
     print("Resource was added.")
     #print response.content
 
-
+#TODO copy the creation of resource_info
 def upload(resource_info=None):
     global headers
     headers = {"Authorization": params['CKAN_APIKEY']}

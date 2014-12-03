@@ -110,6 +110,13 @@ class SeriesService():
         except Exception as ex:
             return None
 
+    def get_series_by_site_code_year(self, site_code, year):
+        try:
+            return self._edit_session.query(Series).filter_by(site_code=site_code, quality_control_level_id = 0).\
+                filter(Series.end_date_time.between(year+'-01-01', year+'-12-31')).all()
+        except Exception as ex:
+            return None
+
     def get_series_by_id_quint(self, site_id, var_id, method_id, source_id, qcl_id):
         try:
             return self._edit_session.query(Series).filter_by(

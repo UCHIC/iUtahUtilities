@@ -18,7 +18,7 @@ logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
 
 sm = ServiceManager()
 
-
+issues = []
 
 def handleConnection(database, location, dump_location):
     #Getting the data
@@ -29,15 +29,16 @@ def handleConnection(database, location, dump_location):
     logger.info("Started getting sites for " + database)
     #get current year,
     year = datetime.datetime.now().strftime('%Y')
-
+    dump_location = dump_location +year+"\\"
     #loop through each site
     for site in sites:
 
         #generate file name
         file_name =  "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
+
         file_path = dump_location + file_name
         #logger.info("Started getting values for " + site.code)
-        series = ss.get_series_by_site_code(site.code)
+        series = ss.get_series_by_site_code_year(site.code, year)
         numvar= len(series)
         colcount = 0
         if fileexists(file_path):
@@ -52,7 +53,9 @@ def handleConnection(database, location, dump_location):
             startdate = datetime.datetime(int(year),01,01,0,0,0)
             colcount = 0
         elif colcount<numvar:
+            msg = "File Incorrect: " + file_name + " variables removed"
             logger.info("File Incorrect: " + file_name + " variables removed")
+            issues.append(msg)
 
 
 
@@ -250,6 +253,7 @@ def dataParser( dump_loc):
 
     logger.info("Finished Program. ")
     logger.info("\n========================================================\n")
+    return issues
 
 
 

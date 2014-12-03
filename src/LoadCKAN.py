@@ -38,19 +38,23 @@ Example:
 >python iutah_ckan_client.py 'update_resource' 'db567980cgt8906745678' 'my-original-dataset' 'c:\\odm_site_1_2014.csv' 'odm_site_1_2014.csv'
 '''
 issue_list=[]
-curr_year = datetime.datetime.now().strftime('%Y')
-dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\Srfiles\\"
-#cr.dataParser(dump_loc = dump_location)
+NOW = datetime.datetime.now()
+curr_year = NOW.strftime('%Y')
+dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\"
+
+#update all of the files
+cr.dataParser(dump_loc = dump_location)
 
 
 for f in os.listdir(dump_location):
 
     group= f.split("_")
     site_code = group[2]+"_"+group[3]+"_"+group[4]
-    api_key = "516ca1ebf399411f9ba949310de285f3"
-    package_name = "iutah-gamut-network-raw-data-at-" + site_code.lower().replace('_', '-')
-    file_to_upload =dump_location+ f#"iUTAH_GAMUT_"+site_code+"_RawData_"+curr_year+".csv"
+    regex = "(?<=GAMUT_).*(?=_RawData)"
 
+    api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"#"516ca1ebf399411f9ba949310de285f3"
+    package_name = "iutah-gamut-network-raw-data-at-" + site_code.lower().replace('_', '-')
+    file_to_upload = dump_location+ f #"iUTAH_GAMUT_"+site_code+"_RawData_"+curr_year+".csv"
     replace_file_name = f
 
 
@@ -61,10 +65,10 @@ for f in os.listdir(dump_location):
         params['CKAN_APIKEY'] = api_key
         params['FILENAME'] = os.path.basename(file_to_upload)
 
-        params['NOW'] = datetime.datetime.now().isoformat()
+        params['NOW'] = NOW.isoformat()
         params['DIRECTORY'] = params['NOW'].replace(":", "").replace("-", "")
         resource_info = {
-            "package_id": params['PACKAGE_ID'],
+            "package_id": package_name,
             "revision_id": params['NOW'],
             "description": "Raw Data for Calendar year "+ curr_year,
             "format": "CSV",

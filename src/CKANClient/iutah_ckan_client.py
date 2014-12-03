@@ -144,12 +144,15 @@ def _get_resource_to_delete(resource_file_name_to_delete):
     pkg_resources = json.loads(response.content)['result']['resources']
 
     res_to_delete = None
-    for res in pkg_resources:
-        print res['url']
-        file_name = res['url'].split('/')[-1]
-        if file_name == resource_file_name_to_delete:
-            res_to_delete = res
-            return res_to_delete
+    try:
+        for res in pkg_resources:
+            print res['url']
+            file_name = res['url'].split('/')[-1]
+            if file_name == resource_file_name_to_delete.replace("_", "-"):
+                res_to_delete = res
+                return res_to_delete
+    except Exception as e:
+        print "caught an exception "+ e
 
     return res_to_delete
 

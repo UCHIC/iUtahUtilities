@@ -18,9 +18,9 @@ logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
 
 sm = ServiceManager()
 
-dump_location = ""
 
-def handleConnection(database, location):
+
+def handleConnection(database, location, dump_location):
     #Getting the data
     sm._current_connection={'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!', 'address': 'iutahdbs.uwrl.usu.edu', 'db': database}
     ss = sm.get_series_service()
@@ -34,21 +34,26 @@ def handleConnection(database, location):
     for site in sites:
 
         #generate file name
-        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
-        logger.info("Started getting values for " + site.code)
+        file_name =  "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
+        file_path = dump_location + file_name
+        #logger.info("Started getting values for " + site.code)
         series = ss.get_series_by_site_code(site.code)
         numvar= len(series)
+        colcount = 0
         if fileexists(file_path):
              #start date , colcount = call mario function
-            logger.info("Updating file " + file_path)
+            logger.info("Updating file " + file_name)
             startdate, colcount = parseCSVData(file_path)
 
-        if not fileexists(file_path) or colcount != numvar :
+        if not fileexists(file_path) or colcount > numvar :
              #set start date to jan 1 of curr year
             #colcount = 0
-            logger.info("Creating a new file " + file_path)
+            logger.info("Creating a new file " + file_name)
             startdate = datetime.datetime(int(year),01,01,0,0,0)
             colcount = 0
+        elif colcount<numvar:
+            logger.info("File Incorrect: " + file_name + " variables removed")
+
 
 
             #this line is just for testing, to shorten the amount of test data
@@ -231,19 +236,19 @@ def getDateAndNumCols(lastLine):
 #print dateAndColsObj.numCols
 
 def dataParser( dump_loc):
-    dump_location=dump_loc
+
     logger.info("\n========================================================\n")
     #logan database is loaded here
     logger.info("Started creating files.")
-    handleConnection('iUTAH_Logan_OD', 'Logan')
+    handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc)
 
     #provo database is loaded here
-    handleConnection('iUTAH_Provo_OD', 'Provo')
+    handleConnection('iUTAH_Provo_OD', 'Provo', dump_loc)
 
     #red butte creek database is loaded here
-    handleConnection('iUTAH_RedButte_OD', 'RedButte')
+    handleConnection('iUTAH_RedButte_OD', 'RedButte', dump_loc)
 
-    logger.info("Finished Program and Provo Site. ")
+    logger.info("Finished Program. ")
     logger.info("\n========================================================\n")
 
 
@@ -364,4 +369,8 @@ class VariableData:
         return formatted 
             
                     
+'''
 
+#update all of the files
+dataParser(dump_loc = "C:\\Users\\Stephanie\\Desktop\\csvsites\\Srfiles\\")
+'''

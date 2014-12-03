@@ -19,7 +19,7 @@ class LoggerTool():
         #formatter = logging.Formatter('%(asctime)s : %(message)s')
         formatter = logging.Formatter(self.formatString)
 
-        logPath = "D:\\DEV\\iUtah\\iUtahUtilities\\src\\GAMUTRawData\\log"
+        logPath = "D:\\DEV\\iUtah\\iUtahUtilities\\src\\GAMUTRawData\\log\\"
         if not os.path.exists(logPath):
             os.mkdir(logPath, 0755)
         fileHandler = logging.FileHandler(logPath + logFile, mode=m)

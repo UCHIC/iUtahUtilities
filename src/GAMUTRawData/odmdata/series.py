@@ -92,7 +92,7 @@ class Series(Base):
 
 	# TODO add all to repr
 	def __repr__(self):
-		return "<Series('%s', '%s', '%s', '%s')>" % (self.id, self.site_code, self.variable_code, self.quality_control_level_code )
+		return "<Series(%s, %s, %s, %s, %s-%s)>" % (self.id, self.site_code, self.variable_code, self.quality_control_level_code, self.begin_date_time, self.end_date_time )
 
 	def get_table_columns(self):
 		return self.__table__.columns.keys()

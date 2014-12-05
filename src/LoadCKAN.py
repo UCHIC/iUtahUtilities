@@ -2,30 +2,42 @@ import CKANClient.iutah_ckan_client  as cc
 import GAMUTRawData.CSVCreatorUpdate as cr
 import datetime
 import os
+import sys
+import logging
+
+this_file = os.path.realpath(__file__)
+directory = os.path.dirname(os.path.dirname(this_file))
+
+sys.path.insert(0, directory)
+from GAMUTRawData.logger import LoggerTool
+
+tool = LoggerTool()
+logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
+
 
 import smtplib
 def sendEmail(message, to):
-    SERVER = "localhost"
+    SERVER = "mail.usu.edu"
 
-    FROM = "sender@example.com"
+    FROM = "sample@test.exe"
     TO = [to] # must be a list
 
-    SUBJECT = "Hello!"
+    SUBJECT = "CSV Generator Errors"
 
-    TEXT = "This message was sent with Python's smtplib." +message
+    TEXT = "CSV generater had the following issues when it was run at "+ datetime.datetime.now().strftime('%Y-%m-%d %H') \
+           +"\n\n\n\n" +message
 
     # Prepare actual message
 
-    message = """\
-    From: %s
-    To: %s
-    Subject: %s
 
-    %s
-    """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
+    message ="From: %s\
+    To: %s\
+    Subject: %s\
+    %s\
+    " % (FROM, ", ".join(TO), SUBJECT, TEXT)
 
     # Send the mail
-
+    #server = smtplib.SMTP('localhost')
     server = smtplib.SMTP(SERVER)
     server.sendmail(FROM, TO, message)
     server.quit()
@@ -40,11 +52,13 @@ Example:
 issue_list=[]
 NOW = datetime.datetime.now()
 curr_year = NOW.strftime('%Y')
-dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\"
+dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\%s\\" % curr_year
+
 
 #update all of the files
 try:
-    issues = cr.dataParser(dump_loc = dump_location)
+   # issues = cr.dataParser(dump_loc = dump_location)
+    issues = "this is a test"
     issue_list.append(issues)
 except Exception as e:
     issue_list.append(e)
@@ -89,15 +103,17 @@ for f in os.listdir(dump_location):
                 # "cache_last_updated": None,
                 # "webstore_last_updated": None,
                 }
-
+        logger.info("Replacing file %s on ckan repository"% f)
         cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
     except Exception as e:
+        logger.error("issue : %s"% e)
         issue_list.append(e)
 
 if len(issue_list)>0:
-    m = "CSV generater had the following issues when it was run at "+ datetime.datetime.now().strftime('%Y-%m-%d %H') +"\n"
+    logger.info("Sending email with %s issues"% str(len(issue_list)))
+    m = ""
     for i in issue_list:
-        m = +  i + '\n'
+        m =  str(i) + '\n'
     sendEmail(m, "stephanie.reeder@usu.edu")
     pass
     #send email

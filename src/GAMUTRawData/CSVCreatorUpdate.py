@@ -29,7 +29,7 @@ def handleConnection(database, location, dump_location):
     logger.info("Started getting sites for " + database)
     #get current year,
     year = datetime.datetime.now().strftime('%Y')
-    dump_location = dump_location +year+"\\"
+
     #loop through each site
     for site in sites:
 
@@ -54,8 +54,10 @@ def handleConnection(database, location, dump_location):
             colcount = 0
         elif colcount<numvar:
             msg = "File Incorrect: " + file_name + " variables removed"
-            logger.info("File Incorrect: " + file_name + " variables removed")
+            logger.info(msg)
             issues.append(msg)
+
+
 
 
 
@@ -71,14 +73,15 @@ def handleConnection(database, location, dump_location):
             #df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
             df=pd.pivot_table(df, index= ["LocalDateTime", "UTCOffset","DateTimeUTC"], columns = "VariableCode", values = "DataValue")
             #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
+            collist = df.columns
 
 
-            # if colcount not equal to dvs.colcount ( will match if there is new file or the number of vars have changed)
-            if colcount != len(df.columns):
+            # if colcount not equal to dvs.colcount  colcount number of columns in the file
+            #collist number of columns from the database
+            # ( will match if there is new file or the number of vars have changed)
+            if colcount != len(collist):
                 f=open(file_path,'w')
                 #generate header
-
-
                 file_str = generateHeader(site, location)
                 # Getting and organizing all the data
                 var_data = VariableData()
@@ -108,13 +111,13 @@ def handleConnection(database, location, dump_location):
                 del var_data
                 df.to_csv(f)
                 f.close()
-                logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+                logger.info("Finished creating " + file_name + " CSV file. ")
             else:
             #   open file for appending
                 with open(file_path, 'a') as f:
                     #append values to CSV
                     df.to_csv(f, header=False)
-                logger.info("Finished updating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+                logger.info("Finished updating " +file_name + " CSV file. ")
 
             #if file is not empty then get the latest value only (make another function)
 

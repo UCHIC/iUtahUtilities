@@ -52,7 +52,8 @@ Example:
 issue_list=[]
 NOW = datetime.datetime.now()
 curr_year = NOW.strftime('%Y')
-dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\%s\\" % curr_year
+
+dump_location = "C:\\GAMUT_CSV_Files\\%s\\" % curr_year
 
 
 #update all of the files

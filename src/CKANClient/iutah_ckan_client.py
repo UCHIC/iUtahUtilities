@@ -27,6 +27,7 @@ def raise_for_status(response):
         print "FAILED RFS: %r" % response.content
         raise
 
+
 def get_parameters(api_key, filepath=None):
     params = {}
     params['CKAN_INSTANCE'] = CKAN_REMOTE_INSTANCE_BASE_URL
@@ -120,10 +121,22 @@ def delete_resource(id_of_resource_to_delete):
     print("Resource deleted for replacement.")
     #print (response.content)
 
+def get_package_list(api_key):
+    try:
+        headers = {'X-CKAN-API-Key': api_key, 'Content-Type': 'application/json'}
+        response = requests.post('{CKAN_INSTANCE}/api/action/package_list'.format(CKAN_INSTANCE=CKAN_REMOTE_INSTANCE_BASE_URL), headers=headers)
+        response.raise_for_status()
+        pkg = json.loads(response.content)['result']
+        return pkg
+    except Exception as e:
+        print "FAILED getting Package list: %r. \n%s" % (response.content, e)
+        raise
 
 def _get_package_id_from_name(package_name):
     headers = {'X-CKAN-API-Key': params['CKAN_APIKEY'], 'Content-Type': 'application/json'}
     data = {'id': package_name}
+    url = '{CKAN_INSTANCE}/api/action/package_show'.format(**params)
+    print url
     response = requests.post('{CKAN_INSTANCE}/api/action/package_show'.format(**params),
               data=json.dumps(data).encode('ascii'), headers=headers)
 
@@ -148,7 +161,7 @@ def _get_resource_to_delete(resource_file_name_to_delete):
         for res in pkg_resources:
             print res['url']
             file_name = res['url'].split('/')[-1]
-            if file_name == resource_file_name_to_delete.replace("_", "-"):
+            if file_name.replace("_", "-").lower() == resource_file_name_to_delete.replace("_", "-").lower():
                 res_to_delete = res
                 return res_to_delete
     except Exception as e:

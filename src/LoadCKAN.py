@@ -5,6 +5,7 @@ import os
 import sys
 import logging
 
+
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
 
@@ -13,6 +14,8 @@ from GAMUTRawData.logger import LoggerTool
 
 tool = LoggerTool()
 logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
+
+
 
 
 import smtplib
@@ -58,25 +61,31 @@ dump_location = "C:\\GAMUT_CSV_Files\\%s\\" % curr_year
 
 #update all of the files
 try:
-   # issues = cr.dataParser(dump_loc = dump_location)
-    issues = "this is a test"
+    issues = cr.dataParser(dump_loc = dump_location)
+    #issues = "this is a test"
     issue_list.append(issues)
 except Exception as e:
     issue_list.append(e)
 
 
+
+api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"#"516ca1ebf399411f9ba949310de285f3"
+res = cc.get_package_list(api_key)
+
 for f in os.listdir(dump_location):
     try:
+        package_name = ""
         group= f.split("_")
         site_code = group[2]+"_"+group[3]+"_"+group[4]
-        regex = "(?<=GAMUT_).*(?=_RawData)"
+        #regex = "(?<=GAMUT_).*(?=_RawData)"
+        for r in res:
+            if site_code.lower().replace('_', '-') in r :
+                package_name = r #res.pop(r)
+                break
 
-        api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"#"516ca1ebf399411f9ba949310de285f3"
-        package_name = "iutah-gamut-network-raw-data-at-" + site_code.lower().replace('_', '-')
+        #package_name = "iutah-gamut-network-raw-data-at-" + site_code.lower().replace('_', '-')
         file_to_upload = dump_location+ f #"iUTAH_GAMUT_"+site_code+"_RawData_"+curr_year+".csv"
         replace_file_name = f
-
-
 
         resource_info = None
         if False: #TODO if this is jan 1 of a new year

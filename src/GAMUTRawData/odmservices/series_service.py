@@ -2,9 +2,9 @@ import logging
 
 from sqlalchemy import distinct, desc
 
-from ..odmdata import SessionFactory,Site,Variable, Unit, Series, DataValue, \
+from GAMUTRawData.odmdata import SessionFactory,Site,Variable, Unit, Series, DataValue, \
     Qualifier, OffsetType,Sample, Method, QualityControlLevel, ODMVersion, Source
-from ..logger import LoggerTool
+from GAMUTRawData.logger import LoggerTool
 
 tool = LoggerTool()
 logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)

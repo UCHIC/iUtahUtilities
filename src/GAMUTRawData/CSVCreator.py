@@ -1,6 +1,7 @@
 import sys
 import os
 import logging
+import datetime
 
 
 this_file = os.path.realpath(__file__)
@@ -16,7 +17,7 @@ logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
 sm = ServiceManager()
 
 dump_location = "C:\\Users\\Stephanie\\Desktop\\csvsites\\"
-
+year = datetime.datetime.now().strftime('%Y')
 def handleConnection(database, location):
     #Getting the data
     sm._current_connection= {'engine':'mssql', 'user':'webapplication' , 'password':'W3bAppl1c4t10n!', 'address':'iutahdbs.uwrl.usu.edu', 'db':database}
@@ -27,7 +28,7 @@ def handleConnection(database, location):
 
     for site in sites:
 
-        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_2014.csv"
+        file_path = dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
         if not fileexists(file_path):
             logger.info("Started getting values for " + site.code)
 
@@ -79,7 +80,7 @@ def handleConnection(database, location):
 
 
 
-            logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_(insertYear)" + " CSV file. ")
+            logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+year+")" + " CSV file. ")
             del gotSourceInfo
             del sourceInfo
             del variables
@@ -171,11 +172,13 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
 def dataParser():
     logger.info("\n========================================================\n")
     #logan database is loaded here
+    '''
     logger.info("Started creating files.")
     handleConnection('iUTAH_Logan_OD', 'Logan')
 
     #provo database is loaded here
     handleConnection('iUTAH_Provo_OD', 'Provo')
+    '''
 
     #red butte creek database is loaded here
     handleConnection('iUTAH_RedButte_OD', 'RedButte')

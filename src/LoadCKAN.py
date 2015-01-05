@@ -116,7 +116,7 @@ for f in os.listdir(dump_location):
         logger.info("Replacing file %s on ckan repository"% f)
         cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
     except Exception as e:
-        logger.error("issue : %s"% e)
+        logger.error("issue : %s, file: %s"% (e, f))
         issue_list.append(e)
 
 if len(issue_list)>0:

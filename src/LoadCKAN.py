@@ -54,14 +54,14 @@ Example:
 '''
 issue_list=[]
 NOW = datetime.datetime.now()
-curr_year = NOW.strftime('%Y')
-
+#curr_year = NOW.strftime('%Y')
+curr_year="2014"
 dump_location = "C:\\GAMUT_CSV_Files\\%s\\" % curr_year
 
 
 #update all of the files
 try:
-    issues = cr.dataParser(dump_loc = dump_location)
+    issues = cr.dataParser(dump_loc = dump_location, year = curr_year)
     #issues = "this is a test"
     issue_list.append(issues)
 except Exception as e:

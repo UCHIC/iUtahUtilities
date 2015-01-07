@@ -20,7 +20,8 @@ sm = ServiceManager()
 
 issues = []
 
-def handleConnection(database, location, dump_location):
+def handleConnection(database, location, dump_location, year):
+    issue_list = []
     #Getting the data
     sm._current_connection={'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!', 'address': 'iutahdbs.uwrl.usu.edu', 'db': database}
     ss = sm.get_series_service()
@@ -28,104 +29,110 @@ def handleConnection(database, location, dump_location):
 
     logger.info("Started getting sites for " + database)
     #get current year,
-    year = datetime.datetime.now().strftime('%Y')
+    #year = datetime.datetime.now().strftime('%Y')
 
     #loop through each site
     for site in sites:
+        try:
+            #generate file name
+            file_name =  "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
 
-        #generate file name
-        file_name =  "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
-
-        file_path = dump_location + file_name
-        #logger.info("Started getting values for " + site.code)
-        series = ss.get_series_by_site_code_year(site.code, year)
-        numvar= len(series)
-        colcount = 0
-        if fileexists(file_path):
-             #start date , colcount = call mario function
-            logger.info("Updating file " + file_name)
-            startdate, colcount = parseCSVData(file_path)
-
-        if not fileexists(file_path) or colcount > numvar :
-             #set start date to jan 1 of curr year
-            #colcount = 0
-            logger.info("Creating a new file " + file_name)
-            startdate = datetime.datetime(int(year),01,01,0,0,0)
+            file_path = dump_location + file_name
+            #logger.info("Started getting values for " + site.code)
+            series = ss.get_series_by_site_code_year(site.code, year)
+            numvar= len(series)
             colcount = 0
-        elif colcount<numvar:
-            msg = "File Incorrect: " + file_name + " variables removed"
-            logger.info(msg)
-            issues.append(msg)
+            if fileexists(file_path):
+                 #start date , colcount = call mario function
+                logger.info("Updating file " + file_name)
+                startdate, colcount = parseCSVData(file_path)
+
+            if not fileexists(file_path) or colcount > numvar :
+                 #set start date to jan 1 of curr year
+                #colcount = 0
+                logger.info("Creating a new file " + file_name)
+                startdate = datetime.datetime(int(year),01,01,0,0,0)
+                colcount = 0
+            elif colcount<numvar:
+                msg = "File Incorrect: " + file_name + " variables removed"
+                logger.info(msg)
+                issues.append(msg)
 
 
 
 
 
-            #this line is just for testing, to shorten the amount of test data
-            #startdate = datetime.datetime(int(year),11,18,0,0,0)
+                #this line is just for testing, to shorten the amount of test data
+                #startdate = datetime.datetime(int(year),11,18,0,0,0)
 
-        #dvs= get data at site since startdate
-        dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
-        if len(dvs) > 0:
-            df=pd.DataFrame([x.list_repr() for x
-                             in dvs], columns=dvs[0].get_columns())
-            del dvs
-            #df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
-            df=pd.pivot_table(df, index= ["LocalDateTime", "UTCOffset","DateTimeUTC"], columns = "VariableCode", values = "DataValue")
-            #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-            collist = df.columns
+            #dvs= get data at site since startdate
+            dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
+            if len(dvs) > 0:
+                df=pd.DataFrame([x.list_repr() for x
+                                 in dvs], columns=dvs[0].get_columns())
+                del dvs
+                #df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+                df=pd.pivot_table(df, index= ["LocalDateTime", "UTCOffset","DateTimeUTC"], columns = "VariableCode", values = "DataValue")
+                #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
+                collist = df.columns
 
 
-            # if colcount not equal to dvs.colcount  colcount number of columns in the file
-            #collist number of columns from the database
-            # ( will match if there is new file or the number of vars have changed)
-            if colcount != len(collist):
-                f=open(file_path,'w')
-                #generate header
-                file_str = generateHeader(site, location)
-                # Getting and organizing all the data
-                var_data = VariableData()
+                # if colcount not equal to dvs.colcount  colcount number of columns in the file
+                #collist number of columns from the database
+                # ( will match if there is new file or the number of vars have changed)
+                if colcount != len(collist):
+                    f=open(file_path,'w')
+                    #generate header
+                    file_str = generateHeader(site, location)
+                    # Getting and organizing all the data
+                    var_data = VariableData()
 
-                for s in series:
-                    var_data.addData(s.variable)
-                    var_data.addMethodInfo(s.method.description, s.method.link)
+                    for s in series:
+                        var_data.addData(s.variable)
+                        var_data.addMethodInfo(s.method.description, s.method.link)
 
-                source= series[0].source
-                sourceInfo = SourceInfo()
-                sourceInfo.setSourceInfo(source.organization, source.description, source.link,
-                                                     source.contact_name, source.phone, source.email, source.citation)
-                #print header
-                file_str += var_data.printToFile()
+                    source= series[0].source
+                    sourceInfo = SourceInfo()
+                    sourceInfo.setSourceInfo(source.organization, source.description, source.link,
+                                                         source.contact_name, source.phone, source.email, source.citation)
+                    #print header
+                    file_str += var_data.printToFile()
 
-                file_str += "#\n"
-                file_str += sourceInfo.outputSourceInfo()
-                file_str += "#\n"
+                    file_str += "#\n"
+                    file_str += sourceInfo.outputSourceInfo()
+                    file_str += "#\n"
 
-                #print data and headers to file
-                #f.write("text\n\n\n")
-                f.write(file_str)
-                del file_str
-                del sourceInfo
-                del source
-                del series
-                del var_data
-                df.to_csv(f)
-                f.close()
-                logger.info("Finished creating " + file_name + " CSV file. ")
+                    #print data and headers to file
+                    #f.write("text\n\n\n")
+                    f.write(file_str)
+                    del file_str
+                    del sourceInfo
+                    del source
+                    del series
+                    del var_data
+                    df.to_csv(f)
+                    f.close()
+                    logger.info("Finished creating " + file_name + " CSV file. ")
+                else:
+                #   open file for appending
+                    with open(file_path, 'a') as f:
+                        #append values to CSV
+                        df.to_csv(f, header=False)
+                    logger.info("Finished updating " +file_name + " CSV file. ")
+
+                #if file is not empty then get the latest value only (make another function)
+
+
             else:
-            #   open file for appending
-                with open(file_path, 'a') as f:
-                    #append values to CSV
-                    df.to_csv(f, header=False)
-                logger.info("Finished updating " +file_name + " CSV file. ")
+                del dvs
 
-            #if file is not empty then get the latest value only (make another function)
+           # del text_file
+        except Exception as e:
+            msg = " SiteName: %s, year: %s, Error : %s" %(site, year, e)
+            print msg
+            issue_list.append(msg)
 
-
-        else:
-            del dvs
-
-       # del text_file
+    return issue_list
 
 
 def fileexists(file_path):
@@ -241,18 +248,18 @@ def getDateAndNumCols(lastLine):
 #print dateAndColsObj.localDateTime
 #print dateAndColsObj.numCols
 
-def dataParser( dump_loc):
-
+def dataParser( dump_loc, year):
+    issues = []
     logger.info("\n========================================================\n")
     #logan database is loaded here
     logger.info("Started creating files.")
-    handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc)
+    issues.append(handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc, year))
 
     #provo database is loaded here
-    handleConnection('iUTAH_Provo_OD', 'Provo', dump_loc)
+    issues.append(handleConnection('iUTAH_Provo_OD', 'Provo', dump_loc, year))
 
     #red butte creek database is loaded here
-    handleConnection('iUTAH_RedButte_OD', 'RedButte', dump_loc)
+    issues.append(handleConnection('iUTAH_RedButte_OD', 'RedButte', dump_loc, year))
 
     logger.info("Finished Program. ")
     logger.info("\n========================================================\n")

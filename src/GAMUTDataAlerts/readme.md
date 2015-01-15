@@ -1,0 +1,1 @@
+This folder contains the source code for the Microsoft SQL Stored Procedures that perform automated quality assurance and data alerts for continuous sensor data stored within a CUAHSI ODM database.

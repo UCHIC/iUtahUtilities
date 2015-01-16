@@ -47,23 +47,23 @@ def handleConnection(database, location, dump_location, year):
                 logger.info("Updating file " + file_name)
                 startdate, colcount = parseCSVData(file_path)
 
-            if not fileexists(file_path) or colcount > numvar :
+            #if not fileexists(file_path) or colcount > numvar :
+            if not fileexists(file_path) or colcount != numvar :
                  #set start date to jan 1 of curr year
                 #colcount = 0
                 logger.info("Creating a new file " + file_name)
                 startdate = datetime.datetime(int(year),01,01,0,0,0)
                 colcount = 0
-            elif colcount<numvar:
+            '''elif colcount<numvar:
                 msg = "File Incorrect: " + file_name + " variables removed"
                 logger.info(msg)
                 issues.append(msg)
-
-
-
-
-
                 #this line is just for testing, to shorten the amount of test data
                 #startdate = datetime.datetime(int(year),11,18,0,0,0)
+            '''
+#options: new site, added variables, removed variable, same variable
+
+
 
             #dvs= get data at site since startdate
             dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
@@ -74,13 +74,13 @@ def handleConnection(database, location, dump_location, year):
                 #df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
                 df=pd.pivot_table(df, index= ["LocalDateTime", "UTCOffset","DateTimeUTC"], columns = "VariableCode", values = "DataValue")
                 #pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-                collist = df.columns
+                collist = len(df.columns)
 
 
                 # if colcount not equal to dvs.colcount  colcount number of columns in the file
                 #collist number of columns from the database
                 # ( will match if there is new file or the number of vars have changed)
-                if colcount != len(collist):
+                if colcount != collist:
                     f=open(file_path,'w')
                     #generate header
                     file_str = generateHeader(site, location)

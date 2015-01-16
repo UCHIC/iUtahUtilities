@@ -54,8 +54,8 @@ Example:
 '''
 issue_list=[]
 NOW = datetime.datetime.now()
-#curr_year = NOW.strftime('%Y')
-curr_year="2014"
+curr_year = NOW.strftime('%Y')
+#curr_year="2014"
 dump_location = "C:\\GAMUT_CSV_Files\\%s\\" % curr_year
 
 

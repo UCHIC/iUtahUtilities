@@ -2,32 +2,16 @@ This folder contains the source code for the Microsoft SQL Server Stored Procedu
 
 ##Setting Up Database Mail
 In order to send emails through SQL Server, Database Mail needs to be setup, which can be done with the below steps:  
-1. In SQL Server Management Studio, under ‘Management’, right click on Database Mail, and select ‘Configure Database Mail’.  
-1. Select ‘Set Up Database Mail’.  
-1. Create a Profile Name and Description.   
-1. Give the outgoing email address, display name, and reply email address.  
-1. Enter the server name, port number, and authentication (if required) as applies to your email server.  
-1. Finish the setup.  
-1. Right click Database Mail to ‘Send Test Email’.  
+
+1. In SQL Server Management Studio, under ‘Management’, right click on Database Mail, and select ‘Configure Database Mail’.
+2. Select ‘Set Up Database Mail’.
+3. Create a Profile Name and Description.
+4. Give the outgoing email address, display name, and reply email address.  
+5. Enter the server name, port number, and authentication (if required) as applies to your email server.  
+6. Finish the setup.  
 
 ##Scheduling the Alerts
 SQL Server uses 'Jobs' to schedule tasks. To schedule the data alerts as an automated job, follow these steps:  
-1. Ensure that that the SQL Server Agent is started and running.  
-2. In SQL Server Management Studio, under 'SQL Server Agent', right click on 'Jobs', and select ‘Create New Job’.  
-3. Give the job a Name and Description.  
-4. Go to the ‘Steps’ page and add each stored procedure as a step:  
-   *a. Click ‘New’.  
-   *b. Give the step a descriptive name, select ‘Transact-SQL script T-SQL’, and select the appropriate database.  
-   *c. In the ‘Command’ box, type: EXEC [dbo].[NameofStoredProcedure].  
-   *d. In the ‘Advanced’ tab, select the ‘On success action’ and the ‘On failure action’ - e.g., Go to the next step.  
-5. Go to the ‘Schedules’ page and create the schedule for the job to run:  
-   *a. Click ‘New’.  
-   *b. Give the schedule a descriptive name, and select ‘Recurring’.  
-   *c. Set the Frequency, Timing, and Duration for which you want the job to run.  
-6. Go to the ‘Notifications’ page and set an email if you want to receive a notification for the job succeeding or failing. (NOTE: An email address must be set up as an 'Operator' under SQL Server Agent to be notified.)  
-7. To test the job, right click on the job name and select ‘Start Job at Step’.  
-8. To view the job history, right click on the job name and select ‘View History’. See a record of each time the job was executed, the steps that were performed, whether the step was successful, any errors, and whether an email was sent for each step.
-9. 
 
 1. Ensure that the SQL Server Agent is started and running.
 2. In SQL Server management Studio, under 'SQL server Agent', right click on 'Jobs, and selected 'Create New Job'.

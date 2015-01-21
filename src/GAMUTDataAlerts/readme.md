@@ -16,14 +16,14 @@ SQL Server uses 'Jobs' to schedule tasks. To schedule the data alerts as an auto
 2. In SQL Server Management Studio, under 'SQL Server Agent', right click on 'Jobs', and select ‘Create New Job’.  
 3. Give the job a Name and Description.  
 4. Go to the ‘Steps’ page and add each stored procedure as a step:  
-  i. Click ‘New’.  
-  ii. Give the step a descriptive name, select ‘Transact-SQL script T-SQL’, and select the appropriate database.  
-  iii. In the ‘Command’ box, type: EXEC [dbo].[NameofStoredProcedure]  
-  iv. In the ‘Advanced’ tab, select the ‘On success action’ and the ‘On failure action’ - e.g., Go to the next step.  
+  Click ‘New’.  
+  Give the step a descriptive name, select ‘Transact-SQL script T-SQL’, and select the appropriate database.  
+  In the ‘Command’ box, type: EXEC [dbo].[NameofStoredProcedure]  
+  In the ‘Advanced’ tab, select the ‘On success action’ and the ‘On failure action’ - e.g., Go to the next step.  
 5. Go to the ‘Schedules’ page and create the schedule for the job to run:  
-  i. Click ‘New’.  
-  ii. Give the schedule a descriptive name, and select ‘Recurring’.  
-  iii. Set the Frequency, Timing, and Duration for which you want the job to run.  
+    i. Click ‘New’.  
+    ii. Give the schedule a descriptive name, and select ‘Recurring’.  
+    iii. Set the Frequency, Timing, and Duration for which you want the job to run.  
 6. Go to the ‘Notifications’ page and set an email if you want to receive a notification for the job succeeding or failing. (NOTE: An email address must be set up as an 'Operator' under SQL Server Agent to be notified.)  
 7. To test the job, right click on the job name and select ‘Start Job at Step’.  
 8. To view the job history, right click on the job name and select ‘View History’. See a record of each time the job was executed, the steps that were performed, whether the step was successful, any errors, and whether an email was sent for each step.

@@ -22,7 +22,7 @@ import smtplib
 def sendEmail(message, to):
     SERVER = "mail.usu.edu"
 
-    FROM = "sample@test.exe"
+    FROM = "CSVgenerator@GAMUT.exe"
     TO = [to] # must be a list
 
     SUBJECT = "CSV Generator Errors"
@@ -123,7 +123,7 @@ if len(issue_list)>0:
     logger.info("Sending email with %s issues"% str(len(issue_list)))
     m = ""
     for i in issue_list:
-        m =  str(i) + '\n'
+        m =  m+ str(i) + '\n'
     sendEmail(m, "stephanie.reeder@usu.edu")
     pass
     #send email

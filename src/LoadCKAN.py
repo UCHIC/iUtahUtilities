@@ -4,6 +4,7 @@ import datetime
 import os
 import sys
 import logging
+import base64
 
 
 this_file = os.path.realpath(__file__)
@@ -13,13 +14,16 @@ sys.path.insert(0, directory)
 from GAMUTRawData.logger import LoggerTool
 
 tool = LoggerTool()
-logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
+logger = tool.setupLogger(__name__, __name__+'.log', 'a', logging.DEBUG)
+
+filename = 'csvgenerator.log'
+sys.stdout = open(filename, 'w')
 
 
 
 
 import smtplib
-def sendEmail(message, to):
+def sendEmail(message, to, attach = None):
     SERVER = "mail.usu.edu"
 
     FROM = "CSVgenerator@GAMUT.exe"
@@ -30,19 +34,46 @@ def sendEmail(message, to):
     TEXT = "CSV generater had the following issues when it was run at "+ datetime.datetime.now().strftime('%Y-%m-%d %H') \
            +"\n\n\n\n" +message
 
-    # Prepare actual message
+    fo = open(attach, "rb")
+    filecontent = fo.read()
+    encodedcontent = base64.b64encode(filecontent)  # base64
 
+    marker = "AUNIQUEMARKER"
 
-    message ="From: %s\
-    To: %s\
-    Subject: %s\
-    %s\
-    " % (FROM, ", ".join(TO), SUBJECT, TEXT)
+    body ="""
+    This is a test email to send an attachement.
+    """
+    # Define the main headers.
+    part1 = """From:  <%s>
+    To: <%s>
+    Subject: Sending Attachement
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary=%s
+    --%s
+    """ % (FROM, TO, marker, marker)
 
+    # Define the message action
+    part2 = """Content-Type: text/plain
+    Content-Transfer-Encoding:8bit
+
+    %s
+    --%s
+    """ % (body,marker)
+
+    # Define the attachment section
+    part3 = """Content-Type: multipart/mixed; name=\"%s\"
+    Content-Transfer-Encoding:base64
+    Content-Disposition: attachment; filename=%s
+
+    %s
+    --%s--
+    """ %(filename, filename, encodedcontent, marker)
+
+    msg= TEXT+ part1 + part2 + part3
     # Send the mail
     #server = smtplib.SMTP('localhost')
     server = smtplib.SMTP(SERVER)
-    server.sendmail(FROM, TO, message)
+    server.sendmail(FROM, TO, msg)
     server.quit()
 
 '''
@@ -61,8 +92,8 @@ dump_location = "C:\\GAMUT_CSV_Files\\%s\\" % curr_year
 
 #update all of the files
 try:
-    issues = cr.dataParser(dump_loc = dump_location, year = curr_year)
-    #issues = "this is a test"
+    #issues = cr.dataParser(dump_loc = dump_location, year = curr_year)
+    issues = "this is a test"
     issue_list.append(issues)
 except Exception as e:
     issue_list.append(e)
@@ -114,7 +145,8 @@ for f in os.listdir(dump_location):
                 # "webstore_last_updated": None,
                 }
         logger.info("Replacing file %s on ckan repository"% f)
-        cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
+        print "Replacing file %s on ckan repository"% f
+        #cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
     except Exception as e:
         logger.error("issue : %s, file: %s"% (e, f))
         issue_list.append(e)
@@ -124,6 +156,6 @@ if len(issue_list)>0:
     m = ""
     for i in issue_list:
         m =  m+ str(i) + '\n'
-    sendEmail(m, "stephanie.reeder@usu.edu")
+    sendEmail(m, "stephanie.reeder@usu.edu", filename)
     pass
     #send email

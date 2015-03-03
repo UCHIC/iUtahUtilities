@@ -11,11 +11,8 @@ directory = os.path.dirname(os.path.dirname(this_file))
 
 sys.path.insert(0, directory)
 from odmservices import ServiceManager
-from logger import LoggerTool
 
-tool = LoggerTool()
-logger = tool.setupLogger(__name__, __name__ + '.log', 'a', logging.DEBUG)
-
+formatString = '%s  %s: %s'
 sm = ServiceManager()
 
 issues = []
@@ -27,7 +24,7 @@ def handleConnection(database, location, dump_location, year):
     ss = sm.get_series_service()
     sites = ss.get_all_sites()
 
-    logger.info("Started getting sites for " + database)
+    print("Started getting sites for " + database)
     #get current year,
     #year = datetime.datetime.now().strftime('%Y')
 
@@ -38,25 +35,25 @@ def handleConnection(database, location, dump_location, year):
             file_name =  "iUTAH_GAMUT_" + site.code +"_RawData_"+year+".csv"
 
             file_path = dump_location + file_name
-            #logger.info("Started getting values for " + site.code)
+
             series = ss.get_series_by_site_code_year(site.code, year)
             numvar= len(series)
             colcount = 0
             if fileexists(file_path):
                  #start date , colcount = call mario function
-                logger.info("Updating file " + file_name)
+                print formatString %(datetime.datetime.now(), "handleConnection",  "Updating file " + file_name)
                 startdate, colcount = parseCSVData(file_path)
 
             #if not fileexists(file_path) or colcount > numvar :
             if not fileexists(file_path) or colcount != numvar :
                  #set start date to jan 1 of curr year
                 #colcount = 0
-                logger.info("Creating a new file " + file_name)
+                print formatString %(datetime.datetime.now(), "handleConnection",  "Creating a new file " + file_name)
                 startdate = datetime.datetime(int(year),01,01,0,0,0)
                 colcount = 0
             '''elif colcount<numvar:
                 msg = "File Incorrect: " + file_name + " variables removed"
-                logger.info(msg)
+
                 issues.append(msg)
                 #this line is just for testing, to shorten the amount of test data
                 #startdate = datetime.datetime(int(year),11,18,0,0,0)
@@ -112,13 +109,13 @@ def handleConnection(database, location, dump_location, year):
                     del var_data
                     df.to_csv(f)
                     f.close()
-                    logger.info("Finished creating " + file_name + " CSV file. ")
+                    print formatString %(datetime.datetime.now(), "handleConnection",  "Finished creating " + file_name + " CSV file. ")
                 else:
                 #   open file for appending
                     with open(file_path, 'a') as f:
                         #append values to CSV
                         df.to_csv(f, header=False)
-                    logger.info("Finished updating " +file_name + " CSV file. ")
+                    print formatString %(datetime.datetime.now(), "handleConnection",  "Finished updating " +file_name + " CSV file. ")
 
                 #if file is not empty then get the latest value only (make another function)
 
@@ -129,7 +126,7 @@ def handleConnection(database, location, dump_location, year):
            # del text_file
         except Exception as e:
             msg = " SiteName: %s, year: %s, Error : %s" %(site, year, e)
-            print msg
+            print formatString %(datetime.datetime.now(), "handleConnection",  msg)
             issue_list.append(msg)
 
     return issue_list
@@ -179,7 +176,7 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
             if time.local_date_time.year != currentYear:
                 if currentYear != 1900:
                     text_file.close()
-                    logger.info("Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + " CSV file. ")
+                    print formatString(datetime.datetime.now, "outputValues", "Finished creating " + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + " CSV file. ")
                 currentYear = time.local_date_time.year
                 text_file = open(dump_location + "iUTAH_GAMUT_" + site.code +"_RawData_"+ str(currentYear) + ".csv", "w")
                 text_file.write(header_str)
@@ -250,9 +247,9 @@ def getDateAndNumCols(lastLine):
 
 def dataParser( dump_loc, year):
     issues = []
-    logger.info("\n========================================================\n")
+    print("\n========================================================\n")
     #logan database is loaded here
-    logger.info("Started creating files.")
+    print("Started creating files.")
     issues.append(handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc, year))
 
     #provo database is loaded here
@@ -261,8 +258,8 @@ def dataParser( dump_loc, year):
     #red butte creek database is loaded here
     issues.append(handleConnection('iUTAH_RedButte_OD', 'RedButte', dump_loc, year))
 
-    logger.info("Finished Program. ")
-    logger.info("\n========================================================\n")
+    print("Finished Program. ")
+    print("\n========================================================\n")
     return issues
 
 

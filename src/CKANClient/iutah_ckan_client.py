@@ -8,8 +8,9 @@ import json
 
 
 #CKAN_REMOTE_INSTANCE_BASE_URL = 'http://127.0.0.1:5000'
-#CKAN_REMOTE_INSTANCE_BASE_URL = 'http://iutah-ckan-test.uwrl.usu.edu'
+# CKAN_REMOTE_INSTANCE_BASE_URL = 'http://iutah-ckan-test.uwrl.usu.edu'
 CKAN_REMOTE_INSTANCE_BASE_URL = 'http://repository.iutahepscor.org'
+#CKAN_REMOTE_INSTANCE_BASE_URL = 'http://demo.ckan.org'
 
 def do(f, args=[], kwargs={}):
     while True:
@@ -137,6 +138,7 @@ def _get_package_id_from_name(package_name):
     data = {'id': package_name}
     url = '{CKAN_INSTANCE}/api/action/package_show'.format(**params)
     print url
+    print
     response = requests.post('{CKAN_INSTANCE}/api/action/package_show'.format(**params),
               data=json.dumps(data).encode('ascii'), headers=headers)
 
@@ -169,6 +171,77 @@ def _get_resource_to_delete(resource_file_name_to_delete):
 
     return res_to_delete
 
+
+def insert_resource(api_key=None, package_name=None, file_to_upload=None, resource_info=None):
+    """
+    created by Stephanie Reede: 12-7-15
+    """
+    global params
+    global headers
+
+    if not api_key:
+        if len(sys.argv) < 5:
+            raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
+                               "api_key, package_name, file_to_upload).")
+        else:
+            api_key = sys.argv[2]
+
+    if not package_name:
+        if len(sys.argv) < 5:
+            raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
+                               "api_key, package_name, file_to_upload). ")
+        else:
+            package_name = sys.argv[3]
+
+    if not file_to_upload:
+        if len(sys.argv) < 5:
+            raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
+                               "api_key, package_name, file_to_upload). ")
+        else:
+            file_to_upload = sys.argv[4]
+
+    if not os.path.isfile(file_to_upload):
+        raise RuntimeError("File to upload is not found.")
+
+    if not resource_info:
+        if len(sys.argv) == 6:
+            try:
+                # convert json string to python dict
+                resource_info = json.loads(sys.argv[5])
+            except:
+                raise RuntimeError("Value for the parameter 'resource_info' should be a json string.")
+
+    params = get_parameters(api_key=api_key, filepath=file_to_upload)
+    #params['PACKAGE_ID'] = package_id
+    params['PACKAGE_NAME'] = package_name
+
+    # get id of the package from package name
+    params['PACKAGE_ID'] = _get_package_id_from_name(package_name)
+
+    if not resource_info:
+        resource_info = {
+                "package_id": params['PACKAGE_ID'],
+                "revision_id": params['NOW'],
+                "description": "New file upload",
+                "format": "CSV",
+                # "hash": None,
+                "name": params['FILENAME'],
+                # "resource_type": None,
+                "mimetype": "application/text",
+                "mimetype_inner": "text/csv",
+                # "webstore_url": None,
+                # "cache_url": None,
+                # "size": None,
+                "created": params['NOW'],
+                "last_modified": params['NOW'],
+                # "cache_last_updated": None,
+                # "webstore_last_updated": None,
+                }
+
+    upload(resource_info)
+    print("Resource created successfully."+ params['PACKAGE_NAME'] )
+
+    
 
 def update_resource(api_key=None, package_name=None, file_to_upload=None, replace_file_name=None, resource_info=None):
     global params
@@ -349,11 +422,14 @@ def copy_dataset(api_key=None, package_name=None):
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise RuntimeError("Invalid number of arguments. There needs to be at least one argument specifying the "
-                           "function to execute (allowed functions are: update_resource, copy_dataset).")
+                           "function to execute (allowed functions are: update_resource, copy_dataset, insert_resource).")
     if sys.argv[1] == 'update_resource':
         update_resource()
     elif sys.argv[1] == 'copy_dataset':
         copy_dataset()
+    elif sys.argv[1] == 'insert_resource':
+        insert_resource()
     else:
-        raise RuntimeError("Invalid function name (%s) to execute "
-                           "(allowed functions are: update_resource, copy_dataset)." % sys.argv[1])
+        print "%s not found" % sys.argv[1]
+        #raise RuntimeError("Invalid function name (%s) to execute "
+                           # "(allowed functions are: update_resource, copy_dataset, insert_resource)." % sys.argv[1])

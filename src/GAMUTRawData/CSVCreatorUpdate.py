@@ -109,13 +109,13 @@ def handleConnection(database, location, dump_location, year):
                     del var_data
                     df.to_csv(f)
                     f.close()
-                    print formatString %(datetime.datetime.now(), "handleConnection",  "Finished creating " + file_name + " CSV file. ")
+                    #print formatString %(datetime.datetime.now(), "handleConnection",  "Finished creating " + file_name + " CSV file. ")
                 else:
                 #   open file for appending
                     with open(file_path, 'a') as f:
                         #append values to CSV
                         df.to_csv(f, header=False)
-                    print formatString %(datetime.datetime.now(), "handleConnection",  "Finished updating " +file_name + " CSV file. ")
+                    #print formatString %(datetime.datetime.now(), "handleConnection",  "Finished updating " +file_name + " CSV file. ")
 
                 #if file is not empty then get the latest value only (make another function)
 

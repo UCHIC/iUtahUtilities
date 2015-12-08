@@ -36,7 +36,9 @@ def sendEmail(message, to, attach = None):
            +":\n" +message
 
     fo = open(attach, "r")
-    filecontent = fo.read()
+    filecontent = ""
+    for f in fo.readline():
+        filecontent = filecontent + "\n" + f
     #encodedcontent = base64.b64encode(filecontent)  # base64
 
     # Define the main headers.
@@ -64,10 +66,10 @@ def sendEmail(message, to, attach = None):
 
 '''
 Calling Format:
->python iutah_ckan_client.py 'update_resource' 'value for api_key' 'name of the dataset' 'path of file to upload' 'name of the file to replace'
+>python iutah_ckan_client.py update_resource 'value for api_key' *name of the dataset* 'path of file to upload' 'name of the file to replace'
 
 Example:
->python iutah_ckan_client.py 'update_resource' 'db567980cgt8906745678' 'my-original-dataset' 'c:\\odm_site_1_2014.csv' 'odm_site_1_2014.csv'
+>python iutah_ckan_client.py update_resource db567980-cgt8-9067-45678de285f3 my-original-dataset c:\\odm_site_1_2014.csv odm_site_1_2014.csv
 '''
 
 #update all of the files
@@ -75,6 +77,7 @@ try:
     issues = cr.dataParser(dump_loc = dump_location, year = curr_year)
     issues = "this is a test for my list of issues"
     issue_list.append(issues)
+
 except Exception as e:
     issue_list.append(e)
 
@@ -126,7 +129,7 @@ for f in os.listdir(dump_location):
                 }
 
         #print formatString %(datetime.datetime.now(), "LoadCKAN",  "Replacing file %s on ckan repository"% f)
-        #cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
+        cc.update_resource(api_key, package_name, file_to_upload, replace_file_name, None)
     except Exception as e:
         print ("issue : %s, file: %s\n"% (e, f))
         issue_list.append(e)

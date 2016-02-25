@@ -241,7 +241,6 @@ def insert_resource(api_key=None, package_name=None, file_to_upload=None, resour
     upload(resource_info)
     print("Resource created successfully."+ params['PACKAGE_NAME'] )
 
-    
 
 def update_resource(api_key=None, package_name=None, file_to_upload=None, replace_file_name=None, resource_info=None):
     global params
@@ -381,6 +380,7 @@ def copy_dataset(api_key=None, package_name=None):
             'private': pkg_dict['private'],
             'creators': pkg_dict['creators'],
             'contributors': pkg_dict['contributors'],
+            'variable_description': pkg_dict['variable_description'],
             'variables': pkg_dict['variables'],
             'access_information': pkg_dict['access_information'],
             'citation': pkg_dict['citation'],   # citation will not be copied, copied dataset needs to be manually updated to get the citation

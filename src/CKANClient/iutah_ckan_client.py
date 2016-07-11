@@ -1,4 +1,3 @@
-__author__ = 'pabitra'
 import sys
 import os
 import requests
@@ -6,6 +5,7 @@ import datetime
 from lxml import html
 import json
 
+__author__ = 'pabitra'
 
 #CKAN_REMOTE_INSTANCE_BASE_URL = 'http://127.0.0.1:5000'
 # CKAN_REMOTE_INSTANCE_BASE_URL = 'http://iutah-ckan-test.uwrl.usu.edu'
@@ -182,21 +182,21 @@ def insert_resource(api_key=None, package_name=None, file_to_upload=None, resour
     if not api_key:
         if len(sys.argv) < 5:
             raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
-                               "api_key, package_name, file_to_upload).")
+                               "ckan_api_key, package_name, file_to_upload).")
         else:
             api_key = sys.argv[2]
 
     if not package_name:
         if len(sys.argv) < 5:
             raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
-                               "api_key, package_name, file_to_upload). ")
+                               "ckan_api_key, package_name, file_to_upload). ")
         else:
             package_name = sys.argv[3]
 
     if not file_to_upload:
         if len(sys.argv) < 5:
             raise RuntimeError("Invalid number of arguments. Needs at least 4 arguments ('insert_resource', "
-                               "api_key, package_name, file_to_upload). ")
+                               "ckan_api_key, package_name, file_to_upload). ")
         else:
             file_to_upload = sys.argv[4]
 
@@ -249,21 +249,21 @@ def update_resource(api_key=None, package_name=None, file_to_upload=None, replac
     if not api_key:
         if len(sys.argv) < 6:
             raise RuntimeError("Invalid number of arguments. Needs at least 5 arguments ('update_resource', "
-                               "api_key, package_name, file_to_upload, replace_file_name).")
+                               "ckan_api_key, package_name, file_to_upload, replace_file_name).")
         else:
             api_key = sys.argv[2]
 
     if not package_name:
         if len(sys.argv) < 6:
             raise RuntimeError("Invalid number of arguments. Needs at least 5 arguments ('update_resource', "
-                               "api_key, package_name, file_to_upload, replace_file_name).")
+                               "ckan_api_key, package_name, file_to_upload, replace_file_name).")
         else:
             package_name = sys.argv[3]
 
     if not file_to_upload:
         if len(sys.argv) < 6:
             raise RuntimeError("Invalid number of arguments. Needs at least 5 arguments ('update_resource', "
-                               "api_key, package_name, file_to_upload, replace_file_name).")
+                               "ckan_api_key, package_name, file_to_upload, replace_file_name).")
         else:
             file_to_upload = sys.argv[4]
 
@@ -273,7 +273,7 @@ def update_resource(api_key=None, package_name=None, file_to_upload=None, replac
     if not replace_file_name:
         if len(sys.argv) < 6:
             raise RuntimeError("Invalid number of arguments. Needs at least 5 arguments ('update_resource', "
-                               "api_key, package_name, file_to_upload, replace_file_name).")
+                               "ckan_api_key, package_name, file_to_upload, replace_file_name).")
         else:
             replace_file_name = sys.argv[5].lower()
     else:
@@ -333,13 +333,13 @@ def copy_dataset(api_key=None, package_name=None):
 
     if not api_key:
         if len(sys.argv) < 3:
-            raise RuntimeError("Invalid number of arguments. Needs 3 arguments ('copy_dataset', api_key, package_name).")
+            raise RuntimeError("Invalid number of arguments. Needs 3 arguments ('copy_dataset', ckan_api_key, package_name).")
         else:
             api_key = sys.argv[2]
 
     if not package_name:
         if len(sys.argv) < 4:
-            raise RuntimeError("Invalid number of arguments. Needs 3 arguments ('copy_dataset', api_key, package_name).")
+            raise RuntimeError("Invalid number of arguments. Needs 3 arguments ('copy_dataset', ckan_api_key, package_name).")
         else:
             package_name = sys.argv[3]
 

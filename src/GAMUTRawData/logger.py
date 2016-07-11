@@ -21,7 +21,7 @@ class LoggerTool():
 
         logPath = "C:\\GAMUT_CSV_Files\\log\\"
         if not os.path.exists(logPath):
-            os.mkdir(logPath, 0755)
+            os.makedirs(logPath, 0755)
         fileHandler = logging.FileHandler(logPath + logFile, mode=m)
         fileHandler.setFormatter(formatter)
         streamHandler = logging.StreamHandler()

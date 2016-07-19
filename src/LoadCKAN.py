@@ -1,22 +1,10 @@
-"""
-Calling Format:
->python iutah_ckan_client.py update_resource 'value for api_key' *name of the dataset* 'path of file to upload' 'name of the file to replace'
-
-Example:
->python iutah_ckan_client.py update_resource db567980-cgt8-9067-45678de285f3 my-original-dataset c:\\odm_site_1_2014.csv odm_site_1_2014.csv
-
-Tried:
-update_resource db567980-cgt8-9067-45678de285f3 my-original-dataset c:\\odm_site_1_2014.csv odm_site_1_2014.csv
-update_resource 516ca1eb-f399-411f-9ba9-49310de285f3 my-original-dataset c:\\odm_site_1_2014.csv odm_site_1_2014.csv
-"""
-
 import datetime
 import os
 import re
 import smtplib
 import sys
-
 import GAMUTRawData.CSVCreatorUpdate as CSV_Creator
+from exceptions import IOError
 from Utilities.HydroShareUtility import HydroShareUtility
 from Utilities.CkanUtility import CkanUtility
 
@@ -25,103 +13,107 @@ EMAIL_FROM = "CSVgenerator@GAMUT.exe"
 EMAIL_SUBJECT = "CSV Generator Report"
 FORMAT_STRING = '%s  %s: %s'
 
-NOW = datetime.datetime.now()
-curr_year = NOW.strftime('%Y')
+curr_year = datetime.datetime.now().strftime('%Y')
 
-dump_location = "C:\\GAMUT_CSV_Files\\"
-RE_SITE_CODE = r"(^.*iUTAH_GAMUT_)(.*)(_rawdata_" + curr_year + r"\.csv$)"
-RE_GAMUT_RESOURCE_FILTER = r"(?:iUTAH|GAMUT)"
+WINDOWS_OS = 'nt' in os.name
+DIR_SYMBOL = '\\' if WINDOWS_OS else '/'
+PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
+AUTH_FILE_PATH = '{root}{slash}{auth}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL, auth='secret')
 
-filename = 'csvgenerator.log'
-filepath = dump_location + filename
-# sys.stdout = open(filepath, 'w')
-dump_location = "%s%s\\" % (dump_location, curr_year)
+file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
+log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
+dump_location = '{file_path}{year}{slash}'.format(file_path=file_path, year=curr_year, slash=DIR_SYMBOL)
+RE_SITE_CODE = r'(^.*iUTAH_GAMUT_)(.*)(_rawdata_{year}\.csv$)'.format(year=curr_year)
+RE_RESOURCE_FILTER = r"(?=.*raw.?data)(?=.*iUtah)(?=.*Gamut).+"
+
+sys.stdout = open(log_file, 'w')
 
 
 def send_email(issue_list, to, attach=None):
-    print("Sending email with %s issues" % str(len(issue_list)))
+    print("Sending email with {} issues".format(len(issue_list)))
     message = ""
     for i in issue_list:
-        message = """%s
-        %s""" % (message, str(i))
+        message += '\n{}'.format(i)
 
     recipients = [to]  # must be a list
-    fo = open(attach, "r")
-    filecontent = ""
-    for f in fo.readline():
-        filecontent = filecontent + "\n" + f
-    # encodedcontent = base64.b64encode(filecontent)  # base64
+    file_content = ""
 
-    emailbody = """From:  {}
-    To: {}
+    try:
+        fo = open(attach, "r")
+        for f in fo.readline():
+            file_content += "\n" + f
+    except IOError as e:
+        print('File Error: {}'.format(e))
+
+    email_body = """
+    From:  {sender}
+    To: {recipients}
     Subject: GAMUT CSV Report
 
-    """.format(EMAIL_FROM, recipients)
-    emailbody += "CSV generater had the following issues when it was run at " + datetime.datetime.now().strftime(
-        '%Y-%m-%d %H') + ":\n" + message
-    emailbody += """
+    CSV generater had the following issues when it was run at {start_time}:
+    {message}
 
-    filename={}:
-    {}
+    log_file={log_file}:
+    {file_content}
+    """
 
-    """.format(filename, filecontent.replace("\n", """
-    """))
-
-    print(emailbody)
+    email_body = email_body.format(sender=EMAIL_FROM, recipients=recipients,
+                                   start_time=datetime.datetime.now().strftime('%Y-%m-%d %H'),
+                                   message=message, log_file=log_file, file_content=file_content)
 
     # Send the mail
-    # server = smtplib.SMTP('localhost')
     server = smtplib.SMTP(EMAIL_SERVER)
-    server.sendmail(EMAIL_FROM, recipients, emailbody)
+    server.sendmail(EMAIL_FROM, recipients, email_body)
     server.quit()
+
+
+def getHydroShareCredentials(auth_file_name=AUTH_FILE_PATH):
+    auth_file = open(auth_file_name, 'r')
+    username, password = auth_file.readline().split()
+    client_id, client_secret = auth_file.readline().split()
+    return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
 def run_tool(upload_to_ckan, upload_to_hydroshare):
     issue_list = []
     # Fetch the raw GAMUT data and store them in CSV files locally
     try:
+        if not os.path.exists(dump_location):
+            os.makedirs(dump_location)
         issues = CSV_Creator.dataParser(dump_loc=dump_location, year=curr_year)
         issue_list.append(issues)
     except Exception as e:
         issue_list.append(e)
 
-    # Get names of all files, add to dictionary for processing
+    # Get names of all files, add to dictionary for processing`
     filename_list = []
     for item in os.listdir(dump_location):
         file_to_upload = dump_location + item
         result = re.match(RE_SITE_CODE, item, re.IGNORECASE)
-        filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
-
-    # print filename_list
+        if result:
+            filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
 
     if upload_to_ckan:
         print("Uploading files to CKAN")
         ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
-        ckan = CkanUtility(ckan_api_key)
+        ckan = CkanUtility(ckan_api_key, dump_location)
         result = ckan.upload(filename_list)
-        if len(result) > 0:
-            issue_list.append(result)
+        issue_list.extend(result)
     if upload_to_hydroshare:
-        print("Uploading files to HydroShare")
-
-        auth_file = open("secret", 'r')
-        username, password = auth_file.readline().split()
-        client_id, client_secret = auth_file.readline().split()
-
+        print("Preparing to upload files to HydroShare")
         hydroshare = HydroShareUtility()
-        if hydroshare.authenticate(username, password, client_id, client_secret):
-            hydroshare.filterResourcesByRegex()
-            result = hydroshare.upload(filename_list)
-            if len(result) > 0:
-                issue_list.append(result)
+        user_auth = getHydroShareCredentials()
+        if hydroshare.authenticate(**user_auth):
+            paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
+            print('Target resource found for {}'.format([item['file']['name'] for item in paired_files]))
+            result = hydroshare.upload(paired_files)
+            issue_list.extend(result)
+            issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
+            print([item['name'] for item in unpaired_files])
 
     if len(issue_list) > 0:
-        # send_email(issue_list, "stephanie.reeder@usu.edu", filepath)
-        send_email(issue_list, "fryarludwig@gmail.com", filepath)
-
-    print("completed operations")
-    for issue in issue_list:
-        print("Issue: {}".format(issue))
+        # send_email(issue_list, "stephanie.reeder@usu.edu", log_file)
+        send_email(issue_list, "fryarludwig@gmail.com", log_file)
 
 
 def print_usage_info():

@@ -18,7 +18,7 @@ class HydroShareUtility:
     def authenticate(self, username, password, client_id=None, client_secret=None):
         """
         Authenticates access to allow read/write access to privileged resources
-        :param user: username for HydroShare.org
+        :param username: username for HydroShare.org
         :param password: password associated with username
         :param client_id: Client ID obtained from HydroShare
         :param client_secret: Client Secret provided by HydroShare

@@ -20,8 +20,8 @@ class CkanUtility:
 
     def upload(self, file_list):
         res = cc.get_package_list(self.api_key)
-        try:
-            for curr_file in file_list:
+        for curr_file in file_list:
+            try:
                 package_name = ""
                 site_code = curr_file['site']
                 for r in res:
@@ -54,11 +54,11 @@ class CkanUtility:
                         # "webstore_last_updated": None,
                     }
                 print('{} - LoadCKAN: Replacing file {} on ckan repository'.format(datetime.datetime.now(), curr_file['path']))
-                cc.update_resource(self.api_key, package_name, curr_file['path'], curr_file['name'], None)
+                # cc.update_resource(self.api_key, package_name, curr_file['path'], curr_file['name'], None)
 
+            except Exception as e:
+                print ("issue : %s, file: %s\n" % (e, curr_file))
+                return [e]
             return []
-        except Exception as e:
-            print ("issue : %s, file: %s\n" % (e, f))
-            return [e]
 
 

@@ -1,6 +1,6 @@
 import unittest
 
-from src.LoadCKAN import DIR_SYMBOL, PROJECT_DIR
+from src.UpdateTool import DIR_SYMBOL, PROJECT_DIR
 
 
 if __name__ == '__main__':

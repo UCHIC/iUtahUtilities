@@ -1,7 +1,7 @@
 import unittest
 import re
 
-from src.LoadCKAN import AUTH_FILE_PATH, dump_location, RE_SITE_CODE, RE_RESOURCE_FILTER
+from src.UpdateTool import AUTH_FILE_PATH, dump_location, RE_SITE_CODE, RE_RESOURCE_FILTER
 from src.Utilities.HydroShareUtility import HydroShareUtility, HydroShareUtilityException
 
 

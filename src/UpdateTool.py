@@ -8,6 +8,15 @@ from exceptions import IOError
 from Utilities.HydroShareUtility import HydroShareUtility
 from Utilities.CkanUtility import CkanUtility
 
+"""
+
+Tool for updating iUtah GAMUT data in HydroShare and CKAN repositories
+
+"""
+
+__title__ = 'iUtahUtilities Update Tool'
+__version__ = '1.2.2'
+
 EMAIL_SERVER = "mail.usu.edu"
 EMAIL_FROM = "CSVgenerator@GAMUT.exe"
 EMAIL_SUBJECT = "CSV Generator Report"
@@ -25,6 +34,80 @@ log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
 dump_location = '{file_path}{year}{slash}'.format(file_path=file_path, year=curr_year, slash=DIR_SYMBOL)
 RE_SITE_CODE = r'(^.*iUTAH_GAMUT_)(.*)(_rawdata_{year}\.csv$)'.format(year=curr_year)
 RE_RESOURCE_FILTER = r"(?=.*raw.?data)(?=.*iUtah)(?=.*Gamut).+"
+
+
+class Arguments:
+    """
+    Class for defining and parsing command line arguments
+    """
+
+    def __init__(self, args):
+        self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
+        self.VALID_CKAN_TARGETS = ['all', 'ckan']
+        self.destination = 'all'
+        self.verbose = False
+        self.debug = False
+        self.auth = {}
+        for arg in args:
+            if '--destination=' in arg:
+                self.destination = str.lower(arg.split('--destination=')[1])
+            elif '-d=' in arg:
+                self.destination = str.lower(arg.split('-d=')[1])
+            elif '--verbose' in arg:
+                self.verbose = True
+            elif '--debug' in arg:
+                self.debug = True
+            elif '--username=' in arg:
+                self.auth['username'] = arg.split('--username=')[1]
+            elif '--password=' in arg:
+                self.auth['password'] = arg.split('--password=')[1]
+            elif '--client_id=' in arg:
+                self.auth['client_id'] = arg.split('--client_id=')[1]
+            elif '--client_secret=' in arg:
+                self.auth['client_secret'] = arg.split('--client_secret=')[1]
+            elif '--auth_file=' in arg:
+                self.auth['auth_file'] = arg.split('--auth_file=')[1]
+
+    def validate(self):
+        valid_args = True
+        if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS:
+            valid_args = False
+        if 'username' in self.auth and 'password' not in self.auth:
+            valid_args = False
+        if 'client_id' in self.auth and 'client_secret' not in self.auth:
+            valid_args = False
+        if 'auth_file' in self.auth and not os.path.exists(self.auth['auth_file']):
+            valid_args = False
+        return valid_args
+
+    def print_usage_info(self):
+        help_string = ("\nLoadCKAN Tool" +
+                       "\n   -d=hs     --destination=hs       Update resource file on Hydroshare" +
+                       "\n   -d=ckan   --destination=ckan     Update resource file on CKAN" +
+                       "\n   -d=all    --destination=all      Update resource file on both servers")
+        if not sys.__stdout__ == sys.stdout:
+            print(help_string)
+            sys.stdout = sys.__stdout__
+        print(help_string)
+        print(sys.argv)
+
+
+class Logger(object):
+    """
+    Overrides Python print function and maintains the program log file
+    """
+
+    def __init__(self, logfile, overwrite=False):
+        self.terminal = sys.stdout
+        if overwrite:
+            mode = 'a'
+        else:
+            mode = 'w'
+        self.log = open(logfile, mode=mode)
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
 
 
 def send_email(issue_list, to, attach=None):
@@ -83,77 +166,10 @@ def getHydroShareCredentials(auth_info):
     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
-def print_usage_info():
-    help_string = ("\nLoadCKAN Tool" +
-                   "\n   -d=hs     --destination=hs       Update resource file on Hydroshare" +
-                   "\n   -d=ckan   --destination=ckan     Update resource file on CKAN" +
-                   "\n   -d=all    --destination=all      Update resource file on both servers")
-    if not sys.__stdout__ == sys.stdout:
-        print(help_string)
-        sys.stdout = sys.__stdout__
-    print(help_string)
-    print(sys.argv)
-
-
-class Logger(object):
-    def __init__(self, logfile, overwrite=False):
-        self.terminal = sys.stdout
-        if overwrite:
-            mode = 'a'
-        else:
-            mode = 'w'
-        self.log = open(logfile, mode=mode)
-
-    def write(self, message):
-        self.terminal.write(message)
-        self.log.write(message)
-
-
-class Arguments:
-    def __init__(self, args):
-        self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
-        self.VALID_CKAN_TARGETS = ['all', 'ckan']
-        self.destination = 'all'
-        self.verbose = False
-        self.debug = False
-        self.auth = {}
-        for arg in args:
-            if '--destination=' in arg:
-                self.destination = str.lower(arg.split('--destination=')[1])
-            elif '-d=' in arg:
-                self.destination = str.lower(arg.split('-d=')[1])
-            elif '--verbose' in arg:
-                self.verbose = True
-            elif '--debug' in arg:
-                self.debug = True
-            elif '--username=' in arg:
-                self.auth['username'] = arg.split('--username=')[1]
-            elif '--password=' in arg:
-                self.auth['password'] = arg.split('--password=')[1]
-            elif '--client_id=' in arg:
-                self.auth['client_id'] = arg.split('--client_id=')[1]
-            elif '--client_secret=' in arg:
-                self.auth['client_secret'] = arg.split('--client_secret=')[1]
-            elif '--auth_file=' in arg:
-                self.auth['auth_file'] = arg.split('--auth_file=')[1]
-
-    def validate(self):
-        valid_args = True
-        if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS:
-            valid_args = False
-        if 'username' in self.auth and 'password' not in self.auth:
-            valid_args = False
-        if 'client_id' in self.auth and 'client_secret' not in self.auth:
-            valid_args = False
-        if 'auth_file' in self.auth and not os.path.exists(self.auth['auth_file']):
-            valid_args = False
-        return valid_args
-
-
 if __name__ == "__main__":
     user_args = Arguments(sys.argv)
     if not user_args.validate():
-        print_usage_info()
+        user_args.print_usage_info()
         exit(0)
     if user_args.debug:
        # Make it not upload - just print out what it would have done
@@ -171,6 +187,7 @@ if __name__ == "__main__":
         issues = CSV_Creator.dataParser(dump_loc=dump_location, year=curr_year)
         issue_list.append(issues)
     except Exception as e:
+        print('Exception encountered while retrieving datasets: {}'.format(e))
         issue_list.append(e)
 
     # Get names of all files, add to dictionary for processing`
@@ -181,23 +198,23 @@ if __name__ == "__main__":
         if result:
             filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
 
-    # Start the upload process
-    if user_args.destination in user_args.VALID_CKAN_TARGETS:
-        print("Uploading files to CKAN")
-        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
-        ckan = CkanUtility(ckan_api_key, dump_location)
-        result = ckan.upload(filename_list)
-        issue_list.extend(result)
-    if user_args.destination in user_args.VALID_HS_TARGETS:
-        print("Preparing to upload files to HydroShare")
-        hydroshare = HydroShareUtility()
-        user_auth = getHydroShareCredentials(user_args.auth)
-        if hydroshare.authenticate(**user_auth):
-            paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
-            print('Target resource found for {}'.format([item['file']['name'] for item in paired_files]))
-            result = [] if user_args.debug else hydroshare.upload(paired_files)
-            issue_list.extend(result)
-            issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
+    # # Start the upload process
+    # if user_args.destination in user_args.VALID_CKAN_TARGETS:
+    #     print("Uploading files to CKAN")
+    #     ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
+    #     ckan = CkanUtility(ckan_api_key, dump_location)
+    #     result = ckan.upload(filename_list)
+    #     issue_list.extend(result)
+    # if user_args.destination in user_args.VALID_HS_TARGETS:
+    #     print("Preparing to upload files to HydroShare")
+    #     hydroshare = HydroShareUtility()
+    #     user_auth = getHydroShareCredentials(user_args.auth)
+    #     if hydroshare.authenticate(**user_auth):
+    #         paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
+    #         print('Target resource found for {}'.format([item['file']['name'] for item in paired_files]))
+    #         result = [] if user_args.debug else hydroshare.upload(paired_files)
+    #         issue_list.extend(result)
+    #         issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
 
     # Notify on issues found
     if user_args.debug:

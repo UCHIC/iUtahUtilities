@@ -304,13 +304,27 @@ class SeriesService():
         except Exception as ex:
             return None
 
+    def get_var_by_site(self, my_site_id):
+        try:
+            var = self._edit_session.query(Series.variable_code, Series.variable_id).filter(
+                    Series.site_id == my_site_id).order_by(Series.variable_id).distinct().all()
+            return var
+        except Exception as e:
+            print (e)
+            return []
+
     # TODO: Can we get rid of this?
     def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
+        # import datetime
+        #
+        # local_date_time = datetime.datetime.strptime("2015 01 01", "%Y %m %d")
         try:
             sc = self._edit_session.query(Site).filter(Site.id == my_site_id).first()
             print ('site {s} date {d}'.format(s=sc, d=local_date_time))
-            q = self._edit_session.query(DataValue).filter(DataValue.site_id == my_site_id,
-                                                               DataValue.local_date_time > local_date_time)
+            #TODO: Look here
+            q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
+                                                                          DataValue.local_date_time > local_date_time,
+                                                                          DataValue.variable_id == Variable.id)
 
             query = q.statement.compile(dialect=self._session_factory.engine.dialect)
             array = pd.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params)

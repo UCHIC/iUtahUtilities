@@ -41,6 +41,29 @@ class HydroShareUtility:
         self.auth = None
         return False
 
+    def purgeDuplicates(self, local_file, file_list, resource, always_yes=False):
+        shorter_name = os.path.basename(local_file['name'])
+        just_the_name = shorter_name[:-4]
+        for server_file in file_list:
+            server_file_name = os.path.basename(server_file)
+            if shorter_name == server_file_name:
+                print('Exact match: {}'.format(shorter_name))
+            elif just_the_name in server_file_name:
+                delete_me = always_yes
+
+                if not always_yes:
+                    user_answer = raw_input("Delete file {} [Y/n]: ".format(server_file_name))
+                    if user_answer != 'N' or user_answer != 'n':
+                        delete_me = False
+                    else:
+                        delete_me = True
+
+                if delete_me or always_yes:
+                    self.client.deleteResourceFile(resource['resource_id'], server_file_name)
+                    print('Deleting file {}...'.format(server_file_name))
+                else:
+                    print('Skipping file {}...'.format(server_file_name))
+
     def pairFilesToResources(self, file_list, resource_regex_filter=None, regex_flags=re.I):
         """
         Given a list of files and optional global filter, find a resource that matches the site code of each file
@@ -61,7 +84,13 @@ class HydroShareUtility:
                 if not re.search(local_file['site'], resource['resource_title'], re.IGNORECASE):
                     continue
                 resource_files = self.client.getResourceFileList(resource['resource_id'])
-                duplicates = len([remote_file for remote_file in resource_files if local_file['name'] in remote_file])
+                file_list = []
+                for resource_file in resource_files:
+                    file_list.append(resource_file['url'])
+                if False:  # Use this to clean out the extra files you accidentally created during testing
+                    self.purgeDuplicates(local_file, file_list, resource, True)
+
+                duplicates = len([remote_file for remote_file in file_list if local_file['name'] in remote_file])
                 matched_files.append({'resource': resource, 'file': local_file, 'overwrite_remote': duplicates})
                 found_match = True
                 break
@@ -101,11 +130,12 @@ class HydroShareUtility:
             for pair in paired_file_list:
                 resource = pair['resource']
                 local_file = pair['file']
+                action_str = 'created'
                 if pair['overwrite_remote']:
-                    print ("Debug overwrite: {}".format(pair['overwrite_remote']))
+                    action_str = 'updated'
                     self.client.deleteResourceFile(resource['resource_id'], local_file['name'])
                 self.client.addResourceFile(resource['resource_id'], local_file['path'])
-                print("{} uploaded to resource {}".format(local_file['path'], resource['resource_title']))
+                print("{} {} in resource {}".format(local_file['path'], action_str, resource['resource_title']))
         except HydroShareException as e:
             if retry_on_failure:
                 print('Initial upload encountered an error - attempting again. Error encountered: \n{}'.format(e.message))

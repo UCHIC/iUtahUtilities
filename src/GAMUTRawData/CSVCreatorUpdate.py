@@ -2,14 +2,14 @@ import sys
 import os
 import logging
 import datetime
-
 import pandas as pd
+
+from odmservices import ServiceManager
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
 
 sys.path.insert(0, directory)
-from odmservices import ServiceManager
 
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
@@ -29,7 +29,7 @@ class CsvLocalDataset:
         self.end_date = datetime.datetime(int(year), 12, 31, 23, 55, 59)
         self.column_count = 0
 
-    def createFile(self, filepath=None):
+    def createFile(self, filepath):
         """
 
         :param file_path:
@@ -37,26 +37,19 @@ class CsvLocalDataset:
         :return:
         :rtype:
         """
-        if filepath is None:
-            filepath = self.csv_filepath
-
         try:
-            print(filepath)
-            if False and os.path.exists(filepath):
-                # start date , colcount = call mario function
-                print formatString % (datetime.datetime.now(), "handleConnection", "Updating " + filepath)
-                self.start_date, self.column_count = self.parseCSVData(filepath)
-                file_out = open(filepath, 'a')
-            else:  # or colcount != numvar:
-                print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
-                file_out = open(filepath, 'w')
+            print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
+            file_out = open(filepath, 'w')
             return file_out
         except Exception as e:
-            print('Issue encountered while creating a new file: {}'.format(e))
+            print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
             return None
 
     def writeToFile(self, series_service, series_list, filepath=None, constrain_to_year=True):
-        print('Processing site {} with {} series items'.format(self.site.code, len(series_list)))
+        print('WriteToFile: Processing site {} with {} series items'.format(self.site.code, len(series_list)))
+        if filepath is None:
+            filepath = self.csv_filepath
+
         issue_list = []
         try:
             file_out = self.createFile(filepath)
@@ -64,82 +57,51 @@ class CsvLocalDataset:
                 issue_list.append('Unable to create file for output')
                 return issue_list
 
-            numvar = len(series_list)
-            colcount = 0
-
-            # if not fileexists(file_path) or colcount > numvar :
-
-            # dvs= get data at site since startdate
-            print("Attempting to fetch data for site {}".format(self.site.id))
+            print("writeToFile: Attempting to fetch data for site {}".format(self.site.id))
             dvs = series_service.get_all_values_by_site_id_date(self.site.id, self.start_date)
-
             print('DVS count: {}'.format(len(dvs)))
-            # del dvs
             if len(dvs) > 0:
-                # df = pd.DataFrame([x.list_repr() for x
-            #                        in dvs], columns=dvs[0].get_columns())
-            #     del dvs
-                dvs.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+                dvs.set_index(['ValueID', 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
                 df = pd.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"], columns="VariableCode",
                                     values="DataValue")
-                # pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-                collist = len(df.columns)
-            #
-            #     # if colcount not equal to dvs.colcount  colcount number of columns in the file
-            #     # collist number of columns from the database
-            #     # ( will match if there is new file or the number of vars have changed)
-            #     if colcount != collist:
-            #         # f = open(file_path, 'w')
-            #         # generate header
-            #         file_str = self.generateHeader()
-            #         # Getting and organizing all the data
-            #         var_data = VariableData()
-            #
-            #         for s in series:
-            #             var_data.addData(s.variable)
-            #             var_data.addMethodInfo(s.method.description, s.method.link)
-            #
-            #         source = series[0].source
-            #         sourceInfo = SourceInfo()
-            #         sourceInfo.setSourceInfo(source.organization, source.description, source.link,
-            #                                  source.contact_name, source.phone, source.email, source.citation)
-            #         # print header
-            #         file_str += var_data.printToFile()
-            #
-            #         file_str += "#\n"
-            #         file_str += sourceInfo.outputSourceInfo()
-            #         file_str += "#\n"
-            #
-            #         # print data and headers to file
-            #         # f.write("text\n\n\n")
-            #         file_out.write(file_str)
-            #         del file_str
-            #         del sourceInfo
-            #         del source
-            #         # del series
-            #         del var_data
-            #         df.to_csv(file_out)
-            #         file_out.close()
-            #         # print FORMAT_STRING %(datetime.datetime.now(), "handleConnection",  "Finished creating " +
-            #         # file_name + " CSV file. ")
-            #     else:
-            #         #   open file for appending
-            #         # with open(file_path, 'a') as f:
-            #             # append values to CSV
-            #         df.to_csv(file_out, header=False)
-            #             # print FORMAT_STRING %(datetime.datetime.now(), "handleConnection",  "Finished updating "
-            #             # +file_name + " CSV file. ")
-            #
-            #             # if file is not empty then get the latest value only (make another function)
-            # else:
-            #     print("Unable to retrieve data value set for site {} with name of {}".format(self.site.code, self.site.name))
-            #     del dvs
 
+                # generate header
+                file_str = self.generateHeader()
+                # Getting and organizing all the data
+                var_data = VariableData()
+
+                for s in series_list:
+                    var_data.addData(s.variable)
+                    var_data.addMethodInfo(s.method.description, s.method.link)
+
+                sourceInfo = SourceInfo()
+                if len(series_list) > 0:
+                    source = series_list[0].source
+                    sourceInfo.setSourceInfo(source.organization, source.description, source.link,
+                                             source.contact_name, source.phone, source.email, source.citation)
+
+                file_str += var_data.printToFile()
+                file_str += "#\n"
+                file_str += sourceInfo.outputSourceInfo()
+                file_str += "#\n"
+
+                # print data and headers to file
+                file_out.write(file_str)
+                del file_str
+                del sourceInfo
+                # del source
+                del var_data
+                df.to_csv(file_out)
+                file_out.close()
+                print ('{} handleConnection: Finished creating {}'.format(datetime.datetime.now(), filepath))
+            else:
+                print("No data value sets were found from {}, {}".format(self.site.code, self.site.name))
             del dvs
-            # del text_file
         except Exception as e:
             msg = " SiteName: %s, year: %s, Error : %s" % (self.site, self.year, e)
-            print formatString % (datetime.datetime.now(), "handleConnection", msg)
+            print formatString % (datetime.datetime.now(), "WriteToFile", msg)
+            print('---\nIssue encountered while attempting to write data to file: \n{}\n{}\n---'.format(e, e.message))
+            exit()
             issue_list.append(msg)
 
     def generateHeader(self):
@@ -223,18 +185,8 @@ def handleConnection(database, location, dump_location, year):
     for site in all_sites:
         # generate file name
         local_dataset = CsvLocalDataset(dump_location, location, site, year)
-        all_series_list = series_service.get_series_by_site(local_dataset.site.id)
-        series_in_range = []
-        for series_item in all_series_list:
-            start_year = int(series_item.begin_date_time.strftime("%Y"))
-            end_year = int(series_item.end_date_time.strftime("%Y"))
-            is_in_range = True if start_year <= int(year) <= end_year else False
-            if series_item.quality_control_level_id != 0 or not is_in_range:
-                continue
-            # print('The series {} is within the range'.format(series_item))
-            series_in_range.append(series_item)
-        if len(series_in_range) > 0:
-            local_dataset.writeToFile(series_service, series_in_range)
+        series = series_service.get_series_by_site_code_year(site.code, year)
+        local_dataset.writeToFile(series_service, series)
     return issue_list
 
 
@@ -263,10 +215,8 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
                 if var_print != None:
                     outputStr += str(var_print.data_value) + ", "
                     dvObjects.dataValues[counter].remove(var_print)
-                    # print len(dvObjects.dataValues[counter])
                 else:
                     outputStr += ", "
-                    # print "Not Found!"
 
                 counter += 1
 

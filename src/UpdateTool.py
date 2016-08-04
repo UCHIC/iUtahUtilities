@@ -44,7 +44,7 @@ class Arguments:
     def __init__(self, args):
         self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
         self.VALID_CKAN_TARGETS = ['all', 'ckan']
-        self.destination = 'all'
+        self.destination = 'none'
         self.verbose = False
         self.debug = False
         self.auth = {}
@@ -55,8 +55,6 @@ class Arguments:
                 self.destination = str.lower(arg.split('-d=')[1])
             elif '--verbose' in arg:
                 self.verbose = True
-            elif '--debug' in arg:
-                self.debug = True
             elif '--username=' in arg:
                 self.auth['username'] = arg.split('--username=')[1]
             elif '--password=' in arg:
@@ -67,10 +65,13 @@ class Arguments:
                 self.auth['client_secret'] = arg.split('--client_secret=')[1]
             elif '--auth_file=' in arg:
                 self.auth['auth_file'] = arg.split('--auth_file=')[1]
+            elif '--debug' in arg:
+                self.debug = True
 
     def validate(self):
         valid_args = True
-        if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS:
+        if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS \
+                and self.destination != 'none':
             valid_args = False
         if 'username' in self.auth and 'password' not in self.auth:
             valid_args = False
@@ -171,9 +172,6 @@ if __name__ == "__main__":
     if not user_args.validate():
         user_args.print_usage_info()
         exit(0)
-    if user_args.debug:
-       # Make it not upload - just print out what it would have done
-        pass
     if not os.path.exists(dump_location):
         os.makedirs(dump_location)
     if user_args.verbose:
@@ -198,23 +196,24 @@ if __name__ == "__main__":
         if result:
             filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
 
-    # # Start the upload process
-    # if user_args.destination in user_args.VALID_CKAN_TARGETS:
-    #     print("Uploading files to CKAN")
-    #     ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
-    #     ckan = CkanUtility(ckan_api_key, dump_location)
-    #     result = ckan.upload(filename_list)
-    #     issue_list.extend(result)
-    # if user_args.destination in user_args.VALID_HS_TARGETS:
-    #     print("Preparing to upload files to HydroShare")
-    #     hydroshare = HydroShareUtility()
-    #     user_auth = getHydroShareCredentials(user_args.auth)
-    #     if hydroshare.authenticate(**user_auth):
-    #         paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
-    #         print('Target resource found for {}'.format([item['file']['name'] for item in paired_files]))
-    #         result = [] if user_args.debug else hydroshare.upload(paired_files)
-    #         issue_list.extend(result)
-    #         issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
+    # Start the upload process
+    if user_args.destination in user_args.VALID_CKAN_TARGETS:
+        print("Uploading files to CKAN")
+        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
+        ckan = CkanUtility(ckan_api_key, dump_location)
+        result = ckan.upload(filename_list)
+        issue_list.extend(result)
+    if user_args.destination in user_args.VALID_HS_TARGETS:
+        print("Preparing to upload files to HydroShare")
+        hydroshare = HydroShareUtility()
+        user_auth = getHydroShareCredentials(user_args.auth)
+        if hydroshare.authenticate(**user_auth):
+            paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
+            print('{}/{} resources found: {}'.format(len(paired_files), len(paired_files) + len(unpaired_files),
+                                                     [item['file']['name'] for item in paired_files]))
+            result = [] if user_args.debug else hydroshare.upload(paired_files)
+            issue_list.extend(result)
+            issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
 
     # Notify on issues found
     if user_args.debug:

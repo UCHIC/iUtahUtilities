@@ -295,7 +295,6 @@ class SeriesService():
             print e
             return None
 
-    # TODO: Can we get rid of this?
     def get_series_by_site_code_year(self, site_code, year):
         try:
             vals = self._edit_session.query(Series).filter_by(site_code=site_code, quality_control_level_id=0). \
@@ -313,15 +312,10 @@ class SeriesService():
             print (e)
             return []
 
-    # TODO: Can we get rid of this?
     def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
-        # import datetime
-        #
-        # local_date_time = datetime.datetime.strptime("2015 01 01", "%Y %m %d")
         try:
             sc = self._edit_session.query(Site).filter(Site.id == my_site_id).first()
-            print ('site {s} date {d}'.format(s=sc, d=local_date_time))
-            #TODO: Look here
+            # print ('site {s} date {d}'.format(s=sc, d=local_date_time))
             q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
                                                                           DataValue.local_date_time > local_date_time,
                                                                           DataValue.variable_id == Variable.id)

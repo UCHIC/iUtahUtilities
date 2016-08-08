@@ -1,21 +1,25 @@
-import datetime
-import os
-import re
-import smtplib
-import sys
-import GAMUTRawData.CSVCreatorUpdate as CSV_Creator
-from exceptions import IOError
-from Utilities.HydroShareUtility import HydroShareUtility
-from Utilities.CkanUtility import CkanUtility
-
 """
 
 Tool for updating iUtah GAMUT data in HydroShare and CKAN repositories
 
 """
 
+import datetime
+import os
+import re
+import smtplib
+import sys
+
 __title__ = 'iUtahUtilities Update Tool'
-__version__ = '1.2.2'
+WINDOWS_OS = 'nt' in os.name
+DIR_SYMBOL = '\\' if WINDOWS_OS else '/'
+PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(os.path.dirname(PROJECT_DIR))
+
+import GAMUTRawData.CSVCreatorUpdate as CSV_Creator
+from exceptions import IOError
+from Utilities.HydroShareUtility import HydroShareUtility
+from Utilities.CkanUtility import CkanUtility
 
 EMAIL_SERVER = "mail.usu.edu"
 EMAIL_FROM = "CSVgenerator@GAMUT.exe"
@@ -23,12 +27,6 @@ EMAIL_SUBJECT = "CSV Generator Report"
 FORMAT_STRING = '%s  %s: %s'
 
 curr_year = datetime.datetime.now().strftime('%Y')
-
-WINDOWS_OS = 'nt' in os.name
-DIR_SYMBOL = '\\' if WINDOWS_OS else '/'
-PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
-AUTH_FILE_PATH = '{root}{slash}{auth}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL, auth='secret')
-
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
 dump_location = '{file_path}{year}{slash}'.format(file_path=file_path, year=curr_year, slash=DIR_SYMBOL)
@@ -40,7 +38,6 @@ class Arguments:
     """
     Class for defining and parsing command line arguments
     """
-
     def __init__(self, args):
         self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
         self.VALID_CKAN_TARGETS = ['all', 'ckan']
@@ -85,12 +82,23 @@ class Arguments:
         help_string = ("\nLoadCKAN Tool" +
                        "\n   -d=hs     --destination=hs       Update resource file on Hydroshare" +
                        "\n   -d=ckan   --destination=ckan     Update resource file on CKAN" +
-                       "\n   -d=all    --destination=all      Update resource file on both servers")
+                       "\n   -d=all    --destination=all      Update resource file on both servers" +
+                       "\n   --auth_file=<path>               Absolute or relative path of credentials file" +
+                       "\n   --debug                          Not currently used" +
+                       "\n   --verbose                        Prints to stdout as well as to log file" +
+                       "\n   --username=<username>            Username for Hydroshare account" +
+                       "\n   --password=<password>            Password for given username" +
+                       "\n   --client-id=<client id>          Client id given by HydroShare API" +
+                       "\n   --client-secret=<secret>         Client secret given by HydroShare API")
+        original_output = None
         if not sys.__stdout__ == sys.stdout:
             print(help_string)
+            original_output = sys.stdout
             sys.stdout = sys.__stdout__
         print(help_string)
         print(sys.argv)
+        if original_output is not None:
+            sys.stdout = original_output
 
 
 class Logger(object):
@@ -101,9 +109,9 @@ class Logger(object):
     def __init__(self, logfile, overwrite=False):
         self.terminal = sys.stdout
         if overwrite:
-            mode = 'a'
-        else:
             mode = 'w'
+        else:
+            mode = 'a'
         self.log = open(logfile, mode=mode)
 
     def write(self, message):
@@ -196,13 +204,7 @@ if __name__ == "__main__":
         if result:
             filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
 
-    # Start the upload process
-    if user_args.destination in user_args.VALID_CKAN_TARGETS:
-        print("Uploading files to CKAN")
-        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
-        ckan = CkanUtility(ckan_api_key, dump_location)
-        result = ckan.upload(filename_list)
-        issue_list.extend(result)
+    # Start the upload process to Hydroshare
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print("Preparing to upload files to HydroShare")
         hydroshare = HydroShareUtility()
@@ -214,6 +216,14 @@ if __name__ == "__main__":
             result = [] if user_args.debug else hydroshare.upload(paired_files)
             issue_list.extend(result)
             issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
+
+    # Perform upload to CKAN
+    if user_args.destination in user_args.VALID_CKAN_TARGETS:
+        print("Uploading files to CKAN")
+        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
+        ckan = CkanUtility(ckan_api_key, dump_location)
+        result = ckan.upload(filename_list)
+        issue_list.extend(result)
 
     # Notify on issues found
     if user_args.debug:

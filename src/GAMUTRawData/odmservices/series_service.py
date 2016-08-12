@@ -315,15 +315,13 @@ class SeriesService():
     def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
         try:
             sc = self._edit_session.query(Site).filter(Site.id == my_site_id).first()
-            # print ('site {s} date {d}'.format(s=sc, d=local_date_time))
             q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
                                                                           DataValue.local_date_time > local_date_time,
-                                                                          DataValue.variable_id == Variable.id)
+                                                                          DataValue.variable_id == Variable.id,
+                                                                          DataValue.quality_control_level_id == 0)
 
             query = q.statement.compile(dialect=self._session_factory.engine.dialect)
             array = pd.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params)
-
-            # print('Data Value used in query: {}'.format(array[0]))
             return array
         except Exception as e:
             print e

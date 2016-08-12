@@ -7,12 +7,12 @@ Example:
 """
 
 import datetime
-
 import CKANClient.iutah_ckan_client as cc
 
 
 class CkanUtility:
     def __init__(self, api_key, dump_location):
+        self.address = 'http://repository.iutahepscor.org'
         self.NOW = datetime.datetime.now()
         self.FORMAT_STRING = '%s  %s: %s'
         self.api_key = api_key
@@ -59,6 +59,7 @@ class CkanUtility:
                         # "cache_last_updated": None,
                         # "webstore_last_updated": None,
                     }
+
                 print('{} - LoadCKAN: Replacing CKAN repo file {}'.format(datetime.datetime.now(), curr_file['path']))
                 cc.update_resource(api_key=self.api_key, package_name=package_name, file_to_upload=curr_file['path'],
                                    replace_file_name=curr_file['name'], resource_info=None)

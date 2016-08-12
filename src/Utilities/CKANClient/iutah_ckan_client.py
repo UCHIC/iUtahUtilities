@@ -7,10 +7,8 @@ import json
 
 __author__ = 'pabitra'
 
-#CKAN_REMOTE_INSTANCE_BASE_URL = 'http://127.0.0.1:5000'
-# CKAN_REMOTE_INSTANCE_BASE_URL = 'http://iutah-ckan-test.uwrl.usu.edu'
 CKAN_REMOTE_INSTANCE_BASE_URL = 'http://repository.iutahepscor.org'
-#CKAN_REMOTE_INSTANCE_BASE_URL = 'http://demo.ckan.org'
+
 
 def do(f, args=[], kwargs={}):
     while True:
@@ -20,6 +18,7 @@ def do(f, args=[], kwargs={}):
         except Exception, e:
             print "EXCEPTION: ", e
             pass
+
 
 def raise_for_status(response):
     try:
@@ -41,13 +40,13 @@ def get_parameters(api_key, filepath=None):
     params['DIRECTORY'] = params['NOW'].replace(":", "").replace("-", "")
     return params
 
+
 def request_permission():  # phase1
     response = requests.get("{CKAN_INSTANCE}/api/storage/auth/form/{DIRECTORY}/{FILENAME}".format(**params), headers=headers)
     response.raise_for_status()
     j = response.json()
     assert "action" in j
     assert "fields" in j
-    print j
     return j
 
 
@@ -106,6 +105,7 @@ def upload(resource_info=None):
             # "cache_last_updated": None,
             # "webstore_last_updated": None,
             }
+
 
     j = do(request_permission)
     url = do(upload_file, [j])

@@ -16,13 +16,17 @@ issue_list=[]
 NOW = datetime.datetime.now()
 curr_year = NOW.strftime('%Y')
 #curr_year="2014"
-dump_location = "C:\\GAMUT_CSV_Files\\"
+# dump_location = "C:\\GAMUT_CSV_Files\\"
+dump_location = "/Users/stephanie/Desktop/test_csv/"
+
 
 filename = 'csvgenerator.log'
 filepath =  dump_location + filename
 sys.stdout = open(filepath, 'w')
-dump_location = "%s%s\\"%(dump_location,  curr_year)
+dump_location = "%s%s/"%(dump_location,  curr_year)
 
+
+#send email with log as an attachement
 import smtplib
 def sendEmail(message, to, attach = None):
     SERVER = "mail.usu.edu"
@@ -72,7 +76,7 @@ Example:
 >python iutah_ckan_client.py update_resource db567980-cgt8-9067-45678de285f3 my-original-dataset c:\\odm_site_1_2014.csv odm_site_1_2014.csv
 '''
 
-#update all of the files
+#update all of the csv files
 try:
     issues = cr.dataParser(dump_loc = dump_location, year = curr_year)
     issues = "this is a test for my list of issues"
@@ -82,6 +86,8 @@ except Exception as e:
     issue_list.append(e)
 
 
+
+#upload all of the csv files to ckan using the ckanclient
 
 api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"#"516ca1ebf399411f9ba949310de285f3"
 res = cc.get_package_list(api_key)

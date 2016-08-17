@@ -25,7 +25,8 @@ class CsvLocalDataset:
         self.csv_filepath = "{path}{name}".format(path=dump_location, name=self.csv_filename)
 
         self.year = year
-        self.start_date = datetime.datetime(int(year), 01, 01, 0, 0, 0)
+        # self.start_date = datetime.datetime(int(year), 01, 01, 0, 0, 0)
+        self.start_date = '{y}-01-01 00:00:00'.format(y=year)
         self.end_date = datetime.datetime(int(year), 12, 31, 23, 55, 59)
         self.column_count = 0
 
@@ -59,9 +60,8 @@ class CsvLocalDataset:
 
             print("writeToFile: Attempting to fetch data for site {}".format(self.site.id))
             dvs = series_service.get_all_values_by_site_id_date(self.site.id, self.start_date)
-            print('DVS count: {}'.format(len(dvs)))
             if len(dvs) > 0:
-                dvs.set_index(['ValueID', 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
+                dvs.set_index(['LocalDateTime', 'UTCOffset', 'DateTimeUTC', 'ValueID'])
                 df = pd.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"], columns="VariableCode",
                                     values="DataValue")
 
@@ -237,7 +237,6 @@ def dataParser(dump_loc, year):
     issues = []
     print("\n========================================================\n")
     # logan database is loaded here
-    print("Started creating files.")
     issues.append(handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc, year))
 
     # provo database is loaded here

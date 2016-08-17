@@ -297,8 +297,13 @@ class SeriesService():
 
     def get_series_by_site_code_year(self, site_code, year):
         try:
-            vals = self._edit_session.query(Series).filter_by(site_code=site_code, quality_control_level_id=0). \
-                filter(Series.end_date_time.between(year + '-01-01', str(int(year) + 1) + '-01-01')).all()
+            # vals = self._edit_session.query(Series).filter_by(site_code=site_code, quality_control_level_id=0). \
+            #     filter(Series.end_date_time.between(year + '-01-01', str(int(year) + 1) + '-01-01')).all()
+            year_start = '{}-01-01 00:00:00'.format(year)
+            year_end = '{}-12-31 23:59:59'.format(year)
+            vals = self._edit_session.query(Series).filter(Series.site_code == site_code,
+                                                           Series.quality_control_level_id == 0,
+                                                           Series.end_date_time.between(year_start, year_end)).all()
             return vals
         except Exception as ex:
             return None
@@ -314,9 +319,8 @@ class SeriesService():
 
     def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
         try:
-            sc = self._edit_session.query(Site).filter(Site.id == my_site_id).first()
             q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
-                                                                          DataValue.local_date_time > local_date_time,
+                                                                          DataValue.local_date_time >= local_date_time,
                                                                           DataValue.variable_id == Variable.id,
                                                                           DataValue.quality_control_level_id == 0)
 

@@ -47,6 +47,7 @@ dump_location = "%s%s\\" % (dump_location, curr_year)
 
 ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"  # "516ca1ebf399411f9ba949310de285f3"
 
+
 def sendEmail(message, to, attach=None):
     recipients = [to]  # must be a list
     fo = open(attach, "r")

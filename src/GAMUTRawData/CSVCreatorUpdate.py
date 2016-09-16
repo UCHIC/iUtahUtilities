@@ -25,7 +25,6 @@ class CsvLocalDataset:
         self.csv_filepath = "{path}{name}".format(path=dump_location, name=self.csv_filename)
 
         self.year = year
-        # self.start_date = datetime.datetime(int(year), 01, 01, 0, 0, 0)
         self.start_date = '{y}-01-01 00:00:00'.format(y=year)
         self.end_date = datetime.datetime(int(year), 12, 31, 23, 55, 59)
         self.column_count = 0
@@ -46,7 +45,7 @@ class CsvLocalDataset:
             print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
             return None
 
-    def writeToFile(self, series_service, series_list, filepath=None, constrain_to_year=True):
+    def writeToFile(self, series_service, series_list, filepath=None):
         print('WriteToFile: Processing site {} with {} series items'.format(self.site.code, len(series_list)))
         if filepath is None:
             filepath = self.csv_filepath

@@ -317,10 +317,10 @@ class SeriesService():
             print (e)
             return []
 
-    def get_all_values_by_site_id_date(self, my_site_id, local_date_time):
+    def get_all_values_by_site_id_date(self, my_site_id, first_date_time):
         try:
             q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
-                                                                          DataValue.local_date_time >= local_date_time,
+                                                                          DataValue.local_date_time >= first_date_time,
                                                                           DataValue.variable_id == Variable.id,
                                                                           DataValue.quality_control_level_id == 0)
 

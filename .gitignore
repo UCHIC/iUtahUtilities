@@ -53,6 +53,7 @@ setup/Output/setup.exe
 .idea
 *.png
 *.uml
+GAMUT_CSV_Files
 
 # ipython
 .ipynb_checkpoints
@@ -61,3 +62,4 @@ setup/Output/setup.exe
 .log
 
 
+src/secret

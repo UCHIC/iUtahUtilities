@@ -7,7 +7,7 @@ class SessionFactory():
         self.engine = create_engine(connection_string, encoding='utf-8', echo=echo,
                                     #pool_size=20,
                                     pool_recycle=3600,
-                                    pool_timeout=5,
+                                    pool_timeout=3600,
                                     max_overflow=0)
 
         # Create session maker

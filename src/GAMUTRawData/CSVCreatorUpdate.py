@@ -2,169 +2,191 @@ import sys
 import os
 import logging
 import datetime
-
 import pandas as pd
+
+from odmservices import ServiceManager
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))
 
 sys.path.insert(0, directory)
-from odmservices import ServiceManager
 
 formatString = '%s  %s: %s'
-sm = ServiceManager()
+service_manager = ServiceManager()
 
 issues = []
 
 
-def handleConnection(database, location, dump_location, year):
-    issue_list = []
-    # Getting the data
-    sm._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
-                              'address': 'iutahdbs.uwrl.usu.edu', 'db': database}
-    ss = sm.get_series_service()
-    sites = ss.get_all_sites()
+class CsvLocalDataset:
+    def __init__(self, dump_location, location, site, year):
+        self.site = site
+        self.location = location
+        self.csv_filename = 'iUTAH_GAMUT_{site}_RawData_{yr}.csv'.format(site=site.code, yr=year)
+        self.csv_filepath = "{path}{name}".format(path=dump_location, name=self.csv_filename)
 
-    print("Started getting sites for " + database)
-    # get current year,
-    # year = datetime.datetime.now().strftime('%Y')
+        self.year = year
+        self.start_date = '{y}-01-01 00:00:00'.format(y=year)
+        self.end_date = datetime.datetime(int(year), 12, 31, 23, 55, 59)
+        self.column_count = 0
 
-    # loop through each site
-    for site in sites:
+    def createFile(self, filepath):
+        """
+
+        :param file_path:
+        :type file_path:
+        :return:
+        :rtype:
+        """
         try:
-            # generate file name
-            file_name = "iUTAH_GAMUT_" + site.code + "_RawData_" + year + ".csv"
+            print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
+            file_out = open(filepath, 'w')
+            return file_out
+        except Exception as e:
+            print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
+            return None
 
-            file_path = dump_location + file_name
+    def writeToFile(self, series_service, series_list, filepath=None):
+        print('WriteToFile: Processing site {} with {} series items'.format(self.site.code, len(series_list)))
+        if filepath is None:
+            filepath = self.csv_filepath
 
-            series = ss.get_series_by_site_code_year(site.code, year)
-            numvar = len(series)
-            colcount = 0
-            if fileexists(file_path):
-                # start date , colcount = call mario function
-                print formatString % (datetime.datetime.now(), "handleConnection", "Updating file " + file_name)
-                startdate, colcount = parseCSVData(file_path)
-
-            # if not fileexists(file_path) or colcount > numvar :
-            if not fileexists(file_path) or colcount != numvar:
-                # set start date to jan 1 of curr year
-                # colcount = 0
-                print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + file_name)
-                startdate = datetime.datetime(int(year), 01, 01, 0, 0, 0)
-                colcount = 0
-            '''elif colcount<numvar:
-                msg = "File Incorrect: " + file_name + " variables removed"
-
-                issues.append(msg)
-                #this line is just for testing, to shorten the amount of test data
-                #startdate = datetime.datetime(int(year),11,18,0,0,0)
-            '''
-            # options: new site, added variables, removed variable, same variable
-
-
-
-            # dvs= get data at site since startdate
-            dvs = ss.get_all_values_by_site_id_date(site.id, startdate)
+        issue_list = []
+        try:
+            print("writeToFile: Attempting to fetch data for site {}".format(self.site.id))
+            dvs = series_service.get_all_values_by_site_id_date(self.site.id, self.start_date)
             if len(dvs) > 0:
-                df = pd.DataFrame([x.list_repr() for x
-                                   in dvs], columns=dvs[0].get_columns())
-                del dvs
-                # df.set_index([ "ValueID", 'LocalDateTime', 'UTCOffset', 'DateTimeUTC'])
-                df = pd.pivot_table(df, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"], columns="VariableCode",
+                file_out = self.createFile(filepath)
+                if file_out is None:
+                    issue_list.append('Unable to create file for output')
+                    del dvs
+                    return issue_list
+
+                dvs.set_index(['LocalDateTime', 'UTCOffset', 'DateTimeUTC', 'ValueID'])
+                df = pd.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"], columns="VariableCode",
                                     values="DataValue")
-                # pv=df.pivot(index="LocalDateTime", columns="VariableCode", values="DataValue")
-                collist = len(df.columns)
 
-                # if colcount not equal to dvs.colcount  colcount number of columns in the file
-                # collist number of columns from the database
-                # ( will match if there is new file or the number of vars have changed)
-                if colcount != collist:
-                    f = open(file_path, 'w')
-                    # generate header
-                    file_str = generateHeader(site, location)
-                    # Getting and organizing all the data
-                    var_data = VariableData()
+                # generate header
+                file_str = self.generateHeader()
+                # Getting and organizing all the data
+                var_data = VariableData()
 
-                    for s in series:
-                        var_data.addData(s.variable)
-                        var_data.addMethodInfo(s.method.description, s.method.link)
+                for s in series_list:
+                    var_data.addData(s.variable)
+                    var_data.addMethodInfo(s.method.description, s.method.link)
 
-                    source = series[0].source
-                    sourceInfo = SourceInfo()
+                sourceInfo = SourceInfo()
+                if len(series_list) > 0:
+                    source = series_list[0].source
                     sourceInfo.setSourceInfo(source.organization, source.description, source.link,
                                              source.contact_name, source.phone, source.email, source.citation)
-                    # print header
-                    file_str += var_data.printToFile()
 
-                    file_str += "#\n"
-                    file_str += sourceInfo.outputSourceInfo()
-                    file_str += "#\n"
+                file_str += var_data.printToFile()
+                file_str += "#\n"
+                file_str += sourceInfo.outputSourceInfo()
+                file_str += "#\n"
 
-                    # print data and headers to file
-                    # f.write("text\n\n\n")
-                    f.write(file_str)
-                    del file_str
-                    del sourceInfo
-                    del source
-                    del series
-                    del var_data
-                    df.to_csv(f)
-                    f.close()
-                    # print FORMAT_STRING %(datetime.datetime.now(), "handleConnection",  "Finished creating " + file_name + " CSV file. ")
-                else:
-                    #   open file for appending
-                    with open(file_path, 'a') as f:
-                        # append values to CSV
-                        df.to_csv(f, header=False)
-                        # print FORMAT_STRING %(datetime.datetime.now(), "handleConnection",  "Finished updating " +file_name + " CSV file. ")
-
-                        # if file is not empty then get the latest value only (make another function)
-
-
+                # print data and headers to file
+                file_out.write(file_str)
+                del file_str
+                del sourceInfo
+                # del source
+                del var_data
+                df.to_csv(file_out)
+                file_out.close()
+                print ('{} handleConnection: Success - finished creating {}'.format(datetime.datetime.now(), filepath))
             else:
-                del dvs
-
-                # del text_file
+                print("No data value sets found - no file created for {}, {}".format(self.site.code, self.site.name))
+            del dvs
         except Exception as e:
-            msg = " SiteName: %s, year: %s, Error : %s" % (site, year, e)
-            print formatString % (datetime.datetime.now(), "handleConnection", msg)
+            msg = " SiteName: %s, year: %s, Error : %s" % (self.site, self.year, e)
+            print formatString % (datetime.datetime.now(), "WriteToFile", msg)
+            print('---\nIssue encountered while attempting to write data to file: \n{}\n{}\n---'.format(e, e.message))
             issue_list.append(msg)
 
+    def generateHeader(self):
+        """
+        :return: Returns a string to be inserted as the CSV file's header
+        :rtype: str
+        """
+        file_str = "# ------------------------------------------------------------------------------------------\n"
+        file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
+        file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
+        file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
+        file_str += "# resulting from their use. The following metadata describe the data in this file:\n"
+        file_str += "# ------------------------------------------------------------------------------------------\n"
+        file_str += "#\n"
+        file_str += "# Site Information\n"
+        file_str += "# ----------------------------------\n"
+        file_str += "# Network: " + self.location + "\n"
+        file_str += "# SiteCode: " + str(self.site.code) + "\n"
+        file_str += "# SiteName: " + str(self.site.name) + "\n"
+        file_str += "# Latitude: " + str(self.site.latitude) + "\n"
+        file_str += "# Longitude: " + str(self.site.longitude) + "\n"
+        file_str += "# Elevation_m: " + str(self.site.elevation_m) + "\n"
+        file_str += "# ElevationDatum: " + str(self.site.vertical_datum) + "\n"
+        file_str += "# State: " + str(self.site.state) + "\n"
+        file_str += "# County: " + str(self.site.county) + "\n"
+        file_str += "# Comments: " + str(self.site.comments) + "\n"
+        file_str += "# SiteType: " + str(self.site.type) + "\n"
+        file_str += "#\n"
+        file_str += "# Variable and Method Information\n"
+        file_str += "# ---------------------------\n"
+        return file_str
+
+    def parseCSVData(self, filePath):
+        try:
+            csvFile = open(filePath, "r")
+            lastLine = self.getLastLine(csvFile)
+            csvFile.close()
+            return self.getDateAndNumCols(lastLine)
+        except Exception as e:
+            print('Exception encountered while attempting to parse the CSV file "{}":\n{}'.format(filePath, e))
+            return 0, 0
+
+    def getLastLine(self, targetFile):
+        firstCharSeek = ''
+        readPosition = -3
+        prevLine = result = ""
+        while firstCharSeek != '\n':
+            targetFile.seek(readPosition, os.SEEK_END)
+            readPosition -= 1
+            result = prevLine  # last line was being deleted. So I saved a temp to keep it
+            prevLine = targetFile.readline()
+            firstCharSeek = prevLine[0]
+        return result
+
+    def getDateAndNumCols(self, lastLine):
+        strList = lastLine.split(",")
+        dateTime = datetime.datetime.strptime(strList.pop(0), '%Y-%m-%d %H:%M:%S')
+        # utc = strList.pop(0)
+        # utcdate = strList.pop(0)
+        '''
+        count = 0
+        for value in strList:
+            isValueCorrect = strList.index(value) > 0 and value != " \n"# and value != " ": #I guess we are considering
+            all columns even if there are no values.
+            if isValueCorrect:
+                count += 1
+        '''
+        count = len(strList)
+        return dateTime, count
+
+
+def handleConnection(database, location, dump_location, year):
+    print('Started getting sites for {} at {}'.format(database, location))
+    issue_list = []
+    # Getting the data
+    service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
+                                           'address': 'iutahdbs.uwrl.usu.edu', 'db': database}
+    series_service = service_manager.get_series_service()
+    all_sites = series_service.get_all_sites()
+
+    for site in all_sites:
+        # generate file name
+        local_dataset = CsvLocalDataset(dump_location, location, site, year)
+        series = series_service.get_series_by_site_code_year(site.code, year)
+        local_dataset.writeToFile(series_service, series)
     return issue_list
-
-
-def fileexists(file_path):
-    import os
-    return os.path.exists(file_path)
-
-
-def generateHeader(site, location):
-    file_str = ""
-
-    file_str = "# ------------------------------------------------------------------------------------------\n"
-    file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
-    file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
-    file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
-    file_str += "# resulting from their use. The following metadata describe the data in this file:\n"
-    file_str += "# ------------------------------------------------------------------------------------------\n"
-    file_str += "#\n"
-    file_str += "# Site Information\n"
-    file_str += "# ----------------------------------\n"
-    file_str += "# Network: " + location + "\n"
-    file_str += "# SiteCode: " + str(site.code) + "\n"
-    file_str += "# SiteName: " + str(site.name) + "\n"
-    file_str += "# Latitude: " + str(site.latitude) + "\n"
-    file_str += "# Longitude: " + str(site.longitude) + "\n"
-    file_str += "# Elevation_m: " + str(site.elevation_m) + "\n"
-    file_str += "# ElevationDatum: " + str(site.vertical_datum) + "\n"
-    file_str += "# State: " + str(site.state) + "\n"
-    file_str += "# County: " + str(site.county) + "\n"
-    file_str += "# Comments: " + str(site.comments) + "\n"
-    file_str += "# SiteType: " + str(site.type) + "\n"
-    file_str += "#\n"
-    file_str += "# Variable and Method Information\n"
-    file_str += "# ---------------------------\n"
-    return file_str
 
 
 def outputValues(ss, dvObjects, site, header_str, dump_location):
@@ -177,13 +199,11 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
             outputStr = ""
             if time.local_date_time.year != currentYear:
                 if currentYear != 1900:
+                    file_name = "iUTAH_GAMUT_{site}_RawData_{yr}.csv".format(site=site.code, yr=currentYear)
                     text_file.close()
-                    print formatString(datetime.datetime.now, "outputValues",
-                                       "Finished creating " + "iUTAH_GAMUT_" + site.code + "_RawData_" + str(
-                                           currentYear) + " CSV file. ")
+                    print "{} outputValues: Finished creating {}".format(datetime.datetime.now, file_name)
                 currentYear = time.local_date_time.year
-                text_file = open(dump_location + "iUTAH_GAMUT_" + site.code + "_RawData_" + str(currentYear) + ".csv",
-                                 "w")
+                text_file = open(dump_location + file_name, "w")
                 text_file.write(header_str)
 
             outputStr += str(time[0]) + ", " + str(time[1]) + ", " + str(time[2]) + ", "
@@ -194,10 +214,8 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
                 if var_print != None:
                     outputStr += str(var_print.data_value) + ", "
                     dvObjects.dataValues[counter].remove(var_print)
-                    # print len(dvObjects.dataValues[counter])
                 else:
                     outputStr += ", "
-                    # print "Not Found!"
 
                 counter += 1
 
@@ -209,42 +227,6 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
         text_file.close()
 
 
-def parseCSVData(filePath):
-    csvFile = open(filePath, "r")
-    lastLine = getLastLine(csvFile)
-    csvFile.close()
-    return getDateAndNumCols(lastLine)
-
-
-def getLastLine(targetFile):
-    firstCharSeek = ''
-    readPosition = -3
-    prevLine = result = ""
-    while firstCharSeek != '\n':
-        targetFile.seek(readPosition, os.SEEK_END)
-        readPosition -= 1
-        result = prevLine  # last line was being deleted. So I saved a temp to keep it
-        prevLine = targetFile.readline()
-        firstCharSeek = prevLine[0]
-    return result
-
-
-def getDateAndNumCols(lastLine):
-    strList = lastLine.split(",")
-    dateTime = datetime.datetime.strptime(strList.pop(0), '%Y-%m-%d %H:%M:%S')
-    utc = strList.pop(0)
-    utcdate = strList.pop(0)
-    '''
-    count = 0
-    for value in strList:
-        isValueCorrect = strList.index(value) > 0 and value != " \n"# and value != " ": #I guess we are considering all columns even if there are no values.
-        if isValueCorrect:
-            count += 1
-    '''
-    count = len(strList)
-    return dateTime, count
-
-
 # Test case for parseCSVData and related functions
 # dateAndColsObj = parseCSVData("C:\\iUTAH_GAMUT_PR_BD_C_RawData_2013.csv")
 # print dateAndColsObj.localDateTime
@@ -254,7 +236,6 @@ def dataParser(dump_loc, year):
     issues = []
     print("\n========================================================\n")
     # logan database is loaded here
-    print("Started creating files.")
     issues.append(handleConnection('iUTAH_Logan_OD', 'Logan', dump_loc, year))
 
     # provo database is loaded here
@@ -376,10 +357,3 @@ class VariableData:
     def formatHelper(self, title, var):
         formatted = title + ": " + str(var) + " | "
         return formatted
-
-
-'''
-
-#update all of the files
-dataParser(dump_loc = "C:\\Users\\Stephanie\\Desktop\\csvsites\\Srfiles\\")
-'''

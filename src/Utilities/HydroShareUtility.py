@@ -46,24 +46,24 @@ class HydroShareUtility:
         just_the_name = shorter_name[:-4]
         for server_file in file_list:
             server_file_name = os.path.basename(server_file)
+            duplicate_re_expr = '{}\%20\([0-9]+\)'.format(just_the_name)
             if shorter_name == server_file_name:
                 print('Exact match: {}'.format(shorter_name))
-            elif just_the_name in server_file_name:
-                delete_me = confirm_delete
-                if confirm_delete:
+            elif just_the_name in server_file_name or re.search(duplicate_re_expr, server_file_name):
+                if not confirm_delete:
+                    delete_me = True
+                else:
                     user_answer = raw_input("Delete file {} [Y/n]: ".format(server_file_name))
                     if user_answer != 'N' or user_answer != 'n':
                         delete_me = True
                     else:
                         delete_me = False
 
-                if delete_me or not confirm_delete:
+                if delete_me:
                     self.client.deleteResourceFile(resource['resource_id'], server_file_name)
                     print('Deleting file {}...'.format(server_file_name))
                 else:
-                    print('Skipping file {}...'.format(server_file_name))
-            elif re.search('{}\%20\([0-9]+\)'.format(just_the_name), server_file_name):
-                print('Found another duplicate: {}'.format(server_file_name))
+                    print('Skipping duplicate file {}...'.format(server_file_name))
             else:
                 print('Not flagged as dup: {}'.format(server_file_name))
 
@@ -91,8 +91,8 @@ class HydroShareUtility:
                 file_list = []
                 for resource_file in resource_files:
                     file_list.append(resource_file['url'])
-                if False:  # Use this to clean out the extra files you accidentally created during testing
-                    self.purgeDuplicates(local_file, file_list, resource, True)
+                if True:  # Use this to clean out the extra files you accidentally created during testing
+                    self.purgeDuplicates(local_file, file_list, resource, confirm_delete=False)
 
                 duplicates = len([remote_file for remote_file in file_list if local_file['name'] in remote_file])
                 matched_files.append({'resource': resource, 'file': local_file, 'overwrite_remote': duplicates})

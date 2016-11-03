@@ -156,7 +156,7 @@ def _get_resource_to_delete(resource_file_name_to_delete):
 
     response.raise_for_status()
 
-    pkg_resources = json.loads(response.content)['result']['resources']
+    pkg_resources = json.loads(response.content)['result']['resource_cache']
 
     res_to_delete = None
     try:
@@ -372,7 +372,7 @@ def copy_dataset(api_key=None, package_name=None):
             'state': pkg_dict['state'],
             'version': pkg_dict['version'],
             'type': pkg_dict['type'],
-            'resources': [],
+            'resource_cache': [],
             'tag_string': tag_string,
             'tags': tags,
             'groups': pkg_dict['groups'],

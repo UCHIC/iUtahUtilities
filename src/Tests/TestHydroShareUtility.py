@@ -1,7 +1,7 @@
 import unittest
 import re
 
-from src.UpdateTool import PROJECT_DIR, dump_location, RE_SITE_CODE, RE_RESOURCE_FILTER
+from src.UpdateTool import PROJECT_DIR, dump_location, RE_RAW_DATA_SITE_CODE, RE_RAW_RESOURCES
 from src.Utilities.HydroShareUtility import HydroShareUtility, HydroShareUtilityException
 
 
@@ -23,7 +23,7 @@ def getSampleFileListing():
     file_listing = []
     for item in filename_list:
         file_to_upload = dump_location + item
-        result = re.match(RE_SITE_CODE, item, re.IGNORECASE)
+        result = re.match(RE_RAW_DATA_SITE_CODE, item, re.IGNORECASE)
         if result:
             file_listing.append({"path": file_to_upload, "name": item, "site": result.group(2)})
     return file_listing
@@ -91,7 +91,7 @@ class TestHydroShareUtility(unittest.TestCase):
         credentials = getValidCredentials()
         self.assertTrue(self.hydroshare.authenticate(**credentials))
         all_resources = self.hydroshare.filterResourcesByRegex(".*")
-        filtered_resources = self.hydroshare.filterResourcesByRegex(RE_RESOURCE_FILTER)
+        filtered_resources = self.hydroshare.filterResourcesByRegex(RE_RAW_RESOURCES)
         self.assertGreater(len(all_resources), len(filtered_resources))
 
     def test_ResourcePairingWithAuth(self):
@@ -103,7 +103,7 @@ class TestHydroShareUtility(unittest.TestCase):
 
         # The following relies on HydroShare having at least one resource that matches at least one file
         valid_file_list = getSampleFileListing()
-        pairs, unpaired = self.hydroshare.pairFilesToResources(valid_file_list, RE_RESOURCE_FILTER)
+        pairs, unpaired = self.hydroshare.pairFilesToResources(valid_file_list, RE_RAW_RESOURCES)
         self.assertGreaterEqual(len(pairs), 1)
         self.assertEquals(len(valid_file_list), len(unpaired) + len(pairs))
 
@@ -111,7 +111,7 @@ class TestHydroShareUtility(unittest.TestCase):
         credentials = getValidCredentials()
         self.assertTrue(self.hydroshare.authenticate(**credentials))
         valid_file_list = getSampleFileListing()
-        pairs, unpaired = self.hydroshare.pairFilesToResources(valid_file_list, RE_RESOURCE_FILTER)
+        pairs, unpaired = self.hydroshare.pairFilesToResources(valid_file_list, RE_RAW_RESOURCES)
         self.assertGreaterEqual(len(pairs), 1)
         self.assertEquals(len(valid_file_list), len(unpaired) + len(pairs))
         result = self.hydroshare.upload(pairs)

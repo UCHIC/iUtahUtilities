@@ -9,6 +9,7 @@ import os
 import re
 import smtplib
 import sys
+import xml.etree.ElementTree as ElementTree
 
 __title__ = 'iUtahUtilities Update Tool'
 WINDOWS_OS = 'nt' in os.name
@@ -16,7 +17,7 @@ DIR_SYMBOL = '\\' if WINDOWS_OS else '/'
 PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
 sys.path.append(os.path.dirname(PROJECT_DIR))
 
-import GAMUTRawData.CSVCreatorUpdate as CSV_Creator
+from GAMUTRawData.CSVDataFileGenerator import *
 from exceptions import IOError
 from Utilities.HydroShareUtility import HydroShareUtility
 from Utilities.CkanUtility import CkanUtility
@@ -29,15 +30,27 @@ FORMAT_STRING = '%s  %s: %s'
 curr_year = datetime.datetime.now().strftime('%Y')
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
-dump_location = '{file_path}{year}{slash}'.format(file_path=file_path, year=curr_year, slash=DIR_SYMBOL)
-RE_SITE_CODE = r'(^.*iUTAH_GAMUT_)(.*)(_rawdata_{year}\.csv$)'.format(year=curr_year)
-RE_RESOURCE_FILTER = r"(?=.*raw.?data)(?=.*iUtah)(?=.*Gamut).+"
+
+# Raw Data strings and patterns
+raw_dump_location = '{path}RawData{slash}{year}{slash}'.format(path=file_path, year=curr_year, slash=DIR_SYMBOL)
+RE_RAW_DATA_SITE_CODE = r'(^.*iUTAH_GAMUT_)(?P<site>.*)(_rawdata_{year}\.csv$)'.format(year=curr_year)
+RE_RAW_RESOURCES = r"(?=.*raw.?data)(?=.*iUtah)(?=.*Gamut).+"
+RE_RAW_FILE = r'^.*(?P<name>(?P<required>iUTAH_GAMUT_)(?P<unused_1>.*)(' \
+              r'_rawdata_)(?P<year>20[0-9]{2})(?P<duplicated>.*?)(?P<filetype>\.csv))$'
+
+# Quality Control Level 1 strings and patterns
+qc_dump_location = '{file_path}QualityControlled{slash}'.format(file_path=file_path, slash=DIR_SYMBOL)
+RE_QC1_RESOURCES = r"(?=.*quality.?control.?level.?1.?)(?=.*iUtah)(?=.*Gamut).+"
+RE_QC1_DATA_SITE_CODE = r'(^.*iUTAH_GAMUT_)(?P<site>.*)(_Quality_Control_Level_1_)(?P<var>.+)(\.csv$)'
+RE_QC1_FILE = r'^.*(?P<name>(?P<required>iUTAH_GAMUT_)(?P<unused_1>.*)(_Quality_Control_Level_1_)(?P<var_code>.*)(' \
+              r'?P<duplicated>(_[a-z0-9]{7})|((%20|\ )\([0-9]+\)))(?P<filetype>\.csv))$'
 
 
 class Arguments:
     """
     Class for defining and parsing command line arguments
     """
+
     def __init__(self, args):
         self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
         self.VALID_CKAN_TARGETS = ['all', 'ckan']
@@ -108,7 +121,7 @@ class Logger(object):
 
     def __init__(self, logfile, overwrite=False):
         self.terminal = sys.stdout
-        if overwrite:
+        if overwrite or not os.path.exists(logfile):
             mode = 'w'
         else:
             mode = 'a'
@@ -175,60 +188,128 @@ def getHydroShareCredentials(auth_info):
     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
+def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, create_as_needed=False):
+    """
+
+    :param new_resource_name: For sites without resources, create a resource
+    :type new_resource_name: str
+    :param file_regex: Regular expression string used to break down the file name into useable parts
+    :type file_regex: str
+    :param user_auth: Authentication deta02ils
+    :type user_auth: dict
+    :param sites: Dictionary of sites with site files
+    :type sites: dict of list of FileDetails
+    :param resource_regex:
+    :type resource_regex: str
+    :return:
+    :rtype:
+    """
+    hsResults = []
+    hydroshare = HydroShareUtility()
+    user_auth = getHydroShareCredentials(user_auth)
+    if hydroshare.authenticate(**user_auth):
+        print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
+        discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
+
+        # Remove any duplicate files we can find
+        print 'Checking for duplicate files in {} resources'.format(len(discovered_resources))
+        for resource_id in discovered_resources:
+            hydroshare.purgeDuplicateGamutFiles(resource_id, file_regex)
+
+        # Check for matching resources for each site - we can't update a resource if we don't know what it is
+        paired_sites, unpaired_sites = hydroshare.pairSitesToResources(sites.keys(), discovered_resources)
+
+        # Create new resources if needed, and add the new resource to the site/resource pair list
+        if create_as_needed:
+            for site_code in unpaired_sites:
+                valid_files = [f for f in sites[site_code] if not f.is_empty]
+                if len(valid_files) == 0:
+                    continue
+                resource_details = getNewQC1ResourceInformation(site_code, valid_files)
+                resource_id = hydroshare.createNewResource(resource_details)
+                paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
+                unpaired_sites.remove(site_code)
+
+        # Upload new, proper files - delete files that have been uploaded and are empty
+        for pair in paired_sites:
+            site_code = pair['site_code']
+            hydroshare.removeResourceFiles([f for f in sites[site_code] if f.is_empty], pair['resource_id'])
+            hydroshare.upload([f for f in sites[site_code] if not f.is_empty], pair['resource_id'])
+
+        # Make sure our resources are public, this has potential to change if a resource has only one file
+        hydroshare.setResourcesAsPublic(discovered_resources)
+
+        # And we're done - let's report our results
+        paired_site_codes = [item['site_code'] for item in paired_sites]
+        print('{}/{} resource_cache found: {}'.format(len(paired_site_codes), len(sites.keys()), paired_site_codes))
+        print 'The following sites have no valid files and/or no target resource: {}'.format(unpaired_sites)
+
+        # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
+        if False:
+            resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
+            for resource_id in resources_to_delete:
+                hydroshare.deleteResource(resource_id, confirm=False)
+
+    return hsResults
+
+
 if __name__ == "__main__":
     user_args = Arguments(sys.argv)
     if not user_args.validate():
         user_args.print_usage_info()
         exit(0)
-    if not os.path.exists(dump_location):
-        os.makedirs(dump_location)
+    if not os.path.exists(file_path):
+        os.makedirs(file_path)
+    if not os.path.exists(raw_dump_location):
+        os.makedirs(raw_dump_location)
+    if not os.path.exists(qc_dump_location):
+        os.makedirs(qc_dump_location)
     if user_args.verbose:
         sys.stdout = Logger(log_file, overwrite=True)
     else:
         sys.stdout = open(log_file, 'w')
 
-    issue_list = []
-    # Fetch the raw GAMUT data and store them in CSV files locally
-    try:
-        issues = CSV_Creator.dataParser(dump_loc=dump_location, year=curr_year)
-        issue_list.append(issues)
-    except Exception as e:
-        print('Exception encountered while retrieving datasets: {}'.format(e))
-        issue_list.append(e)
+    start_time = datetime.datetime.now()
+    raw_files = {}
+    qc_files = {}
 
-    # Get names of all files, add to dictionary for processing`
-    filename_list = []
-    for item in os.listdir(dump_location):
-        file_to_upload = dump_location + item
-        result = re.match(RE_SITE_CODE, item, re.IGNORECASE)
-        if result:
-            filename_list.append({"path": file_to_upload, "name": item, "site": result.group(2)})
+    # Update the local Raw Data files
+    raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
+    print 'Raw files updated - time taken: {}'.format(datetime.datetime.now() - start_time)
+
+    # Update the local Quality Control Level 1 files
+    stopwatch_timer = datetime.datetime.now()
+    qc_files = dataParser(qc_dump_location, 'QC', curr_year)
+    print 'QC Level 1 files updated - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     # Start the upload process to Hydroshare
     if user_args.destination in user_args.VALID_HS_TARGETS:
-        print("Preparing to upload files to HydroShare")
-        hydroshare = HydroShareUtility()
-        user_auth = getHydroShareCredentials(user_args.auth)
-        if hydroshare.authenticate(**user_auth):
-            paired_files, unpaired_files = hydroshare.pairFilesToResources(filename_list, RE_RESOURCE_FILTER)
-            print('{}/{} resources found: {}'.format(len(paired_files), len(paired_files) + len(unpaired_files),
-                                                     [item['file']['name'] for item in paired_files]))
-            result = [] if user_args.debug else hydroshare.upload(paired_files)
-            issue_list.extend(result)
-            issue_list.extend(["No target resource found for {}".format(item['name']) for item in unpaired_files])
+        print "\nRAW:"
+        stopwatch_timer = datetime.datetime.now()
+        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE)
+        print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+        print "\n\nQC:"
+        stopwatch_timer = datetime.datetime.now()
+        uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, create_as_needed=True)
+        print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     # Perform upload to CKAN
     if user_args.destination in user_args.VALID_CKAN_TARGETS:
+        stopwatch_timer = datetime.datetime.now()
         print("Uploading files to CKAN")
         ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
-        ckan = CkanUtility(ckan_api_key, dump_location)
-        result = ckan.upload(filename_list)
-        issue_list.extend(result)
-
-    # Notify on issues found
-    if user_args.debug:
-        for issue in issue_list:
+        ckan = CkanUtility(ckan_api_key, raw_dump_location)
+        result = ckan.upload(raw_files)
+        for issue in result:
             print issue
-    elif len(issue_list) > 0:
-        # send_email(issue_list, "stephanie.reeder@usu.edu", log_file)
-        send_email(issue_list, "fryarludwig@gmail.com", log_file)
+        print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+
+    # # Notify on issues found
+    # if len(issue_list) > 0:
+    #     for issue in issue_list:
+    #         print issue
+    #     # send_email(issue_list, "stephanie.reeder@usu.edu", log_file)
+    #     if not user_args.debug:
+    #         send_email(issue_list, "fryarludwig@gmail.com", log_file)
+
+    print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

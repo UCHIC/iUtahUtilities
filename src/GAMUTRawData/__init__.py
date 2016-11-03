@@ -1,1 +1,1 @@
-__all__ = ['CSVCreatorUpdate']
+__all__ = ['RawDataCSVGenerator', 'QualityControlledDataCSVGenerator', 'GenericResourceDetails', 'FileDetails']

@@ -24,21 +24,20 @@ class CkanUtility:
         for curr_file in file_list:
             try:
                 package_name = ""
-                site_code = curr_file['site']
-                site_code_formatted = site_code.lower().replace('_', '-')
+                site_code_formatted = curr_file.site_code.lower().replace('_', '-')
                 for r in res:
                     if site_code_formatted in r:
                         package_name = r
                         break
 
                 if len(package_name) == 0:
-                    issue_list.append('Unable to find match for site {}'.format(site_code))
+                    issue_list.append('Unable to find match for site {}'.format(curr_file.site_code))
                     continue
 
                 if self.NOW.strftime('%m %d') == "01 01":  # if this is jan 1 of a new year
                     params = {}
-                    params['CKAN_APIKEY'] = self.ckan_api_key
-                    params['FILENAME'] = curr_file['name']
+                    params['CKAN_APIKEY'] = self.api_key
+                    params['FILENAME'] = curr_file.file_name
                     params['NOW'] = self.NOW.isoformat()
                     params['DIRECTORY'] = params['NOW'].replace(":", "").replace("-", "")
                     resource_info = {
@@ -60,9 +59,9 @@ class CkanUtility:
                         # "webstore_last_updated": None,
                     }
 
-                print('{} - LoadCKAN: Replacing CKAN repo file {}'.format(datetime.datetime.now(), curr_file['path']))
-                cc.update_resource(api_key=self.api_key, package_name=package_name, file_to_upload=curr_file['path'],
-                                   replace_file_name=curr_file['name'], resource_info=None)
+                print('{} - LoadCKAN: Replacing CKAN repo file {}'.format(datetime.datetime.now(), curr_file.file_path))
+                cc.update_resource(api_key=self.api_key, package_name=package_name, file_to_upload=curr_file.file_path,
+                                   replace_file_name=curr_file.file_name, resource_info=None)
 
             except Exception as e:
                 print ("issue : %s, file: %s\n" % (e, curr_file))

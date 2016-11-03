@@ -1,6 +1,10 @@
 import re
+import dateutil.parser
+import xml.etree.ElementTree as ElementTree
 
+from datetime import datetime
 from hs_restclient import *
+from GAMUTRawData.CSVDataFileGenerator import GenericResourceDetails
 from oauthlib.oauth2 import InvalidGrantError, InvalidClientError
 
 
@@ -11,13 +15,22 @@ class HydroShareUtilityException(Exception):
 
 class HydroShareUtility:
     def __init__(self):
-        self.client = None
+        self.client = None  # type: HydroShare
         self.auth = None
         self.user_info = None
+        self.re_period = re.compile(r'(?P<tag_start>^start=)(?P<start>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_end>end=)('
+                                    r'?P<end>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_scheme>scheme=)(?P<scheme>.+$)', re.I)
+        self.xml_ns = {
+            'dc': "http://purl.org/dc/elements/1.1/",
+            'dcterms': "http://purl.org/dc/terms/",
+            'hsterms': "http://hydroshare.org/terms/",
+            'rdf': "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+            'rdfs1': "http://www.w3.org/2001/01/rdf-schema#"}
+        self.resource_cache = {}  # type: dict of HSResource
 
     def authenticate(self, username, password, client_id=None, client_secret=None):
         """
-        Authenticates access to allow read/write access to privileged resources
+        Authenticates access to allow read/write access to privileged resource_cache
         :param username: username for HydroShare.org
         :param password: password associated with username
         :param client_id: Client ID obtained from HydroShare
@@ -34,94 +47,156 @@ class HydroShareUtility:
             return True
         except HydroShareException as e:  # for incorrect username/password combinations
             print('Authentication failed: {}'.format(e))
-        except InvalidGrantError as e:    # for failures when attempting to use OAuth2
+        except InvalidGrantError as e:  # for failures when attempting to use OAuth2
             print('Credentials could not be validated: {}'.format(e))
         except InvalidClientError as e:
             print('Invalid client ID and/or client secret: {}'.format(e))
         self.auth = None
         return False
 
-    def purgeDuplicates(self, local_file, file_list, resource, confirm_delete=False):
-        shorter_name = os.path.basename(local_file['name'])
-        just_the_name = shorter_name[:-4]
-        for server_file in file_list:
-            server_file_name = os.path.basename(server_file)
-            duplicate_re_expr = '{}\%20\([0-9]+\)'.format(just_the_name)
-            if shorter_name == server_file_name:
-                print('Exact match: {}'.format(shorter_name))
-            elif just_the_name in server_file_name or re.search(duplicate_re_expr, server_file_name):
-                if not confirm_delete:
+    def purgeDuplicateGamutFiles(self, resource_id, regex, confirm_delete=False):
+        """
+        Removes all files that have a duplicate-style naming pattern (e.g. ' (1).csv', '_ASDFGJK9.csv'
+        :param resource_id: Resource to inspect for duplicates
+        :type resource_id: Resource object received from the HydroShare API client
+        :param confirm_delete: If true, requires input that confirm file should be deleted
+        :type confirm_delete: bool
+        """
+        re_breakdown = re.compile(regex, re.I)
+        resource_files = self.getResourceFileList(resource_id)
+        duplicates_list = []
+        for remote_file in resource_files:
+            results = re_breakdown.match(remote_file['url'])  # Check the file URL for expected patterns
+            temp_dict = {'duplicated': ''} if results is None else results.groupdict()  # type: dict
+            if len(temp_dict['duplicated']) > 0:               # A non-duplicated file will match with length 0
+                duplicates_list.append(temp_dict)              # Save the file name so we can remove it later
+
+        for file_detail in duplicates_list:
+            if not confirm_delete:
+                delete_me = True
+            else:
+                user_answer = raw_input("Delete file {} [Y/n]: ".format(file_detail['name']))
+                if user_answer != 'N' and user_answer != 'n':
                     delete_me = True
                 else:
-                    user_answer = raw_input("Delete file {} [Y/n]: ".format(server_file_name))
-                    if user_answer != 'N' or user_answer != 'n':
-                        delete_me = True
-                    else:
-                        delete_me = False
+                    delete_me = False
 
-                if delete_me:
-                    self.client.deleteResourceFile(resource['resource_id'], server_file_name)
-                    print('Deleting file {}...'.format(server_file_name))
-                else:
-                    print('Skipping duplicate file {}...'.format(server_file_name))
+            if delete_me:
+                self.client.deleteResourceFile(resource_id, file_detail['name'])
+                # self.resource_cache[resource_id].files.remove(file_detail['name'])
+                print('Deleting file {}...'.format(file_detail['name']))
             else:
-                print('Not flagged as dup: {}'.format(server_file_name))
+                print('Skipping duplicate file {}...'.format(file_detail['name']))
 
-
-    def pairFilesToResources(self, file_list, resource_regex_filter=None, regex_flags=re.I):
+    def pairSitesToResources(self, site_list, resource_list):
         """
         Given a list of files and optional global filter, find a resource that matches the site code of each file
-        :param get_unmatched: If true, returns a list of matched and a list of unmatched files, otherwise only
-                                 returns the matched files
-        :param file_list: List of file dictionaries in format: {'path': path, 'name': log_file, 'site': site_code }
-        :param resource_regex_filter: Regex filter initially applied before checking file/resource pairs
-        :param regex_flags: Default flag is "ignorecase", but any valid flags can be specified
+        :param site_list: List of sites to be matched with corresponding HydroShare resource_cache
+        :type site_list: list of str
+        :param resource_list: Resources to attempt to match to the file list
+        :type resource_list: List of HydroShare resource_cache
         :return: Returns matched and unmatched files dictionary lists in form [{'resource': resource, 'file', file_dict,
                  'overwrite_remote': True/False }, { ... } ]
         """
-        filtered_resources = self.filterResourcesByRegex(resource_regex_filter, regex_flags)
+        matched_sites = []
+        unmatched_sites = []
+        for site in site_list:
+            found_match = False
+            for resource_id in resource_list:
+                resource_title = self.resource_cache[resource_id].name
+                if not re.search(site, resource_title, re.IGNORECASE):
+                    continue
+                matched_sites.append({'resource_id': resource_id, 'site_code': site})
+                found_match = True
+                break
+            if not found_match:
+                unmatched_sites.append(site)
+        return matched_sites, unmatched_sites
+
+    def pairFilesToResources(self, file_list, resource_list):
+        """
+        Given a list of files and optional global filter, find a resource that matches the site code of each file
+        :param file_list: List of files to be matched with corresponding HydroShare resource_cache
+        :type file_list: List of dictionary objects, formatted as {'path': path, 'name': name, 'site': site}
+        :param resource_list: Resources to attempt to match to the file list
+        :type resource_list: List of HydroShare resource_cache
+        :return: Returns matched and unmatched files dictionary lists in form [{'resource': resource, 'file', file_dict,
+                 'overwrite_remote': True/False }, { ... } ]
+        """
         matched_files = []
         unmatched_files = []
         for local_file in file_list:
             found_match = False
-            for resource in filtered_resources:
-                if not re.search(local_file['site'], resource['resource_title'], re.IGNORECASE):
+            for resource_id in resource_list:
+                resource_title = self.resource_cache[resource_id].name
+                if not re.search(local_file['site'], resource_title, re.IGNORECASE):
                     continue
-                resource_files = self.client.getResourceFileList(resource['resource_id'])
+                resource_files = self.getResourceFileList(resource_id)
                 file_list = []
                 for resource_file in resource_files:
                     file_list.append(resource_file['url'])
-                if True:  # Use this to clean out the extra files you accidentally created during testing
-                    self.purgeDuplicates(local_file, file_list, resource, confirm_delete=False)
-
                 duplicates = len([remote_file for remote_file in file_list if local_file['name'] in remote_file])
-                matched_files.append({'resource': resource, 'file': local_file, 'overwrite_remote': duplicates})
+                matched_files.append({'resource_id': resource_id, 'file': local_file, 'overwrite_remote': duplicates})
                 found_match = True
                 break
             if not found_match:
                 unmatched_files.append(local_file)
         return matched_files, unmatched_files
 
-    def filterResourcesByRegex(self, regex_string, regex_flags=re.IGNORECASE):
+    def getResourceFileList(self, resource_id, refresh_cache=False):
         """
-        Apply a regex filter to all available resources. Useful for finding GAMUT resources
+
+        :param resource_id: ID of resource for which to retrieve a file list
+        :type resource_id: str
+        :param refresh_cache: If False: try to use cached resource data; else: update local cache and return file list
+        :type refresh_cache: bool
+        :return: List of files in resource
+        :rtype: list of str
+        """
+        if resource_id not in self.resource_cache:
+            self.resource_cache[resource_id] = HSResource()
+            self.resource_cache[resource_id].id = resource_id
+        if len(self.resource_cache[resource_id].files) == 0 or refresh_cache:
+            resource_files = list(self.client.getResourceFileList(resource_id))
+            self.resource_cache[resource_id].files = [f['url'] for f in resource_files]
+        else:
+            resource_files = self.resource_cache[resource_id].files
+        return resource_files
+
+    def filterResourcesByRegex(self, regex_string, owner=None, regex_flags=re.IGNORECASE):
+        """
+        Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
+        :param owner: username of the owner of the resource
+        :type owner: string
         :param regex_string: String to be used as the regex filter
         :param regex_flags: Flags to be passed to the regex search
-        :return: A list of resources that matched the filter
+        :return: A list of resource_cache that matched the filter
         """
         if self.auth is None:
             raise HydroShareUtilityException("Cannot query resources without authentication")
-        all_resources = self.client.getResourceList()
+        all_resources = self.client.getResourceList(owner=owner)
         if regex_string is None:
             return all_resources
         filtered_resources = []
         regex_filter = re.compile(regex_string, regex_flags)
         for resource in all_resources:
             if regex_filter.search(resource['resource_title']) is not None:
-                filtered_resources.append(resource)
+                filtered_resources.append(resource['resource_id'])
+                self.resource_cache[resource['resource_id']] = HSResource(resource)
         return filtered_resources
 
-    def upload(self, paired_file_list, retry_on_failure=True):
+    def filterOwnedResourcesByRegex(self, regex_string, owner=None, regex_flags=re.IGNORECASE):
+        """
+        Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
+        :param regex_string: String to be used as the regex filter
+        :param regex_flags: Flags to be passed to the regex search
+        :return: A list of resource_cache that matched the filter
+        """
+        if owner is None:
+            owner = self.user_info['username']
+        return self.filterResourcesByRegex(regex_string=regex_string, owner=owner, regex_flags=regex_flags)
+
+    def upload(self, files_list, resource_id, retry_on_failure=True):
         """
         Connect as user and upload the files to HydroShare
         :param paired_file_list: List of dictionaries in format [ {"name": "file_name", "path": "file_path" }, {...} ]
@@ -131,21 +206,159 @@ class HydroShareUtility:
         if self.auth is None:
             raise HydroShareUtilityException("Cannot modify resources without authentication")
         try:
-            for pair in paired_file_list:
-                resource = pair['resource']
-                local_file = pair['file']
-                action_str = 'created'
-                if pair['overwrite_remote']:
-                    action_str = 'updated'
-                    self.client.deleteResourceFile(resource['resource_id'], local_file['name'])
-                self.client.addResourceFile(resource['resource_id'], local_file['path'])
-                print("{} {} in resource {}".format(local_file['path'], action_str, resource['resource_title']))
+            for local_file in files_list:
+
+                matching_files = [f for f in self.getResourceFileList(resource_id) if local_file.file_name in f]
+                action = 'update' if len(matching_files) > 0 else 'create'
+                if action == 'update':
+                    self.client.deleteResourceFile(resource_id, local_file.file_name)
+                self.client.addResourceFile(resource_id, local_file.file_path)
+
+                # if self.updateResourcePeriodMetadata(resource_id, local_file.coverage_start, local_file.coverage_end):
+                #     print "Resource metadata for temporal coverage was updated"
+                # else:
+                #     print "Unable to update resource metadata"
+
+                print("{} {}d in remote {}".format(local_file.file_name, action, self.resource_cache[resource_id].name))
+                # input("Ready to proceed?")
         except HydroShareException as e:
             if retry_on_failure:
-                print('Initial upload encountered an error - attempting again. Error encountered: \n{}'.format(e.message))
-                return self.upload(paired_file_list, retry_on_failure=False)
+                print('Upload encountered an error - attempting again. Error encountered: \n{}'.format(e.message))
+                return self.upload(files_list, resource_id, retry_on_failure=False)
             else:
                 return ["Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e)]
         except KeyError as e:
             return ['Incorrectly formatted arguments given. Expected key not found: {}'.format(e)]
         return []
+
+    def setResourcesAsPublic(self, resource_ids):
+        if self.auth is None:
+            raise HydroShareUtilityException("Cannot modify resources without authentication")
+        try:
+            for resource_id in resource_ids:
+                print 'Setting resource {} as public'.format(self.resource_cache[resource_id].name)
+                self.client.setAccessRules(resource_id, public=True)
+        except HydroShareException as e:
+            print "Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e)
+        except KeyError as e:
+            print 'Incorrectly formatted arguments given. Expected key not found: {}'.format(e)
+
+    def removeResourceFiles(self, files_list, resource_id, quiet_fail=True):
+        if self.auth is None:
+            raise HydroShareUtilityException("Cannot modify resources without authentication")
+        try:
+            for local_file in files_list:
+                if local_file.file_name in self.resource_cache[resource_id].files:
+                    print "I'm gonna delete the file: {}".format(local_file.file_name)
+                    self.client.deleteResourceFile(resource_id, local_file.file_name)
+                elif quiet_fail:
+                    print "Cannot delete file that does not exist on HydroShare: {}".format(local_file.file_name)
+                else:
+                    resource_name = self.resource_cache[resource_id].name
+                    raise HydroShareUtilityException("Unable to delete {} on {}".format(local_file, resource_name))
+        except HydroShareException as e:
+            return ["Removal failed - could not complete upload to HydroShare due to exception: {}".format(e)]
+        except KeyError as e:
+            return ['Incorrectly formatted arguments given. Expected key not found: {}'.format(e)]
+        return []
+
+
+    def updateResourcePeriodMetadata(self, resource_id, period_start, period_end):
+        resource_start, resource_end = self.getResourceCoveragePeriod(resource_id)
+        if resource_start is None or resource_end is None:
+            return False
+        if period_start is None or period_end is None:
+            return False
+
+        resource_updated = False
+        if period_start < resource_start:
+            self.resource_cache[resource_id].period_start = period_start
+            resource_updated = True
+
+        if period_end > resource_end:
+            self.resource_cache[resource_id].period_end = period_end
+            resource_updated = True
+
+        if resource_updated and self.resource_cache[resource_id].metadata_xml is not None:
+            # xml_string = ElementTree.tostring(self.resource_cache[resource_id].metadata_xml)
+            # print(xml_string)
+            # xml_file_name = './temporary_metadata_{}.xml'.format(resource_id)
+            # file_out = open(xml_file_name, 'w')
+            # file_out.write(xml_string)
+            # file_out.close()
+            # self.client.updateScienceMetadata(resource_id, xml_string)
+            # os.remove(xml_file_name)
+            # TODO: update the aadobectual HS resource
+            return True
+        else:
+            return False
+
+    def getResourceCoveragePeriod(self, resource_id, refresh_cache=False):
+        if resource_id not in self.resource_cache:
+            self.resource_cache[resource_id] = HSResource()
+            self.resource_cache[resource_id].id = resource_id
+        if self.resource_cache[resource_id].metadata_xml is None or refresh_cache:
+            metadata = self.client.getScienceMetadata(resource_id)
+            self.resource_cache[resource_id].metadata_xml = ElementTree.fromstring(metadata)
+            self.resource_cache[resource_id].period_start = None
+            self.resource_cache[resource_id].period_end = None
+            print("Updating the metadata cache for resource {}".format(self.resource_cache[resource_id].name))
+        if self.resource_cache[resource_id].period_start is None or self.resource_cache[resource_id].period_end is None:
+            try:
+                xml_tree = self.resource_cache[resource_id].metadata_xml
+                description_node = xml_tree.find('rdf:Description', namespaces=self.xml_ns)
+                coverage_node = description_node.find('dc:coverage', namespaces=self.xml_ns)
+                period_node = coverage_node.find('dcterms:period', namespaces=self.xml_ns)
+                value_node = period_node.find('rdf:value', namespaces=self.xml_ns)
+                match = self.re_period.match(value_node.text)
+                if match is not None:
+                    self.resource_cache[resource_id].period_start = dateutil.parser.parse(match.group('start'))
+                    self.resource_cache[resource_id].period_end = dateutil.parser.parse(match.group('end'))
+            except Exception as e:
+                print("Unable to find coverage data - encountered exception {}".format(e.message))
+        return self.resource_cache[resource_id].period_start, self.resource_cache[resource_id].period_end
+
+    def deleteResource(self, resource_id, confirm=True):
+        if self.auth is None:
+            raise HydroShareUtilityException("Cannot modify resources without authentication")
+        resource = self.resource_cache[resource_id]
+        if confirm:
+            user_input = raw_input('Are you sure you want to delete the resource {}? (y/N): '.format(resource.name))
+            if user_input.lower() == 'N':
+                return
+        print 'Deleting resource {}'.format(resource.name)
+        self.resource_cache.pop(resource_id)
+        self.client.deleteResource(resource_id)
+
+    def createNewResource(self, resource):
+        """
+
+        :param resource:
+        :type resource: GenericResourceDetails
+        :return:
+        :rtype: str
+        """
+        if self.auth is None:
+            raise HydroShareUtilityException("Cannot modify resources without authentication")
+
+        # http://hs-restclient.readthedocs.io/en/latest/
+        if resource is not None:
+            print 'Creating resource {}'.format(resource.resource_name)
+            resource_id = self.client.createResource('GenericResource', title=resource.resource_name,
+                                                     abstract=resource.abstract, keywords=resource.keywords)
+            new_resource = HSResource()
+            new_resource.id = resource_id
+            new_resource.name = resource.resource_name
+            self.resource_cache[resource_id] = new_resource
+            return resource_id
+
+
+class HSResource:
+    def __init__(self, resource_dict=None):
+        self.id = "" if resource_dict is None else resource_dict['resource_id']
+        self.owner = "" if resource_dict is None else resource_dict['creator']
+        self.name = "" if resource_dict is None else resource_dict['resource_title']
+        self.files = []
+        self.period_start = None
+        self.period_end = None
+        self.metadata_xml = None

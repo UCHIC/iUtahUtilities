@@ -15,7 +15,7 @@ from src.GAMUTRawData.odmdata import Method
 from src.GAMUTRawData.odmdata import QualityControlLevel
 from src.GAMUTRawData.odmdata import ODMVersion
 from src.GAMUTRawData.logger import LoggerTool
-import pandas as pd
+import pandas
 
 # tool = LoggerTool()
 # logger = tool.setupLogger(__name__, __name__ + '.log', 'w', logging.DEBUG)
@@ -76,6 +76,17 @@ class SeriesService():
         """
         try:
             return self._edit_session.query(Site).filter_by(id=site_id).first()
+        except:
+            return None
+
+    def get_site_by_code(self, site_code):
+        """
+        return a Site object that has an id=site_code
+        :param site_code: str- the identification code of the site
+        :return: Sites
+        """
+        try:
+            return self._edit_session.query(Site).filter_by(code=site_code).first()
         except:
             return None
 
@@ -308,6 +319,14 @@ class SeriesService():
         except Exception as ex:
             return None
 
+    def get_series_by_site_and_qc_level(self, site_code, qc):
+        try:
+            values = self._edit_session.query(Series).filter(Series.site_code == site_code,
+                                                           Series.quality_control_level_id == qc).all()
+            return values
+        except Exception as ex:
+            return None
+
     def get_var_by_site(self, my_site_id):
         try:
             var = self._edit_session.query(Series.variable_code, Series.variable_id).filter(
@@ -325,8 +344,34 @@ class SeriesService():
                                                                           DataValue.quality_control_level_id == 0)
 
             query = q.statement.compile(dialect=self._session_factory.engine.dialect)
-            array = pd.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params)
+            array = pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params)
             return array
+        except Exception as e:
+            print e
+            return []
+
+    def get_variables_by_site_id_qc(self, variable_id, my_site_id, qc):
+        """
+
+        :param variable_id: Variable ID for filtering query
+        :type variable_id: int
+        :param my_site_id: Site ID to filter query
+        :type my_site_id: int
+        :param qc: Quality Control Level ID to use
+        :type qc: int
+        :return: DataFrame of results
+        :rtype: pandas.DataFrame
+        """
+        try:
+            q = self._edit_session.query(DataValue, Variable.code).filter(
+                    my_site_id == DataValue.site_id,
+                    DataValue.variable_id == Variable.id,
+                    DataValue.variable_id == variable_id,
+                    DataValue.quality_control_level_id == qc)
+
+            query = q.statement.compile(dialect=self._session_factory.engine.dialect)
+            return pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params,
+                                         coerce_float=False)
         except Exception as e:
             print e
             return []
@@ -369,9 +414,9 @@ class SeriesService():
                     quality_control_level_id=series.quality_control_level_id)
 
             query = q.statement.compile(dialect=self._session_factory.engine.dialect)
-            data = pd.read_sql_query(sql=query,
-                                     con=self._session_factory.engine,
-                                     params=query.params)
+            data = pandas.read_sql_query(sql=query,
+                                         con=self._session_factory.engine,
+                                         params=query.params)
             # return data.set_index(data['LocalDateTime'])
             return data
         else:
@@ -384,8 +429,8 @@ class SeriesService():
         """
         q = self._edit_session.query(DataValue).order_by(DataValue.local_date_time)
         query = q.statement.compile(dialect=self._session_factory.engine.dialect)
-        data = pd.read_sql_query(sql=query, con=self._session_factory.engine,
-                                 params=query.params)
+        data = pandas.read_sql_query(sql=query, con=self._session_factory.engine,
+                                     params=query.params)
         columns = list(data)
 
         columns.insert(0, columns.pop(columns.index("DataValue")))
@@ -434,9 +479,9 @@ class SeriesService():
                                      # DataValue.local_date_time.strftime('%Y'))
                                      ).order_by(DataValue.local_date_time)
         query = q.statement.compile(dialect=self._session_factory.engine.dialect)
-        data = pd.read_sql_query(sql=query,
-                                 con=self._session_factory.engine,
-                                 params=query.params)
+        data = pandas.read_sql_query(sql=query,
+                                     con=self._session_factory.engine,
+                                     params=query.params)
         data["Season"] = data.apply(self.calcSeason, axis=1)
         return data.set_index(data['LocalDateTime'])
 
@@ -457,7 +502,7 @@ class SeriesService():
             for dv in series.data_values
             if dv.data_value != noDataValue if dv.local_date_time >= startDate if dv.local_date_time <= endDate
             ]
-        data = pd.DataFrame(DataValues, columns=["DataValue", "LocalDateTime", "CensorCode", "Month", "Year"])
+        data = pandas.DataFrame(DataValues, columns=["DataValue", "LocalDateTime", "CensorCode", "Month", "Year"])
         data.set_index(data['LocalDateTime'], inplace=True)
         data["Season"] = data.apply(self.calcSeason, axis=1)
         return data

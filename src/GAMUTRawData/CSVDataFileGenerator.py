@@ -116,10 +116,9 @@ def dataParser(dump_loc, data_type, year):
         json_in = open(cache_file_name, 'r')
         stored_cache = jsonpickle.decode(json_in.read())
         json_in.close()
-        # For debugging purposes, saves time by not rebuilding the file cache
-        # return stored_cache
     except IOError as e:
         print 'Error reading cached file data - Clearing files and recreating cache.\n{}'.format(e)
+
     print("\n========================================================\n")
     all_files.update(handleDatabaseConnection('iUTAH_Logan_OD', 'Logan', dump_loc, year, data_type, stored_cache))
     all_files.update(handleDatabaseConnection('iUTAH_Provo_OD', 'Provo', dump_loc, year, data_type, stored_cache))

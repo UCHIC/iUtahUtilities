@@ -73,7 +73,6 @@ def create_resource(url, **kwargs):  # phase 3
     newheader = dict(headers)
     newheader['Content-Type'] = "application/x-www-form-urlencoded"  # http://trac.ckan.org/ticket/2942
     data.update(kwargs)
-    print data
     response = requests.post("{CKAN_INSTANCE}/api/3/action/resource_create".format(**params),
                              headers=newheader, data=json.dumps(data))
 
@@ -137,8 +136,6 @@ def _get_package_id_from_name(package_name):
     headers = {'X-CKAN-API-Key': params['CKAN_APIKEY'], 'Content-Type': 'application/json'}
     data = {'id': package_name}
     url = '{CKAN_INSTANCE}/api/action/package_show'.format(**params)
-    print url
-    print
     response = requests.post('{CKAN_INSTANCE}/api/action/package_show'.format(**params),
               data=json.dumps(data).encode('ascii'), headers=headers)
 
@@ -156,12 +153,11 @@ def _get_resource_to_delete(resource_file_name_to_delete):
 
     response.raise_for_status()
 
-    pkg_resources = json.loads(response.content)['result']['resource_cache']
+    pkg_resources = json.loads(response.content)['result']['resources']
 
     res_to_delete = None
     try:
         for res in pkg_resources:
-            print res['url']
             file_name = res['url'].split('/')[-1]
             if file_name.replace("_", "-").lower() == resource_file_name_to_delete.replace("_", "-").lower():
                 res_to_delete = res

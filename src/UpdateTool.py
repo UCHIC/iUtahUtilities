@@ -9,7 +9,6 @@ import os
 import re
 import smtplib
 import sys
-import xml.etree.ElementTree as ElementTree
 
 __title__ = 'iUtahUtilities Update Tool'
 WINDOWS_OS = 'nt' in os.name
@@ -303,13 +302,5 @@ if __name__ == "__main__":
         for issue in result:
             print issue
         print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
-
-    # # Notify on issues found
-    # if len(issue_list) > 0:
-    #     for issue in issue_list:
-    #         print issue
-    #     # send_email(issue_list, "stephanie.reeder@usu.edu", log_file)
-    #     if not user_args.debug:
-    #         send_email(issue_list, "fryarludwig@gmail.com", log_file)
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

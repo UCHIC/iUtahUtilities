@@ -18,8 +18,10 @@ directory = os.path.dirname(os.path.dirname(this_file))
 
 sys.path.insert(0, directory)
 
+time_format = '%Y-%m-%d'
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
+UPDATE_CACHE = False
 
 issues = []
 
@@ -30,16 +32,42 @@ DB_CODE_LOOKUP = {
     'RB': 'iUTAH_RedButte_OD'
 }
 
+QC1_RESOURCE_ABSTRACT = 'This dataset contains quality control level 1 (QC1) data for all of the variables ' \
+                        'measured for the iUTAH GAMUT Network {site_name} ({site_code}). Each file contains all ' \
+                        'available QC1 data for a specific variable. Files will be updated as new data become ' \
+                        'available, but no more than once daily. These data have passed QA/QC procedures such as ' \
+                        'sensor calibration and visual inspection and removal of obvious errors. These data are ' \
+                        'approved by Technicians as the best available version of the data. See published script ' \
+                        'for correction steps specific to this data series. Each file header contains detailed ' \
+                        'metadata for site information, variable and method information, source information, and ' \
+                        'qualifiers referenced in the data.'
+
+RAW_RESOURCE_ABSTRACT = 'This dataset contains raw data for all of the variables ' \
+                        'measured for the iUTAH GAMUT Network {site_name} ({site_code}). Each file contains a ' \
+                        'calendar year of data. The file for the current year is updated on a daily basis. ' \
+                        'The data values were collected by a variety of sensors at 15 minute intervals. ' \
+                        'The file header contains detailed metadata for site and the variable and method ' \
+                        'of each column.'
+
 
 class GenericResourceDetails:
     def __init__(self):
         self.resource_name = ''
         self.abstract = ''
         self.keywords = []
-        # self.place = None
-        # self.coordinates = None
-        # self.lat = 0
-        # self.lon = 0
+        self.creators = []
+        self.metadata = []
+        self.temporal_start = None
+        self.temporal_end = None
+        self.coord_units = 'Decimal Degrees'
+        self.geo_projection = None
+        self.lat = None
+        self.lon = None
+
+        self.credits = None
+
+    def getMetadata(self):
+        return str(self.metadata).replace('\'', '"')
 
 
 def getNewQC1ResourceInformation(site_code, valid_files=None):
@@ -60,19 +88,98 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
     new_resource = GenericResourceDetails()
     new_resource.resource_name = "iUTAH GAMUT Network Quality Control Level 1 Data at " \
                                  "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
-    new_resource.abstract = 'This dataset contains quality control level 1 (QC1) data for all of the variables ' \
-                            'measured for the iUTAH GAMUT Network {site_name} ({site_code}). Each file contains all ' \
-                            'available QC1 data for a specific variable. Files will be updated as new data become ' \
-                            'available, but no more than once daily. These data have passed QA/QC procedures such as ' \
-                            'sensor calibration and visual inspection and removal of obvious errors. These data are ' \
-                            'approved by Technicians as the best available version of the data. See published script ' \
-                            'for correction steps specific to this data series. Each file header contains detailed ' \
-                            'metadata for site information, variable and method information, source information, and ' \
-                            'qualifiers referenced in the data.'.format(site_name=site.name, site_code=site.code)
+    new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
     new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'Quality Controlled Level 1']
     if valid_files is not None:
         variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
         new_resource.keywords.extend(list(variables))
+        start_cov = min([v.coverage_start for v in valid_files if len(v.variable_names) > 0])
+        end_cov = max([v.coverage_end for v in valid_files if len(v.variable_names) > 0])
+        if start_cov is not None and end_cov is not None:
+            temporal_data = {"coverage":
+                             {"type": "period",
+                              "value": {"start": start_cov.strftime(time_format),
+                                        "end": end_cov.strftime(time_format)}}}
+            new_resource.metadata.append(temporal_data)
+
+    # Add Credits
+    credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
+                                     'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
+                                                    'Hydro-sustainability',
+                                     'award_number': '1208732',
+                                     'agency_url': 'http://www.nsf.gov'}}
+    new_resource.metadata.append(credit_dict)
+
+    authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
+    new_resource.metadata.append(authors)
+
+    spatial_coverage = dict(coverage={'type': 'point',
+                                      'value': {
+                                          'east': '{}'.format(site.longitude),
+                                          'north': '{}'.format(site.latitude),
+                                          'units': 'Decimal degrees',
+                                          'name': '{}'.format(site.name),
+                                          'elevation': '{}'.format(site.elevation_m),
+                                          'projection': '{}'.format(site.spatial_ref.srs_name)
+                                      }})
+    new_resource.metadata.append(spatial_coverage)
+
+    return new_resource
+
+
+def getNewRawDataResourceInformation(site_code, valid_files=None):
+    """
+
+    :param site_code: The site code, used to get site details from the iutahdbs server
+    :type site_code: str
+    :param valid_files: File Details for the files we will be uploading to the resource
+    :type valid_files: list of FileDetails
+    :return:
+    :rtype:
+    """
+    db_code = site_code.split('_')[0]
+    service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
+                                           'address': 'iutahdbs.uwrl.usu.edu', 'db': DB_CODE_LOOKUP[db_code]}
+    series_service = service_manager.get_series_service()
+    site = series_service.get_site_by_code(site_code)  # type: Site
+    new_resource = GenericResourceDetails()
+    new_resource.resource_name = "iUTAH GAMUT Network Raw Data at {site_name} ({site_code})".format(site_name=site.name,
+                                                                                                    site_code=site.code)
+    new_resource.abstract = RAW_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
+    new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'raw data']
+    if valid_files is not None:
+        variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
+        new_resource.keywords.extend(list(variables))
+        start_cov = min([v.coverage_start for v in valid_files if len(v.variable_names) > 0])
+        end_cov = max([v.coverage_end for v in valid_files if len(v.variable_names) > 0])
+        if start_cov is not None and end_cov is not None:
+            temporal_data = {"coverage":
+                                 {"type": "period",
+                                  "value": {"start": start_cov.strftime(time_format),
+                                            "end": end_cov.strftime(time_format)}}}
+            new_resource.metadata.append(temporal_data)
+
+    # Add Credits
+    credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
+                                     'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
+                                                    'Hydro-sustainability',
+                                     'award_number': '1208732',
+                                     'agency_url': 'http://www.nsf.gov'}}
+    new_resource.metadata.append(credit_dict)
+
+    authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
+    new_resource.metadata.append(authors)
+
+    spatial_coverage = dict(coverage={'type': 'point',
+                                      'value': {
+                                          'east': '{}'.format(site.longitude),
+                                          'north': '{}'.format(site.latitude),
+                                          'units': 'Decimal degrees',
+                                          'name': '{}'.format(site.name),
+                                          'elevation': '{}'.format(site.elevation_m),
+                                          'projection': '{}'.format(site.spatial_ref.srs_name)
+                                      }})
+    new_resource.metadata.append(spatial_coverage)
     return new_resource
 
 
@@ -116,6 +223,8 @@ def dataParser(dump_loc, data_type, year):
         json_in = open(cache_file_name, 'r')
         stored_cache = jsonpickle.decode(json_in.read())
         json_in.close()
+        if not UPDATE_CACHE:
+            return stored_cache
     except IOError as e:
         print 'Error reading cached file data - Clearing files and recreating cache.\n{}'.format(e)
 

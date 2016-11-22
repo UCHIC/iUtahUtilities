@@ -26,6 +26,8 @@ class HydroShareUtility:
             'hsterms': "http://hydroshare.org/terms/",
             'rdf': "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
             'rdfs1': "http://www.w3.org/2001/01/rdf-schema#"}
+        self.time_format = '%Y-%m-%dT%H:%M:%S'
+        self.xml_coverage = 'start={start}; end={end}; scheme=W3C-DTF'
         self.resource_cache = {}  # type: dict of HSResource
 
     def authenticate(self, username, password, client_id=None, client_secret=None):
@@ -42,7 +44,7 @@ class HydroShareUtility:
         else:
             self.auth = HydroShareAuthBasic(username, password)
         try:
-            self.client = HydroShare(auth=self.auth)
+            self.client = HydroShare(auth=self.auth)#, verify=False)
             self.user_info = self.client.getUserInfo()
             return True
         except HydroShareException as e:  # for incorrect username/password combinations
@@ -216,19 +218,19 @@ class HydroShareUtility:
 
                 # if self.updateResourcePeriodMetadata(resource_id, local_file.coverage_start, local_file.coverage_end):
                 #     print "Resource metadata for temporal coverage was updated"
+                #     exit()
                 # else:
                 #     print "Unable to update resource metadata"
 
                 print("{} {}d in remote {}".format(local_file.file_name, action, self.resource_cache[resource_id].name))
-                # input("Ready to proceed?")
         except HydroShareException as e:
             if retry_on_failure:
                 print('Upload encountered an error - attempting again. Error encountered: \n{}'.format(e.message))
                 return self.upload(files_list, resource_id, retry_on_failure=False)
             else:
-                return ["Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e)]
+                print("Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e))
         except KeyError as e:
-            return ['Incorrectly formatted arguments given. Expected key not found: {}'.format(e)]
+            print('Incorrectly formatted arguments given. Expected key not found: {}'.format(e))
         return []
 
     def setResourcesAsPublic(self, resource_ids):
@@ -262,7 +264,6 @@ class HydroShareUtility:
             return ['Incorrectly formatted arguments given. Expected key not found: {}'.format(e)]
         return []
 
-
     def updateResourcePeriodMetadata(self, resource_id, period_start, period_end):
         resource_start, resource_end = self.getResourceCoveragePeriod(resource_id)
         if resource_start is None or resource_end is None:
@@ -280,15 +281,36 @@ class HydroShareUtility:
             resource_updated = True
 
         if resource_updated and self.resource_cache[resource_id].metadata_xml is not None:
-            # xml_string = ElementTree.tostring(self.resource_cache[resource_id].metadata_xml)
-            # print(xml_string)
-            # xml_file_name = './temporary_metadata_{}.xml'.format(resource_id)
-            # file_out = open(xml_file_name, 'w')
-            # file_out.write(xml_string)
-            # file_out.close()
-            # self.client.updateScienceMetadata(resource_id, xml_string)
-            # os.remove(xml_file_name)
-            # TODO: update the aadobectual HS resource
+            try:
+                start = self.resource_cache[resource_id].period_start  # type: datetime
+                end = self.resource_cache[resource_id].period_end  # type: datetime
+
+                xml_tree = self.resource_cache[resource_id].metadata_xml
+                node_names = ['rdf:Description', 'dc:coverage', 'dcterms:period', 'rdf:value', 'period']
+                next_node = xml_tree
+                for level in node_names:
+                    if next_node is None:
+                        return False
+                    elif level == 'period':
+                        next_node.text = self.xml_coverage.format(start=start.strftime(self.time_format),
+                                                                   end=end.strftime(self.time_format))
+                        print next_node.text
+                    else:
+                        next_node = next_node.find(level, namespaces=self.xml_ns)
+
+                self.resource_cache[resource_id].metadata_xml = xml_tree
+                xml_string = ElementTree.tostring(self.resource_cache[resource_id].metadata_xml)
+                xml_file_name = 'resourcemetadata.xml'
+                file_out = open(xml_file_name, 'w')
+                file_out.write(xml_string)
+                file_out.close()
+
+                # print coverage_str
+                self.client.updateScienceMetadata(resource_id, xml_file_name)
+                # self.client.addResourceFile(resource_id, xml_file_name)
+                # os.remove(xml_file_name)
+            except Exception as e:
+                print e
             return True
         else:
             return False
@@ -344,8 +366,14 @@ class HydroShareUtility:
         # http://hs-restclient.readthedocs.io/en/latest/
         if resource is not None:
             print 'Creating resource {}'.format(resource.resource_name)
-            resource_id = self.client.createResource('GenericResource', title=resource.resource_name,
-                                                     abstract=resource.abstract, keywords=resource.keywords)
+            print 'Metadata: {}'.format(resource.getMetadata())
+            print 'Formatted: \n{}'.format(resource.getMetadata().replace(r'}, {', '},\n{'))
+
+            resource_id = self.client.createResource(resource_type='GenericResource',
+                                                     title=resource.resource_name,
+                                                     abstract=resource.abstract,
+                                                     keywords=resource.keywords,
+                                                     metadata=resource.getMetadata())
             new_resource = HSResource()
             new_resource.id = resource_id
             new_resource.name = resource.resource_name

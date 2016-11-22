@@ -182,12 +182,14 @@ def getHydroShareCredentials(auth_info):
         client_secret = auth_info['client_secret']
     if 'auth_file' in auth_info:
         auth_file = open(auth_info['auth_file'], 'r')
+        # auth_file = open('./secret_dev', 'r')
         username, password = auth_file.readline().split()
         client_id, client_secret = auth_file.readline().split()
     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
-def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, create_as_needed=False):
+def uploadToHydroShare(user_auth, sites, resource_regex, file_regex,
+                       resource_generator=None, create_as_needed=False):
     """
 
     :param new_resource_name: For sites without resources, create a resource
@@ -229,6 +231,25 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, create_as_n
                 paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
                 unpaired_sites.remove(site_code)
 
+        # TODO - Update QC1 resources to use this function instead of the "create as needed" portion
+        # We'll probably want to wait until all the metadata stuff is sorted out, but once we do
+        # It should be fine to create resources automatically for the RAW DATA files
+        if resource_generator is not None:
+            for site_code in unpaired_sites:
+                valid_files = [f for f in sites[site_code] if not f.is_empty]
+                if len(valid_files) == 0 or site_code != 'PR_RW_A':
+                    continue
+                resource_details = resource_generator(site_code, valid_files)
+                resource_id = hydroshare.createNewResource(resource_details)
+                paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
+                unpaired_sites.remove(site_code)
+
+        if False:  # Set to true if you want to create a site/resource_url map for QC1 Resources
+            pair_dict = {}
+            for pair in paired_sites:
+                pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
+            print pair_dict
+
         # Upload new, proper files - delete files that have been uploaded and are empty
         for pair in paired_sites:
             site_code = pair['site_code']
@@ -248,7 +269,6 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, create_as_n
             resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
             for resource_id in resources_to_delete:
                 hydroshare.deleteResource(resource_id, confirm=False)
-
     return hsResults
 
 
@@ -273,7 +293,7 @@ if __name__ == "__main__":
     qc_files = {}
 
     # Update the local Raw Data files
-    raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
+    # raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
     print 'Raw files updated - time taken: {}'.format(datetime.datetime.now() - start_time)
 
     # Update the local Quality Control Level 1 files
@@ -285,22 +305,23 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE)
+        # uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
-        uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, create_as_needed=True)
+        uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
+                           resource_generator=getNewRawDataResourceInformation, create_as_needed=True)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
-    # Perform upload to CKAN
-    if user_args.destination in user_args.VALID_CKAN_TARGETS:
-        stopwatch_timer = datetime.datetime.now()
-        print("Uploading files to CKAN")
-        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
-        ckan = CkanUtility(ckan_api_key, raw_dump_location)
-        result = ckan.upload(raw_files)
-        for issue in result:
-            print issue
-        print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    # # Perform upload to CKAN
+    # if user_args.destination in user_args.VALID_CKAN_TARGETS:
+    #     stopwatch_timer = datetime.datetime.now()
+    #     print("Uploading files to CKAN")
+    #     ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
+    #     ckan = CkanUtility(ckan_api_key, raw_dump_location)
+    #     result = ckan.upload(raw_files)
+    #     for issue in result:
+    #         print issue
+    #     # print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

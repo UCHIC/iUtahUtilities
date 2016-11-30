@@ -21,7 +21,7 @@ sys.path.insert(0, directory)
 time_format = '%Y-%m-%d'
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
-UPDATE_CACHE = False
+UPDATE_CACHE = True
 
 issues = []
 

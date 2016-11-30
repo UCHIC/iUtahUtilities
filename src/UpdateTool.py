@@ -188,12 +188,10 @@ def getHydroShareCredentials(auth_info):
     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
-def uploadToHydroShare(user_auth, sites, resource_regex, file_regex,
-                       resource_generator=None, create_as_needed=False):
+def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_generator=None):
     """
-
-    :param new_resource_name: For sites without resources, create a resource
-    :type new_resource_name: str
+    :param resource_generator: For sites without resources, call this function to get the resource details
+    :type resource_generator: function
     :param file_regex: Regular expression string used to break down the file name into useable parts
     :type file_regex: str
     :param user_auth: Authentication deta02ils
@@ -221,7 +219,8 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex,
         paired_sites, unpaired_sites = hydroshare.pairSitesToResources(sites.keys(), discovered_resources)
 
         # Create new resources if needed, and add the new resource to the site/resource pair list
-        if create_as_needed:
+        if resource_generator is not None:
+            print 'Creating any missing resources'
             for site_code in unpaired_sites:
                 valid_files = [f for f in sites[site_code] if not f.is_empty]
                 if len(valid_files) == 0:
@@ -231,25 +230,7 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex,
                 paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
                 unpaired_sites.remove(site_code)
 
-        # TODO - Update QC1 resources to use this function instead of the "create as needed" portion
-        # We'll probably want to wait until all the metadata stuff is sorted out, but once we do
-        # It should be fine to create resources automatically for the RAW DATA files
-        if resource_generator is not None:
-            for site_code in unpaired_sites:
-                valid_files = [f for f in sites[site_code] if not f.is_empty]
-                if len(valid_files) == 0 or site_code != 'PR_RW_A':
-                    continue
-                resource_details = resource_generator(site_code, valid_files)
-                resource_id = hydroshare.createNewResource(resource_details)
-                paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
-                unpaired_sites.remove(site_code)
-
-        if False:  # Set to true if you want to create a site/resource_url map for QC1 Resources
-            pair_dict = {}
-            for pair in paired_sites:
-                pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
-            print pair_dict
-
+        print 'Performing file operations for {} resources'.format(len(paired_sites))
         # Upload new, proper files - delete files that have been uploaded and are empty
         for pair in paired_sites:
             site_code = pair['site_code']
@@ -263,6 +244,13 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex,
         paired_site_codes = [item['site_code'] for item in paired_sites]
         print('{}/{} resource_cache found: {}'.format(len(paired_site_codes), len(sites.keys()), paired_site_codes))
         print 'The following sites have no valid files and/or no target resource: {}'.format(unpaired_sites)
+
+        # Set to true if you want to create a site/resource_url map for known Resources
+        if True:
+            pair_dict = {}
+            for pair in paired_sites:
+                pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
+            print pair_dict
 
         # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
         if False:
@@ -293,7 +281,7 @@ if __name__ == "__main__":
     qc_files = {}
 
     # Update the local Raw Data files
-    # raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
+    raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
     print 'Raw files updated - time taken: {}'.format(datetime.datetime.now() - start_time)
 
     # Update the local Quality Control Level 1 files
@@ -305,23 +293,23 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        # uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
+        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
         uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
-                           resource_generator=getNewRawDataResourceInformation, create_as_needed=True)
+                           resource_generator=getNewRawDataResourceInformation)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
-    # # Perform upload to CKAN
-    # if user_args.destination in user_args.VALID_CKAN_TARGETS:
-    #     stopwatch_timer = datetime.datetime.now()
-    #     print("Uploading files to CKAN")
-    #     ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
-    #     ckan = CkanUtility(ckan_api_key, raw_dump_location)
-    #     result = ckan.upload(raw_files)
-    #     for issue in result:
-    #         print issue
-    #     # print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    # Perform upload to CKAN
+    if user_args.destination in user_args.VALID_CKAN_TARGETS:
+        stopwatch_timer = datetime.datetime.now()
+        print("Uploading files to CKAN")
+        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
+        ckan = CkanUtility(ckan_api_key, raw_dump_location)
+        result = ckan.upload(raw_files)
+        for issue in result:
+            print issue
+        print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

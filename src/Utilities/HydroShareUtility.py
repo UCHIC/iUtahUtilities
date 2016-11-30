@@ -215,13 +215,11 @@ class HydroShareUtility:
                 if action == 'update':
                     self.client.deleteResourceFile(resource_id, local_file.file_name)
                 self.client.addResourceFile(resource_id, local_file.file_path)
-
                 # if self.updateResourcePeriodMetadata(resource_id, local_file.coverage_start, local_file.coverage_end):
                 #     print "Resource metadata for temporal coverage was updated"
                 #     exit()
                 # else:
                 #     print "Unable to update resource metadata"
-
                 print("{} {}d in remote {}".format(local_file.file_name, action, self.resource_cache[resource_id].name))
         except HydroShareException as e:
             if retry_on_failure:
@@ -282,6 +280,7 @@ class HydroShareUtility:
 
         if resource_updated and self.resource_cache[resource_id].metadata_xml is not None:
             try:
+                print 'Now doing the updateResourcePeriodMetadata function stuff'
                 start = self.resource_cache[resource_id].period_start  # type: datetime
                 end = self.resource_cache[resource_id].period_end  # type: datetime
 
@@ -293,7 +292,7 @@ class HydroShareUtility:
                         return False
                     elif level == 'period':
                         next_node.text = self.xml_coverage.format(start=start.strftime(self.time_format),
-                                                                   end=end.strftime(self.time_format))
+                                                                  end=end.strftime(self.time_format))
                         print next_node.text
                     else:
                         next_node = next_node.find(level, namespaces=self.xml_ns)

@@ -252,11 +252,11 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
                 pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
             print pair_dict
 
-        # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
-        if False:
-            resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
-            for resource_id in resources_to_delete:
-                hydroshare.deleteResource(resource_id, confirm=False)
+        # # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
+        # if True:
+        #     resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
+        #     for resource_id in resources_to_delete:
+        #         hydroshare.deleteResource(resource_id, confirm=False)
     return hsResults
 
 
@@ -293,7 +293,8 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE)
+        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
+                           resource_generator=getNewRawDataResourceInformation)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()

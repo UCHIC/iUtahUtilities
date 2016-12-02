@@ -300,13 +300,12 @@ class HydroShareUtility:
                 self.resource_cache[resource_id].metadata_xml = xml_tree
                 xml_string = ElementTree.tostring(self.resource_cache[resource_id].metadata_xml)
                 xml_file_name = 'resourcemetadata.xml'
-                file_out = open(xml_file_name, 'w')
+                file_out = open(xml_file_name, 'wb')
                 file_out.write(xml_string)
                 file_out.close()
 
                 # print coverage_str
                 self.client.updateScienceMetadata(resource_id, xml_file_name)
-                # self.client.addResourceFile(resource_id, xml_file_name)
                 # os.remove(xml_file_name)
             except Exception as e:
                 print e
@@ -364,10 +363,9 @@ class HydroShareUtility:
 
         # http://hs-restclient.readthedocs.io/en/latest/
         if resource is not None:
-            print 'Creating resource {}'.format(resource.resource_name)
-            print 'Metadata: {}'.format(resource.getMetadata())
-            print 'Formatted: \n{}'.format(resource.getMetadata().replace(r'}, {', '},\n{'))
-
+            # print 'Creating resource {}'.format(resource.resource_name)
+            # print 'Metadata: {}'.format(resource.getMetadata())
+            # print 'Formatted: \n{}'.format(resource.getMetadata().replace(r'}, {', '},\n{'))
             resource_id = self.client.createResource(resource_type='GenericResource',
                                                      title=resource.resource_name,
                                                      abstract=resource.abstract,

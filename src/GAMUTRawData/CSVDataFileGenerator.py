@@ -22,6 +22,7 @@ time_format = '%Y-%m-%d'
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
 UPDATE_CACHE = True
+# UPDATE_CACHE = False
 
 issues = []
 
@@ -48,6 +49,21 @@ RAW_RESOURCE_ABSTRACT = 'This dataset contains raw data for all of the variables
                         'The data values were collected by a variety of sensors at 15 minute intervals. ' \
                         'The file header contains detailed metadata for site and the variable and method ' \
                         'of each column.'
+
+contributors = [
+    {"contributor": {"name": "Zach Aanderud", "organization": "Brigham Young University"}},
+    {"contributor": {"name": "Michelle Baker", "organization": "Utah State University"}},
+    {"contributor": {"name": "Dave Bowling", "organization": "University of Utah"}},
+    {"contributor": {"name": "Jobie Carlile", "organization": "Utah State University"}},
+    {"contributor": {"name": "Chris Cox", "organization": "Utah State University"}},
+    {"contributor": {"name": "Joe Crawford", "organization": "Brigham Young University"}},
+    {"contributor": {"name": "Dylan Dastrup", "organization": "Brigham Young University"}},
+    {"contributor": {"name": "Jim Ehleringer", "organization": "University of Utah"}},
+    {"contributor": {"name": "Dave Eiriksson", "organization": "University of Utah"}},
+    {"contributor": {"name": "Jeffery S. Horsburgh", "organization": "Utah State University", "address": "Utah, US",
+                     "phone": "(435) 797-2946"}},
+    {"contributor": {"name": "Amber Spackman Jones", "organization": "Utah State University"}},
+    {"contributor": {"name": "Scott Jones", "organization": "Utah State University"}}]
 
 
 class GenericResourceDetails:
@@ -124,6 +140,9 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
                                       }})
     new_resource.metadata.append(spatial_coverage)
 
+    for contrib in contributors:
+        new_resource.metadata.append(contrib)
+
     return new_resource
 
 
@@ -180,6 +199,10 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
                                           'projection': '{}'.format(site.spatial_ref.srs_name)
                                       }})
     new_resource.metadata.append(spatial_coverage)
+
+    for contrib in contributors:
+        new_resource.metadata.append(contrib)
+
     return new_resource
 
 

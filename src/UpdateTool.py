@@ -253,7 +253,7 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
             print pair_dict
 
         # # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
-        # if True:
+        # if False:
         #     resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
         #     for resource_id in resources_to_delete:
         #         hydroshare.deleteResource(resource_id, confirm=False)

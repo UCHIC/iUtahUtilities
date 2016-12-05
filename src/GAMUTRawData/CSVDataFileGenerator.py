@@ -106,11 +106,13 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
                                  "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
     new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
     new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'Quality Controlled Level 1']
-    if valid_files is not None:
+    if valid_files is not None and len(valid_files) > 0:
         variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
         new_resource.keywords.extend(list(variables))
-        start_cov = min([v.coverage_start for v in valid_files if len(v.variable_names) > 0])
-        end_cov = max([v.coverage_end for v in valid_files if len(v.variable_names) > 0])
+        coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
+        coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
+        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else 0
+        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else 0
         if start_cov is not None and end_cov is not None:
             temporal_data = {"coverage":
                              {"type": "period",
@@ -166,11 +168,13 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
                                                                                                     site_code=site.code)
     new_resource.abstract = RAW_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
     new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'raw data']
-    if valid_files is not None:
+    if valid_files is not None and len(valid_files) > 0:
         variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
         new_resource.keywords.extend(list(variables))
-        start_cov = min([v.coverage_start for v in valid_files if len(v.variable_names) > 0])
-        end_cov = max([v.coverage_end for v in valid_files if len(v.variable_names) > 0])
+        coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
+        coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
+        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else 0
+        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else 0
         if start_cov is not None and end_cov is not None:
             temporal_data = {"coverage":
                                  {"type": "period",

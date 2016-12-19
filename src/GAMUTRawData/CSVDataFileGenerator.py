@@ -111,8 +111,8 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
         new_resource.keywords.extend(list(variables))
         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
-        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else 0
-        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else 0
+        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
+        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
         if start_cov is not None and end_cov is not None:
             temporal_data = {"coverage":
                              {"type": "period",
@@ -173,8 +173,8 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
         new_resource.keywords.extend(list(variables))
         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
-        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else 0
-        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else 0
+        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
+        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
         if start_cov is not None and end_cov is not None:
             temporal_data = {"coverage":
                                  {"type": "period",
@@ -779,6 +779,8 @@ class CompactVariableData:
         formatted += "# Variable and Method Information\n"
         formatted += "# ---------------------------\n"
         for variable_code in vars_to_print:
+            if variable_code not in self.var_dict:
+                continue
             variable, method = self.var_dict[variable_code]
             if method.link is None:
                 tempVarMethodLink = "None"

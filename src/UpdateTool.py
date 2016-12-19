@@ -203,7 +203,6 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     :return:
     :rtype:
     """
-    hsResults = []
     hydroshare = HydroShareUtility()
     user_auth = getHydroShareCredentials(user_auth)
     if hydroshare.authenticate(**user_auth):
@@ -252,12 +251,11 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
                 pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
             print pair_dict
 
-        # # Use this to delete any mistakenly created resource - but make sure the REGEX is correct
-        # if False:
-        #     resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
-        #     for resource_id in resources_to_delete:
-        #         hydroshare.deleteResource(resource_id, confirm=False)
-    return hsResults
+        # Deletes all resources that match the specified regex. USE WITH CAUTION.
+        if False:
+            resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
+            for resource_id in resources_to_delete:
+                hydroshare.deleteResource(resource_id, confirm=False)
 
 
 if __name__ == "__main__":

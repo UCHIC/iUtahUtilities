@@ -194,7 +194,7 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     :type resource_generator: function
     :param file_regex: Regular expression string used to break down the file name into useable parts
     :type file_regex: str
-    :param user_auth: Authentication deta02ils
+    :param user_auth: Authentication details
     :type user_auth: dict
     :param sites: Dictionary of sites with site files
     :type sites: dict of list of FileDetails
@@ -208,6 +208,17 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     if hydroshare.authenticate(**user_auth):
         print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
         discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
+        # t_marked_for_deletion = []
+        # if resource_regex != RE_RAW_RESOURCES:
+        #     for t_res in discovered_resources:
+        #         t_file_list = hydroshare.getResourceFileList(t_res, True)
+        #         t_resource = hydroshare.resource_cache[t_res]  # type: HSResource
+        #         for t_f in t_file_list:
+        #             if '2016' in t_f['url'] or '2017' in t_f['url']:
+        #                 t_marked_for_deletion.append(t_resource)
+        # for to_delete in t_marked_for_deletion:
+        #     print "Resource: {}\nFiles: {}".format(to_delete.name, to_delete.files)
+        #     hydroshare.deleteResource(to_delete.id, confirm=False)
 
         # Remove any duplicate files we can find
         print 'Checking for duplicate files in {} resources'.format(len(discovered_resources))
@@ -297,7 +308,7 @@ if __name__ == "__main__":
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
         uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
-                           resource_generator=getNewRawDataResourceInformation)
+                           resource_generator=getNewQC1ResourceInformation)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     # Perform upload to CKAN

@@ -63,3 +63,7 @@ GAMUT_CSV_Files
 
 
 src/secret
+src/secret_dev
+src/temporary_metadata*
+src/GAMUT_CSV_Files_old
+src/resourcemetadata.xml

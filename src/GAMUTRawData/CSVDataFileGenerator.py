@@ -105,9 +105,10 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
     new_resource.resource_name = "iUTAH GAMUT Network Quality Control Level 1 Data at " \
                                  "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
     new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
-    new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'Quality Controlled Level 1']
+    new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'Quality Controlled Level 1']
     if valid_files is not None and len(valid_files) > 0:
-        variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
+        variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
+        print variables
         new_resource.keywords.extend(list(variables))
         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
@@ -128,7 +129,7 @@ def getNewQC1ResourceInformation(site_code, valid_files=None):
                                      'agency_url': 'http://www.nsf.gov'}}
     new_resource.metadata.append(credit_dict)
 
-    authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
+    authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
     new_resource.metadata.append(authors)
 
     spatial_coverage = dict(coverage={'type': 'point',
@@ -167,9 +168,9 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
     new_resource.resource_name = "iUTAH GAMUT Network Raw Data at {site_name} ({site_code})".format(site_name=site.name,
                                                                                                     site_code=site.code)
     new_resource.abstract = RAW_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
-    new_resource.keywords = [site.name, site.type, 'time series', 'GAMUT', 'raw data']
+    new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'raw data']
     if valid_files is not None and len(valid_files) > 0:
-        variables = set([v.variable_names for v in valid_files if len(v.variable_names) > 0])
+        variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
         new_resource.keywords.extend(list(variables))
         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
@@ -190,7 +191,8 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
                                      'agency_url': 'http://www.nsf.gov'}}
     new_resource.metadata.append(credit_dict)
 
-    authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
+    authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
+    # authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
     new_resource.metadata.append(authors)
 
     spatial_coverage = dict(coverage={'type': 'point',

@@ -208,17 +208,6 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     if hydroshare.authenticate(**user_auth):
         print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
         discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
-        # t_marked_for_deletion = []
-        # if resource_regex != RE_RAW_RESOURCES:
-        #     for t_res in discovered_resources:
-        #         t_file_list = hydroshare.getResourceFileList(t_res, True)
-        #         t_resource = hydroshare.resource_cache[t_res]  # type: HSResource
-        #         for t_f in t_file_list:
-        #             if '2016' in t_f['url'] or '2017' in t_f['url']:
-        #                 t_marked_for_deletion.append(t_resource)
-        # for to_delete in t_marked_for_deletion:
-        #     print "Resource: {}\nFiles: {}".format(to_delete.name, to_delete.files)
-        #     hydroshare.deleteResource(to_delete.id, confirm=False)
 
         # Remove any duplicate files we can find
         print 'Checking for duplicate files in {} resources'.format(len(discovered_resources))
@@ -236,6 +225,7 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
                 if len(valid_files) == 0:
                     continue
                 resource_details = getNewQC1ResourceInformation(site_code, valid_files)
+                print 'Creating new resource {}'.format(resource_details.resource_name)
                 resource_id = hydroshare.createNewResource(resource_details)
                 paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
                 unpaired_sites.remove(site_code)
@@ -256,17 +246,17 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
         print 'The following sites have no valid files and/or no target resource: {}'.format(unpaired_sites)
 
         # Set to true if you want to create a site/resource_url map for known Resources
-        if True:
-            pair_dict = {}
-            for pair in paired_sites:
-                pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
-            print pair_dict
+        pair_dict = {}
+        for pair in paired_sites:
+            pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
 
         # Deletes all resources that match the specified regex. USE WITH CAUTION.
         if False:
             resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
             for resource_id in resources_to_delete:
                 hydroshare.deleteResource(resource_id, confirm=False)
+
+        return pair_dict
 
 
 if __name__ == "__main__":
@@ -302,17 +292,19 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
-                           resource_generator=getNewRawDataResourceInformation)
+        raw_pairs = uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
+                                       resource_generator=getNewRawDataResourceInformation)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
-        uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
-                           resource_generator=getNewQC1ResourceInformation)
+        qc1_pairs = uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
+                                       resource_generator=getNewQC1ResourceInformation)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
+        print 'All pairs: \nRaw:\n{}\nQC1:\n{}'.format(raw_pairs, qc1_pairs)
+
     # Perform upload to CKAN
-    if user_args.destination in user_args.VALID_CKAN_TARGETS:
+    if False and user_args.destination in user_args.VALID_CKAN_TARGETS:
         stopwatch_timer = datetime.datetime.now()
         print("Uploading files to CKAN")
         ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"

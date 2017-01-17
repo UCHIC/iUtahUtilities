@@ -234,14 +234,14 @@ class HydroShareUtility:
     def setResourcesAsPublic(self, resource_ids):
         if self.auth is None:
             raise HydroShareUtilityException("Cannot modify resources without authentication")
-        try:
-            for resource_id in resource_ids:
+        for resource_id in resource_ids:
+            try:
                 print 'Setting resource {} as public'.format(self.resource_cache[resource_id].name)
                 self.client.setAccessRules(resource_id, public=True)
-        except HydroShareException as e:
-            print "Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e)
-        except KeyError as e:
-            print 'Incorrectly formatted arguments given. Expected key not found: {}'.format(e)
+            except HydroShareException as e:
+                print "Access rule edit failed - could not set to public due to exception: {}".format(e)
+            except KeyError as e:
+                print 'Incorrectly formatted arguments given. Expected key not found: {}'.format(e)
 
     def removeResourceFiles(self, files_list, resource_id, quiet_fail=True):
         if self.auth is None:
@@ -366,10 +366,8 @@ class HydroShareUtility:
             # print 'Creating resource {}'.format(resource.resource_name)
             # print 'Metadata: {}'.format(resource.getMetadata())
             # print 'Formatted: \n{}'.format(resource.getMetadata().replace(r'}, {', '},\n{'))
-            resource_id = self.client.createResource(resource_type='GenericResource',
-                                                     title=resource.resource_name,
-                                                     abstract=resource.abstract,
-                                                     keywords=resource.keywords,
+            resource_id = self.client.createResource(resource_type='GenericResource', title=resource.resource_name,
+                                                     abstract=resource.abstract, keywords=resource.keywords,
                                                      metadata=resource.getMetadata())
             new_resource = HSResource()
             new_resource.id = resource_id

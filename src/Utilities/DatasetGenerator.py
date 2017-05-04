@@ -22,196 +22,8 @@ sys.path.insert(0, directory)
 time_format = '%Y-%m-%d'
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
+
 UPDATE_CACHE = True
-# UPDATE_CACHE = False
-
-issues = []
-
-DB_CODE_LOOKUP = {
-    'LR': 'iUTAH_Logan_OD',
-    'BSF': 'iUTAH_Logan_OD',
-    'PR': 'iUTAH_Provo_OD',
-    'RB': 'iUTAH_RedButte_OD'
-}
-
-QC1_RESOURCE_ABSTRACT = 'This dataset contains quality control level 1 (QC1) data for all of the variables ' \
-                        'measured for the iUTAH GAMUT Network {site_name} ({site_code}). Each file contains all ' \
-                        'available QC1 data for a specific variable. Files will be updated as new data become ' \
-                        'available, but no more than once daily. These data have passed QA/QC procedures such as ' \
-                        'sensor calibration and visual inspection and removal of obvious errors. These data are ' \
-                        'approved by Technicians as the best available version of the data. See published script ' \
-                        'for correction steps specific to this data series. Each file header contains detailed ' \
-                        'metadata for site information, variable and method information, source information, and ' \
-                        'qualifiers referenced in the data.'
-
-RAW_RESOURCE_ABSTRACT = 'This dataset contains raw data for all of the variables ' \
-                        'measured for the iUTAH GAMUT Network {site_name} ({site_code}). Each file contains a ' \
-                        'calendar year of data. The file for the current year is updated on a daily basis. ' \
-                        'The data values were collected by a variety of sensors at 15 minute intervals. ' \
-                        'The file header contains detailed metadata for site and the variable and method ' \
-                        'of each column.'
-
-contributors = [
-    {"contributor": {"name": "Zach Aanderud", "organization": "Brigham Young University"}},
-    {"contributor": {"name": "Michelle Baker", "organization": "Utah State University"}},
-    {"contributor": {"name": "Dave Bowling", "organization": "University of Utah"}},
-    {"contributor": {"name": "Jobie Carlile", "organization": "Utah State University"}},
-    {"contributor": {"name": "Chris Cox", "organization": "Utah State University"}},
-    {"contributor": {"name": "Joe Crawford", "organization": "Brigham Young University"}},
-    {"contributor": {"name": "Dylan Dastrup", "organization": "Brigham Young University"}},
-    {"contributor": {"name": "Jim Ehleringer", "organization": "University of Utah"}},
-    {"contributor": {"name": "Dave Eiriksson", "organization": "University of Utah"}},
-    {"contributor": {"name": "Jeffery S. Horsburgh", "organization": "Utah State University", "address": "Utah US",
-                     "phone": "(435) 797-2946"}},
-    {"contributor": {"name": "Amber Spackman Jones", "organization": "Utah State University"}},
-    {"contributor": {"name": "Scott Jones", "organization": "Utah State University"}}]
-
-
-class GenericResourceDetails:
-    def __init__(self):
-        self.resource_name = ''
-        self.abstract = ''
-        self.keywords = []
-        self.creators = []
-        self.metadata = []
-        self.temporal_start = None
-        self.temporal_end = None
-        self.coord_units = 'Decimal Degrees'
-        self.geo_projection = None
-        self.lat = None
-        self.lon = None
-
-        self.credits = None
-
-    def getMetadata(self):
-        # return self.metadata.encode('utf-8').replace('\'', '"')
-        return str(self.metadata).replace('\'', '"')
-
-
-def getNewQC1ResourceInformation(site_code, valid_files=None):
-    """
-
-    :param site_code: The site code, used to get site details from the iutahdbs server
-    :type site_code: str
-    :param valid_files: File Details for the files we will be uploading to the resource
-    :type valid_files: list of FileDetails
-    :return:
-    :rtype:
-    """
-    db_code = site_code.split('_')[0]
-    service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
-                                           'address': 'iutahdbs.uwrl.usu.edu', 'db': DB_CODE_LOOKUP[db_code]}
-    series_service = service_manager.get_series_service()
-    site = series_service.get_site_by_code(site_code)  # type: Site
-    new_resource = GenericResourceDetails()
-    new_resource.resource_name = "iUTAH GAMUT Network Quality Control Level 1 Data at " \
-                                 "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
-    new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
-    new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'Quality Controlled Level 1']
-    if valid_files is not None and len(valid_files) > 0:
-        variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
-        new_resource.keywords.extend(list(variables))
-        coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
-        coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
-        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
-        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
-        if start_cov is not None and end_cov is not None:
-            temporal_data = {"coverage":
-                             {"type": "period",
-                              "value": {"start": start_cov.strftime(time_format),
-                                        "end": end_cov.strftime(time_format)}}}
-            new_resource.metadata.append(temporal_data)
-
-    # Add Credits
-    credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
-                                     'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
-                                                    'Hydro-sustainability',
-                                     'award_number': '1208732',
-                                     'agency_url': 'http://www.nsf.gov'}}
-    new_resource.metadata.append(credit_dict)
-
-    authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
-    new_resource.metadata.append(authors)
-
-    spatial_coverage = dict(coverage={'type': 'point',
-                                      'value': {
-                                          'east': '{}'.format(site.longitude),
-                                          'north': '{}'.format(site.latitude),
-                                          'units': 'Decimal degrees',
-                                          'name': '{}'.format(site.name),
-                                          'elevation': '{}'.format(site.elevation_m),
-                                          'projection': '{}'.format(site.spatial_ref.srs_name)
-                                      }})
-    new_resource.metadata.append(spatial_coverage)
-
-    for contrib in contributors:
-        new_resource.metadata.append(contrib)
-
-    return new_resource
-
-
-def getNewRawDataResourceInformation(site_code, valid_files=None):
-    """
-
-    :param site_code: The site code, used to get site details from the iutahdbs server
-    :type site_code: str
-    :param valid_files: File Details for the files we will be uploading to the resource
-    :type valid_files: list of FileDetails
-    :return:
-    :rtype:
-    """
-    db_code = site_code.split('_')[0]
-    service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
-                                           'address': 'iutahdbs.uwrl.usu.edu', 'db': DB_CODE_LOOKUP[db_code]}
-    series_service = service_manager.get_series_service()
-    site = series_service.get_site_by_code(site_code)  # type: Site
-    new_resource = GenericResourceDetails()
-    new_resource.resource_name = "iUTAH GAMUT Network Raw Data at {site_name} ({site_code})".format(site_name=site.name,
-                                                                                                    site_code=site.code)
-    new_resource.abstract = RAW_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
-    new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'raw data']
-    if valid_files is not None and len(valid_files) > 0:
-        variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
-        new_resource.keywords.extend(list(variables))
-        coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
-        coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
-        start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
-        end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
-        if start_cov is not None and end_cov is not None:
-            temporal_data = {"coverage":
-                                 {"type": "period",
-                                  "value": {"start": start_cov.strftime(time_format),
-                                            "end": end_cov.strftime(time_format)}}}
-            new_resource.metadata.append(temporal_data)
-
-    # Add Credits
-    credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
-                                     'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
-                                                    'Hydro-sustainability',
-                                     'award_number': '1208732',
-                                     'agency_url': 'http://www.nsf.gov'}}
-    new_resource.metadata.append(credit_dict)
-
-    authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
-    # authors = {"creator": {"name": 'iUTAH GAMUT Working Group', 'organization': 'iUtah'}}
-    new_resource.metadata.append(authors)
-
-    spatial_coverage = dict(coverage={'type': 'point',
-                                      'value': {
-                                          'east': '{}'.format(site.longitude),
-                                          'north': '{}'.format(site.latitude),
-                                          'units': 'Decimal degrees',
-                                          'name': '{}'.format(site.name),
-                                          'elevation': '{}'.format(site.elevation_m),
-                                          'projection': '{}'.format(site.spatial_ref.srs_name)
-                                      }})
-    new_resource.metadata.append(spatial_coverage)
-
-    for contrib in contributors:
-        new_resource.metadata.append(contrib)
-
-    return new_resource
-
 
 class FileDetails(object):
     def __init__(self, site_code=None, site_name=None, file_path=None, file_name=None, variable_names=None):
@@ -277,7 +89,6 @@ def dataParser(dump_loc, data_type, year):
             updated_files[site_code] = site_files_changed
     return updated_files
 
-
 def cachedVersionIsOutdated(cached_file, new_file):
     """
 
@@ -323,55 +134,25 @@ def handleDatabaseConnection(database, location, dump_location, year, data_type,
     site_files = {}
     for site in all_sites:
         if data_type.lower() == 'raw':
-            local_dataset = RawDataCsvLocalDataset(dump_location, location, site, year, file_cache)
+            local_dataset = GenericDataset(dump_location, location, site, year, file_cache)
             series = series_service.get_series_by_site_code_year(site.code, year)
             site_files[site.code] = local_dataset.writeToFile(series_service, series)
         else:
-            local_dataset = QC1_CsvLocalDataset(dump_location, location, site, year, file_cache)
+            local_dataset = GenericDataset(dump_location, location, site, year, file_cache)
             series = series_service.get_series_by_site_and_qc_level(site.code, 1)
             site_files[site.code] = local_dataset.writeToFile(series_service, series)
     return site_files
 
 
-def outputValues(ss, dvObjects, site, header_str, dump_location):
-    timeIndexes = ss.get_all_local_date_times_by_siteid(site.id)
-    currentYear = 1900
-    # gotta optimize this for loop somehow.
+def createFile(self, filepath):
+    try:
+        file_out = open(filepath, 'w')
+        return file_out
+    except Exception as e:
+        print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
+        return None
 
-    if len(timeIndexes) > 0:
-        for time in timeIndexes:
-            outputStr = ""
-            if time.local_date_time.year != currentYear:
-                if currentYear != 1900:
-                    file_name = "iUTAH_GAMUT_{site}_RawData_{yr}.csv".format(site=site.code, yr=currentYear)
-                    text_file.close()
-                    print "{} outputValues: Finished creating {}".format(datetime.datetime.now, file_name)
-                currentYear = time.local_date_time.year
-                text_file = open(dump_location + file_name, "w")
-                text_file.write(header_str)
-
-            outputStr += str(time[0]) + ", " + str(time[1]) + ", " + str(time[2]) + ", "
-            counter = 0
-
-            for var in dvObjects.varCode:
-                var_print = next((dv for dv in dvObjects.dataValues[counter] if dv.local_date_time == time[0]), None)
-                if var_print != None:
-                    outputStr += str(var_print.data_value) + ", "
-                    dvObjects.dataValues[counter].remove(var_print)
-                else:
-                    outputStr += ", "
-
-                counter += 1
-
-            ouputStr = outputStr[:-2]
-            outputStr += "\n"
-
-            text_file.write(outputStr)
-
-        text_file.close()
-
-
-class QC1_CsvLocalDataset:
+class GenericDataset:
     def __init__(self, dump_location, location, site, year, file_cache=None):
         # type: (str, str, str, str, dict) -> QC1_CsvLocalDataset
         self.site = site
@@ -391,13 +172,6 @@ class QC1_CsvLocalDataset:
 
         self.exception_msg = " SiteName: {site}, year: {year}, Error : {error}"
 
-    def createFile(self, filepath):
-        try:
-            file_out = open(filepath, 'w')
-            return file_out
-        except Exception as e:
-            print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
-            return None
 
     def writeToFile(self, series_service, series_list):
         """
@@ -449,7 +223,7 @@ class QC1_CsvLocalDataset:
                     print 'We are using the cached version: {}'.format(cached_file.file_name)
                     continue
 
-                file_out = self.createFile(file_info.file_path)
+                file_out = createFile(file_info.file_path)
                 if file_out is None:
                     print('Unable to create output file for {}, {}'.format(series.site_code, series.variable_code))
                     continue
@@ -498,6 +272,7 @@ class QC1_CsvLocalDataset:
 
         return site_files
 
+
     def generateHeader(self):
         """
         :return: Returns a string to be inserted as the CSV file's header
@@ -531,131 +306,6 @@ class QC1_CsvLocalDataset:
             file_str += "# " + code.ljust(7) + description + "\n"
         file_str += "#\n"
         return file_str
-
-
-class RawDataCsvLocalDataset:
-    def __init__(self, dump_location, location, site, year, file_cache=None):
-        self.site = site
-        self.network = location
-        self.csv_filename = 'iUTAH_GAMUT_{site}_RawData_{yr}.csv'.format(site=site.code, yr=year)
-        self.csv_filepath = "{path}{name}".format(path=dump_location, name=self.csv_filename)
-        self.file_cache = file_cache
-
-        self.year = year
-        self.start_date = '{y}-01-01 00:00:00'.format(y=year)
-        self.end_date = datetime.datetime(int(year), 12, 31, 23, 55, 59)
-        self.column_count = 0
-
-    def createFile(self, filepath):
-        """
-
-        :param file_path:
-        :type file_path:
-        :return:
-        :rtype:
-        """
-        try:
-            print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
-            file_out = open(filepath, 'w')
-            return file_out
-        except Exception as e:
-            print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
-            return None
-
-    def writeToFile(self, series_service, series_list, filepath=None):
-        print('WriteToFile: Processing site {} with {} series items'.format(self.site.code, len(series_list)))
-        if filepath is None:
-            filepath = self.csv_filepath
-        site_files = []
-        file_name = self.csv_filename.format(site=self.site.code, yr=self.year)
-        file_info = FileDetails(site_code=self.site.code, site_name=self.site.name, file_path=filepath,
-                                file_name=file_name)
-
-        cached_file = None
-        if self.site.code in self.file_cache:
-            for cached in self.file_cache[self.site.code]:
-                if cached.file_path == file_info.file_path:
-                    cached_file = cached
-                    break
-
-        dvs = series_service.get_all_values_by_site_id_date(self.site.id, self.start_date, self.end_date)
-        try:
-            if len(dvs) > 0:
-                file_info.coverage_start = dvs["LocalDateTime"].iloc[0]
-                file_info.coverage_end = dvs["LocalDateTime"].iloc[-1]
-
-                if cachedVersionIsOutdated(cached_file, file_info):
-                    site_files.append(file_info)
-                    print 'Recreating file {}'.format(file_info.file_name)
-                else:
-                    cached_file.created = False
-                    site_files.append(cached_file)
-                    print 'We are using the cached version: {}'.format(cached_file.file_name)
-                    return site_files
-
-                file_out = self.createFile(file_info.file_path)
-                if file_out is None:
-                    print('Unable to create output file for {}'.format(file_info.site_code))
-                    return site_files
-                file_info.created = True
-
-                df = pandas.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
-                                        columns="VariableCode", values="DataValue")
-
-                var_data = CompactVariableData()
-                for s in series_list:
-                    var_data.addData(s.variable, s.method)
-
-                sourceInfo = SourceInfo()
-                if len(series_list) > 0:
-                    source = series_list[0].source
-                    sourceInfo.setSourceInfo(source.organization, source.description, source.link,
-                                             source.contact_name, source.phone, source.email, source.citation)
-
-                # generate header
-                file_str = self.generateHeader()
-                file_str += generateSiteInformation(self.site, self.network)
-                file_str += var_data.printToFile([var for var in df]) + "#\n"
-                file_str += sourceInfo.outputSourceInfo() + "#\n"
-
-                file_out.write(file_str)
-                del file_str
-                del sourceInfo
-                del var_data
-                del dvs
-                df.to_csv(file_out)
-                file_out.close()
-                file_info.is_empty = False
-                print ('{} handleConnection: Success - finished creating {}'.format(datetime.datetime.now(), filepath))
-            else:
-                site_files.append(file_info)
-                file_out = self.createFile(file_info.file_path)
-                if file_out is None:
-                    print('Unable to create output file for {}'.format(file_info.site_code))
-                    return site_files
-                file_info.created = True
-                file_out.close()
-
-        except InvalidRequestError as e:
-            print ("We had an invalid request: {}".format(e))
-        except Exception as e:
-            print('---\nIssue encountered while writing data to file: \n{}\n{}\n---'.format(type(e), e))
-        return site_files
-
-    def generateHeader(self):
-        """
-        :return: Returns a string to be inserted as the CSV file's header
-        :rtype: str
-        """
-        file_str = "# ------------------------------------------------------------------------------------------\n"
-        file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
-        file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
-        file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
-        file_str += "# resulting from their use. The following metadata describe the data in this file:\n"
-        file_str += "# ------------------------------------------------------------------------------------------\n"
-        file_str += "#\n"
-        return file_str
-
 
 def generateSiteInformation(site, network):
     """

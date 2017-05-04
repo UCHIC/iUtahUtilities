@@ -174,12 +174,14 @@ class HydroShareUtility:
         :param regex_flags: Flags to be passed to the regex search
         :return: A list of resource_cache that matched the filter
         """
+        filtered_resources = []
         if self.auth is None:
             raise HydroShareUtilityException("Cannot query resources without authentication")
         all_resources = self.client.getResourceList(owner=owner)
         if regex_string is None:
+            return [r['resource_id'] for r in all_resources if 'resource_id' in r]
+        if regex_string == "show_me_what_you_got":
             return all_resources
-        filtered_resources = []
         regex_filter = re.compile(regex_string, regex_flags)
         for resource in all_resources:
             if regex_filter.search(resource['resource_title']) is not None:
@@ -198,7 +200,7 @@ class HydroShareUtility:
             owner = self.user_info['username']
         return self.filterResourcesByRegex(regex_string=regex_string, owner=owner, regex_flags=regex_flags)
 
-    def upload(self, files_list, resource_id, retry_on_failure=True):
+    def upload(self, files_list, resource_id, retry_on_failure=False):
         """
         Connect as user and upload the files to HydroShare
         :param paired_file_list: List of dictionaries in format [ {"name": "file_name", "path": "file_path" }, {...} ]
@@ -214,7 +216,7 @@ class HydroShareUtility:
                 action = 'update' if len(matching_files) > 0 else 'create'
                 if action == 'update':
                     self.client.deleteResourceFile(resource_id, local_file.file_name)
-                self.client.addResourceFile(resource_id, local_file.file_path)
+                self.client.addResourceFile(resource_id, str(local_file.file_path)) #, resource_filename=local_file.file_name)
                 # if self.updateResourcePeriodMetadata(resource_id, local_file.coverage_start, local_file.coverage_end):
                 #     print "Resource metadata for temporal coverage was updated"
                 #     exit()
@@ -226,7 +228,7 @@ class HydroShareUtility:
                 print('Upload encountered an error - attempting again. Error encountered: \n{}'.format(e.message))
                 return self.upload(files_list, resource_id, retry_on_failure=False)
             else:
-                print("Upload retry failed - could not complete upload to HydroShare due to exception: {}".format(e))
+                print("Upload failed - could not complete upload to HydroShare due to exception: {}".format(e))
         except KeyError as e:
             print('Incorrectly formatted arguments given. Expected key not found: {}'.format(e))
         return []

@@ -9,6 +9,8 @@ import os
 import re
 import smtplib
 import sys
+import json
+
 
 __title__ = 'iUtahUtilities Update Tool'
 WINDOWS_OS = 'nt' in os.name
@@ -18,15 +20,21 @@ sys.path.append(os.path.dirname(PROJECT_DIR))
 
 from GAMUTRawData.CSVDataFileGenerator import *
 from exceptions import IOError
-from Utilities.HydroShareUtility import HydroShareUtility
+from Utilities.HydroShareUtility import HydroShareUtility, HydroShareException, HydroShareUtilityException
 from Utilities.CkanUtility import CkanUtility
+
+with open('./settings.json') as json_data:
+    settings = json.load(json_data)
 
 EMAIL_SERVER = "mail.usu.edu"
 EMAIL_FROM = "CSVgenerator@GAMUT.exe"
 EMAIL_SUBJECT = "CSV Generator Report"
 FORMAT_STRING = '%s  %s: %s'
 
+# curr_year = '2015' # datetime.datetime.now().strftime('%Y')
 curr_year = datetime.datetime.now().strftime('%Y')
+# curr_year = '2014' # datetime.datetime.now().strftime('%Y')
+# curr_year = '2013' # datetime.datetime.now().strftime('%Y')
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
 
@@ -43,6 +51,11 @@ RE_QC1_RESOURCES = r"(?=.*quality.?control.?level.?1.?)(?=.*iUtah)(?=.*Gamut).+"
 RE_QC1_DATA_SITE_CODE = r'(^.*iUTAH_GAMUT_)(?P<site>.*)(_Quality_Control_Level_1_)(?P<var>.+)(\.csv$)'
 RE_QC1_FILE = r'^.*(?P<name>(?P<required>iUTAH_GAMUT_)(?P<unused_1>.*)(_Quality_Control_Level_1_)(?P<var_code>.*)(' \
               r'?P<duplicated>(_[a-z0-9]{7})|((%20|\ )\([0-9]+\)))(?P<filetype>\.csv))$'
+
+
+# Resource template class
+# Update the auth file to use json
+# Allow multiple years
 
 
 class Arguments:
@@ -82,12 +95,12 @@ class Arguments:
         if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS \
                 and self.destination != 'none':
             valid_args = False
-        if 'username' in self.auth and 'password' not in self.auth:
-            valid_args = False
-        if 'client_id' in self.auth and 'client_secret' not in self.auth:
-            valid_args = False
-        if 'auth_file' in self.auth and not os.path.exists(self.auth['auth_file']):
-            valid_args = False
+        # if 'username' in self.auth and 'password' not in self.auth:
+        #     valid_args = False
+        # if 'client_id' in self.auth and 'client_secret' not in self.auth:
+        #     valid_args = False
+        # if 'auth_file' in self.auth and not os.path.exists(self.auth['auth_file']):
+        #     valid_args = False
         return valid_args
 
     def print_usage_info(self):
@@ -169,23 +182,25 @@ def send_email(issue_list, to, attach=None):
     server.quit()
 
 
-def getHydroShareCredentials(auth_info):
-    username = None
-    password = None
-    client_id = None
-    client_secret = None
-    if 'username' in auth_info and 'password' in auth_info:
-        username = auth_info['username']
-        password = auth_info['password']
-    if 'client_id' in auth_info and 'client_secret' in auth_info:
-        client_id = auth_info['client_id']
-        client_secret = auth_info['client_secret']
-    if 'auth_file' in auth_info:
-        auth_file = open(auth_info['auth_file'], 'r')
-        # auth_file = open('./secret_dev', 'r')
-        username, password = auth_file.readline().split()
-        client_id, client_secret = auth_file.readline().split()
-    return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
+# def getHydroShareCredentials(auth_info):
+#
+#
+#     username = None
+#     password = None
+#     client_id = None
+#     client_secret = None
+#     if 'username' in settings and 'password' in settings:
+#         username = auth_info['username']
+#         password = auth_info['password']
+#     if 'client_id' in auth_info and 'client_secret' in auth_info:
+#         client_id = auth_info['client_id']
+#         client_secret = auth_info['client_secret']
+#     if 'auth_file' in auth_info:
+#         auth_file = open(auth_info['auth_file'], 'r')
+#         # auth_file = open('./secret_dev', 'r')
+#         username, password = auth_file.readline().split()
+#         client_id, client_secret = auth_file.readline().split()
+#     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
 def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_generator=None):
@@ -204,37 +219,61 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     :rtype:
     """
     hydroshare = HydroShareUtility()
-    user_auth = getHydroShareCredentials(user_auth)
     if hydroshare.authenticate(**user_auth):
         print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
         discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
+        # discovered_resources = hydroshare.filterOwnedResourcesByRegex("show_me_what_you_got")
+        #
+        # good_resources = []
+        # bad_resources = []
 
-        # Remove any duplicate files we can find
-        print 'Checking for duplicate files in {} resources'.format(len(discovered_resources))
         for resource_id in discovered_resources:
-            hydroshare.purgeDuplicateGamutFiles(resource_id, file_regex)
+            # resource_id = resource_info['resource_id']
+            # resource_title = resource_info['resource_title']
+            try:
+                hydroshare.purgeDuplicateGamutFiles(resource_id, file_regex)
+                # good_resources.append((resource_id, resource_title))
+            except: # Exception as e:
+                # bad_resources.append((resource_id, resource_title))
+                discovered_resources.remove(resource_id)
+                # print e
+
+        # print "Originally discovered {} resources".format(len(good_resources))
+        #
+        # print "Resources that throw an error while fetching a file list: "
+        # for resource in bad_resources:
+        #     print resource
+        # print ""
+        #
+        # print "Valid resources remaining are listed below: "
+        # for resource in good_resources:
+        #     print resource
+        # print ""
+        #
+        # print "After removing {} failed resources, we have {} resources remaining".format(len(bad_resources), len(good_resources))
+        #
 
         # Check for matching resources for each site - we can't update a resource if we don't know what it is
         paired_sites, unpaired_sites = hydroshare.pairSitesToResources(sites.keys(), discovered_resources)
-
-        # Create new resources if needed, and add the new resource to the site/resource pair list
-        if resource_generator is not None:
-            print 'Creating any missing resources'
-            for site_code in unpaired_sites:
-                valid_files = [f for f in sites[site_code] if not f.is_empty]
-                if len(valid_files) == 0:
-                    continue
-                resource_details = getNewQC1ResourceInformation(site_code, valid_files)
-                print 'Creating new resource {}'.format(resource_details.resource_name)
-                resource_id = hydroshare.createNewResource(resource_details)
-                paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
-                unpaired_sites.remove(site_code)
+        #
+        # # Create new resources if needed, and add the new resource to the site/resource pair list
+        # if resource_generator is not None:
+        #     print 'Creating any missing resources'
+        #     for site_code in unpaired_sites:
+        #         valid_files = [f for f in sites[site_code] if not f.is_empty]
+        #         if len(valid_files) == 0:
+        #             continue
+        #         resource_details = resource_generator(site_code, valid_files)
+        #         print 'Creating new resource {}'.format(resource_details.resource_name)
+        #         resource_id = hydroshare.createNewResource(resource_details)
+        #         paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
+        #         unpaired_sites.remove(site_code)
 
         print 'Performing file operations for {} resources'.format(len(paired_sites))
         # Upload new, proper files - delete files that have been uploaded and are empty
         for pair in paired_sites:
             site_code = pair['site_code']
-            hydroshare.removeResourceFiles([f for f in sites[site_code] if f.is_empty], pair['resource_id'])
+            # hydroshare.removeResourceFiles([f for f in sites[site_code] if f.is_empty], pair['resource_id'])
             hydroshare.upload([f for f in sites[site_code] if not f.is_empty], pair['resource_id'])
 
         # Make sure our resources are public, this has potential to change if a resource has only one file
@@ -250,16 +289,33 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
         for pair in paired_sites:
             pair_dict[pair['site_code']] = 'https://www.hydroshare.org/resource/{}/'.format(pair['resource_id'])
 
-        # Deletes all resources that match the specified regex. USE WITH CAUTION.
-        if False:
-            resources_to_delete = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
-            for resource_id in resources_to_delete:
-                hydroshare.deleteResource(resource_id, confirm=False)
+        # # Delete invalid QC1 Resources
+        # if resource_regex == RE_QC1_RESOURCES:
+        #     discovered_resources = hydroshare.filterOwnedResourcesByRegex(RE_QC1_RESOURCES)
+        #     for resource_id in discovered_resources:
+        #         file_list = hydroshare.getResourceFileList(resource_id, refresh_cache=True)
+        #         # Start delete here
+        #         for remote_file in file_list:
+        #             print remote_file['url']
+        #             if re.match(RE_RAW_FILE, remote_file['url'], re.IGNORECASE):
+        #                 hydroshare.deleteResource(resource_id, confirm=False)
+        #         # End delete here
+        #         if len(file_list) == 0:
+        #             hydroshare.deleteResource(resource_id, confirm=False)
+
+        # Delete any empty resources - double checking to ensure we didn't make any new ones
+        # discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
+        # for resource_id in discovered_resources:
+        #     file_list = hydroshare.getResourceFileList(resource_id, refresh_cache=True)
+        #     if len(file_list) == 0:
+        #         hydroshare.deleteResource(resource_id, confirm=False)
 
         return pair_dict
 
 
+
 if __name__ == "__main__":
+
     user_args = Arguments(sys.argv)
     if not user_args.validate():
         user_args.print_usage_info()
@@ -292,26 +348,15 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        raw_pairs = uploadToHydroShare(user_args.auth, raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
+        raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
                                        resource_generator=getNewRawDataResourceInformation)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
-        qc1_pairs = uploadToHydroShare(user_args.auth, qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
+        qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
                                        resource_generator=getNewQC1ResourceInformation)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
         print 'All pairs: \nRaw:\n{}\nQC1:\n{}'.format(raw_pairs, qc1_pairs)
-
-    # Perform upload to CKAN
-    if False and user_args.destination in user_args.VALID_CKAN_TARGETS:
-        stopwatch_timer = datetime.datetime.now()
-        print("Uploading files to CKAN")
-        ckan_api_key = "516ca1eb-f399-411f-9ba9-49310de285f3"
-        ckan = CkanUtility(ckan_api_key, raw_dump_location)
-        result = ckan.upload(raw_files)
-        for issue in result:
-            print issue
-        print 'Raw files uploaded to CKAN - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

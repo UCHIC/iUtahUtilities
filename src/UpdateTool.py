@@ -31,10 +31,7 @@ EMAIL_FROM = "CSVgenerator@GAMUT.exe"
 EMAIL_SUBJECT = "CSV Generator Report"
 FORMAT_STRING = '%s  %s: %s'
 
-# curr_year = '2015' # datetime.datetime.now().strftime('%Y')
 curr_year = datetime.datetime.now().strftime('%Y')
-# curr_year = '2014' # datetime.datetime.now().strftime('%Y')
-# curr_year = '2013' # datetime.datetime.now().strftime('%Y')
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
 
@@ -95,12 +92,6 @@ class Arguments:
         if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS \
                 and self.destination != 'none':
             valid_args = False
-        # if 'username' in self.auth and 'password' not in self.auth:
-        #     valid_args = False
-        # if 'client_id' in self.auth and 'client_secret' not in self.auth:
-        #     valid_args = False
-        # if 'auth_file' in self.auth and not os.path.exists(self.auth['auth_file']):
-        #     valid_args = False
         return valid_args
 
     def print_usage_info(self):
@@ -180,27 +171,6 @@ def send_email(issue_list, to, attach=None):
     server = smtplib.SMTP(EMAIL_SERVER)
     server.sendmail(EMAIL_FROM, recipients, email_body)
     server.quit()
-
-
-# def getHydroShareCredentials(auth_info):
-#
-#
-#     username = None
-#     password = None
-#     client_id = None
-#     client_secret = None
-#     if 'username' in settings and 'password' in settings:
-#         username = auth_info['username']
-#         password = auth_info['password']
-#     if 'client_id' in auth_info and 'client_secret' in auth_info:
-#         client_id = auth_info['client_id']
-#         client_secret = auth_info['client_secret']
-#     if 'auth_file' in auth_info:
-#         auth_file = open(auth_info['auth_file'], 'r')
-#         # auth_file = open('./secret_dev', 'r')
-#         username, password = auth_file.readline().split()
-#         client_id, client_secret = auth_file.readline().split()
-#     return {'client_id': client_id, 'client_secret': client_secret, 'username': username, 'password': password}
 
 
 def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_generator=None):

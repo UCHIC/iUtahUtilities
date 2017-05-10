@@ -16,6 +16,8 @@ class VisualH2OWindow(wx.Frame):
         self.HydroShareConnections = []
         self.DatabaseConnections = []
 
+        self.status_guage = 0
+
         wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX,
                           size=self.MAIN_WINDOW_SIZE)
         self.parent = parent
@@ -141,11 +143,12 @@ class VisualH2OWindow(wx.Frame):
 
         toggle_execute_button = wx.Button(self.panel, wx.ID_ANY, label=u'Run Script')
 
-        status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
-        status_gauge.SetValue(0)
+        self.status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
+        self.status_gauge.SetValue(0)
 
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 8), span=(1, 7), flag=wx.ALIGN_LEFT)
-        action_status_sizer.Add(edit_hydroshare_button, pos=(0, 0), span=(1, 1), flag=wx.ALIGN_LEFT)
+        action_status_sizer.Add(toggle_execute_button, pos=(3, 8), span=(1, 1), flag=wx.ALIGN_LEFT)
+        action_status_sizer.Add(self.status_gauge, pos=(3, 0), span=(1, 8), flag=
+                              wx.ALIGN_CENTER | wx.ALL | wx.EXPAND)
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -155,8 +158,6 @@ class VisualH2OWindow(wx.Frame):
         main_sizer.Add(selection_label_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(selection_display_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(action_status_sizer, wx.EXPAND | wx.ALL, 5)
-
-
 
 
         ######################################

@@ -8,6 +8,25 @@ from GAMUTRawData.CSVDataFileGenerator import GenericResourceDetails
 from oauthlib.oauth2 import InvalidGrantError, InvalidClientError
 
 
+class HydroShareAccountDetails:
+    def __init__(self, values=None):
+        self.name = ""
+        self.username = ""
+        self.password = ""
+        self.client_id = None
+        self.client_secret = None
+
+        if values is not None:
+            self.name = values['name'] if 'name' in values else ""
+            self.username = values['user'] if 'user' in values else ""
+            self.password = values['password'] if 'password' in values else ""
+            self.client_id = values['client_id'] if 'client_id' in values else None
+            self.client_secret = values['client_secret'] if 'client_secret' in values else None
+
+    def to_dict(self):
+        return dict(username=self.username, password=self.password,
+                    client_id=self.client_id, client_secret=self.client_secret)
+
 class HydroShareUtilityException(Exception):
     def __init__(self, args):
         super(HydroShareUtilityException, self).__init__(args)

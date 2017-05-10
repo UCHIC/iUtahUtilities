@@ -3,6 +3,7 @@
 *.so
 *.log
 *settings.json
+*persist_file
 __pycache__
 htmlcov
 

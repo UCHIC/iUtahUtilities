@@ -67,6 +67,30 @@ contributors = [
     {"contributor": {"name": "Scott Jones", "organization": "Utah State University"}}]
 
 
+
+class OdmDatabaseDetails:
+    def __init__(self, values=None):
+        self.name = ""
+        self.engine = ""
+        self.user = ""
+        self.password = ""
+        self.address = ""
+        self.database = ""
+        self.port = ""
+
+        if values is not None:
+            self.name = values['name'] if 'name' in values else ""
+            self.engine = values['engine'] if 'engine' in values else ""
+            self.user = values['user'] if 'user' in values else ""
+            self.password = values['password'] if 'password' in values else ""
+            self.address = values['address'] if 'address' in values else ""
+            self.database = values['db'] if 'db' in values else ""
+            self.port = values['port'] if 'port' in values else ""
+
+    def ToDict(self):
+        return {'engine': self.engine, 'user': self.user, 'password': self.password, 'address': self.address,
+                'db': self.database}
+
 class GenericResourceDetails:
     def __init__(self):
         self.resource_name = ''

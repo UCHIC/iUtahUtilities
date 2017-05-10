@@ -116,17 +116,17 @@ def getNewRawDataResourceInformation(site_code, valid_files=None):
         end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
         if start_cov is not None and end_cov is not None:
             temporal_data = {"coverage":
-                                 {"type": "period",
-                                  "value": {"start": start_cov.strftime(time_format),
-                                            "end": end_cov.strftime(time_format)}}}
+                             {"type": "period",
+                              "value": {"start": start_cov.strftime(time_format),
+                                        "end": end_cov.strftime(time_format)}}}
             new_resource.metadata.append(temporal_data)
 
     # Add Credits
-    credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
-                                     'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
-                                                    'Hydro-sustainability',
-                                     'award_number': '1208732',
-                                     'agency_url': 'http://www.nsf.gov'}}
+    credit_dict = {'fundingagency':
+                   {'agency_name': 'National Science Foundation',
+                                   'award_title': 'iUTAH-innovative Urban Transitions and Aridregion Hydro-sustainability',
+                                   'award_number': '1208732',
+                                   'agency_url': 'http://www.nsf.gov'}}
     new_resource.metadata.append(credit_dict)
 
     authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}

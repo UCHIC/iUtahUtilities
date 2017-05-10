@@ -16,9 +16,6 @@ __title__ = 'Visual H20 Utility'
 # from VisualUpdater import HydroShareAccountDialog, VisualH20Window
 import VisualUpdater
 
-import VisualUpdater.VisualH20MainWindow
-import VisualUpdater.HydroShareAccountDialog
-
 from VisualUpdater.VisualH20MainWindow import VisualH2OWindow
 
 import wx

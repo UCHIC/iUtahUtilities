@@ -7,8 +7,7 @@ import sys
 from functools import partial
 
 import wx
-import HydroShareAccountDialog
-from HydroShareAccountDialog import HydroShareAccountModal
+from VisualH20Dialogs import HydroShareAccountDialog, DatabaseConnectionDialog
 
 
 class VisualH2OWindow(wx.Frame):
@@ -53,8 +52,38 @@ class VisualH2OWindow(wx.Frame):
     def _get_hydroshare_account_by_name(self):
         pass
 
-    def on_edit_database(self, event):
+    def on_edit_database(self, event, test_arg=None):
         print "Clicked edit db button!"
+        if test_arg == "HydroShare":
+            print "Edit hydroshare clicked"
+            result = HydroShareAccountDialog(self).ShowModal()
+            print result
+        elif test_arg == "Database":
+            print "Clicked edit db button!"
+            result = DatabaseConnectionDialog(self).ShowModal()
+            print result
+        elif test_arg is None:
+            print "Got nothing"
+        else:
+            print test_arg
+
+    def on_edit_hydroshare(self, event, test_arg=None):
+        # print "Edit hydroshare clicked"
+        # result = HydroShareAccountDialog(self).ShowModal()
+        # print result
+        print "Edit hydroshare clicked"
+        if test_arg == "HydroShare":
+            print "Edit hydroshare clicked"
+            result = HydroShareAccountDialog(self).ShowModal()
+            print result
+        elif test_arg == "Database":
+            print "Clicked edit db button!"
+            result = DatabaseConnectionDialog(self).ShowModal()
+            print result
+        elif test_arg is None:
+            print "Got nothing"
+        else:
+            print test_arg
 
     def on_database_chosen(self, event, test_arg):
         if event.GetSelection() == 1:
@@ -64,12 +93,6 @@ class VisualH2OWindow(wx.Frame):
         else:
             print "No selection made"
 
-    def on_edit_hydroshare(self, event, test_arg):
-        print "Edit hydroshare clicked"
-        result = HydroShareAccountModal(self).ShowModal()
-        print result
-
-
     def on_hydroshare_chosen(self, event, test_arg):
         if event.GetSelection() == 1:
             print "They wanna make a new connection"
@@ -77,41 +100,63 @@ class VisualH2OWindow(wx.Frame):
             print "They've selected a connection to use"
 
     def _build_main_window(self):
+        ######################################
+        #   Setup sizers and panels          #
+        ######################################
         self.panel = wx.Panel(self, wx.ID_ANY)
-
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         connections_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         selection_label_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         selection_display_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         action_status_sizer = wx.GridBagSizer(vgap=7, hgap=7)
 
-        edit_database_button = wx.Button(self.panel, wx.ID_EDIT)
-        edit_hydroshare_button = wx.Button(self.panel, wx.ID_EDIT)
+        ######################################
+        #   Build connection details sizer   #
+        ######################################
+        edit_database_button = wx.Button(self.panel, wx.ID_ANY, label=u'Edit...')
+        edit_hydroshare_button = wx.Button(self.panel, wx.ID_ANY, label=u'Edit...')
         select_database_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_databse_connections())
         select_hydroshare_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_hydroshare_accounts())
+
+        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, test_arg='HydroShare'), edit_hydroshare_button)
+        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_database, test_arg='Database'), edit_database_button)
 
         connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0),
                               span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND)
         connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 5),
                               span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND)
 
-        connections_sizer.Add(select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
         connections_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=wx.ALIGN_LEFT)
-        connections_sizer.Add(select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
         connections_sizer.Add(edit_hydroshare_button, pos=(1, 8), span=(1, 1), flag=wx.ALIGN_LEFT)
+        connections_sizer.Add(select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
+        connections_sizer.Add(select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
 
-        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, test_arg=''), edit_hydroshare_button)
-        # self.Bind(wx.EVT_BUTTON, partial(self.on_database_chosen, test_arg='ricket'), edit_database_button)
-        # self.Bind(wx.EVT_BUTTON, self.on_edit_database, select_database_choice)
-        # self.Bind(wx.EVT_BUTTON, self.on_edit_hydroshare, select_hydroshare_choice)
+        ######################################
+        # Build selection sizer and objects  #
+        ######################################
 
-        # self.Bind(wx.EVT_CHOICE, partial(self.on_hydroshare_chosen, test_arg="nah"), select_hydroshare_choice)
+        ######################################
+        # Build action sizer and objects     #
+        ######################################
+
+        toggle_execute_button = wx.Button(self.panel, wx.ID_ANY, label=u'Run Script')
+
+        status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
+        status_gauge.SetValue(0)
+
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 8), span=(1, 7), flag=wx.ALIGN_LEFT)
+        action_status_sizer.Add(edit_hydroshare_button, pos=(0, 0), span=(1, 1), flag=wx.ALIGN_LEFT)
+
+        ######################################
+        # Build menu bar and setup callbacks #
+        ######################################
 
         main_sizer.Add(connections_sizer, wx.EXPAND | wx.ALL, 5)
-
         main_sizer.Add(selection_label_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(selection_display_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(action_status_sizer, wx.EXPAND | wx.ALL, 5)
+
+
 
 
         ######################################
@@ -122,7 +167,7 @@ class VisualH2OWindow(wx.Frame):
         file_menu = wx.Menu()
         file_menu.Append(wx.ID_ABOUT, "&About", " Information about this program")
         file_menu.AppendSeparator()
-        file_menu.Append(wx.ID_EXIT, 'Quit', 'Quit application')
+        file_menu.Append(wx.ID_CLOSE, 'Quit', 'Quit application')
 
         # Menu bar
         menuBar = wx.MenuBar()

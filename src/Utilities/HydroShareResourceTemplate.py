@@ -7,12 +7,12 @@ import pyodbc
 import jsonpickle
 from sqlalchemy.exc import InvalidRequestError
 
-from odmdata import Series
-from odmdata import Site
-from odmdata import SpatialReference
-from odmdata import Qualifier
-from odmdata import DataValue
-from odmservices import ServiceManager
+from GamutRawodmdata import Series
+from GamutRawodmdata import Site
+from GamutRawodmdata import SpatialReference
+from GamutRawodmdata import Qualifier
+from GamutRawodmdata import DataValue
+from GamutRawodmservices import ServiceManager
 
 this_file = os.path.realpath(__file__)
 directory = os.path.dirname(os.path.dirname(this_file))

@@ -12,25 +12,45 @@ import jsonpickle
 from pubsub import pub
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility
 from GAMUTRawData.CSVDataFileGenerator import OdmDatabaseDetails
-from VisualH20Dialogs import HydroShareAccountDialog, DatabaseConnectionDialog
+from GAMUTRawData.odmservices import ServiceManager
+from EditConnectionsDialog import DatabaseConnectionDialog
+from EditAccountsDialog import HydroShareAccountDialog
+from ResourceTemplatesDialog import HydroShareResourceTemplateDialog
+
 
 PERSIST_FILE = './persist_file'
+service_manager = ServiceManager()
 
 class VisualH2OWindow(wx.Frame):
     def __init__(self, parent, id, title):
+        ###########################################
+        # Declare/populate variables, wx objects  #
+        ###########################################
         self.MAIN_WINDOW_SIZE = (720, 640)
         self.HydroShareConnections = {}
         self.DatabaseConnections = {}
-        self.status_gauge = 0
-        self.LoadData()
 
-        wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX,
-                          size=self.MAIN_WINDOW_SIZE)
+        # Load persistence file
+        try:
+            self.LoadData()
+        except:
+            print "This looks like a first run"
+
+
+        # Widgets
+        self.status_gauge = None
+        self.select_database_choice = None
+        self.select_hydroshare_choice = None
+
+        # just technicalities, honestly
+        wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX, size=self.MAIN_WINDOW_SIZE)
         self.parent = parent
-
         self.Centre()
         self._build_main_window()
 
+        ###########################################
+        # Setup subscribers/publishers callbacks  #
+        ###########################################
         pub.subscribe(self.OnSaveHydroShareAuth, 'hs_auth_save')
         pub.subscribe(self.OnTestHydroShareAuth, 'hs_auth_test')
         pub.subscribe(self.OnRemoveHydroShareAuth, 'hs_auth_remove')
@@ -39,6 +59,7 @@ class VisualH2OWindow(wx.Frame):
         pub.subscribe(self.OnRemoveDatabaseAuth, 'db_auth_remove')
 
     def SaveData(self):
+        self.UpdateControls()
         data = {'HS': self.HydroShareConnections, 'DB': self.DatabaseConnections}
         try:
             json_out = open(PERSIST_FILE, 'w')
@@ -57,6 +78,22 @@ class VisualH2OWindow(wx.Frame):
         except IOError as e:
             print 'Error reading cached file data - Clearing files and recreating cache.\n{}'.format(e)
 
+    def UpdateControls(self, progress=None):
+        if progress is not None:
+            self.status_gauge = progress if 100 >= progress >= 0 else progress % 100
+
+        if self.select_database_choice is not None:
+            db_selected = self.select_database_choice.GetCurrentSelection()
+            self.select_database_choice.Clear()
+            self.select_database_choice.SetItems(self._list_saved_databse_connections())
+            self.select_database_choice.SetSelection(db_selected)
+
+        if self.select_hydroshare_choice is not None:
+            hs_selected = self.select_hydroshare_choice.GetCurrentSelection()
+            self.select_hydroshare_choice.Clear()
+            self.select_hydroshare_choice.SetItems(self._list_saved_hydroshare_accounts())
+            self.select_hydroshare_choice.SetSelection(hs_selected)
+
     def OnRemoveDatabaseAuth(self, result=None):
         if result is None:
             return
@@ -67,7 +104,7 @@ class VisualH2OWindow(wx.Frame):
         if result is None:
             return
         connection = OdmDatabaseDetails(result)
-        self.DatabaseConnections.pop(result['selector'], None)
+        self.DatabaseConnections.pop(result['name'], None)
         self.DatabaseConnections[connection.name] = connection
         self.SaveData()
 
@@ -76,15 +113,11 @@ class VisualH2OWindow(wx.Frame):
             pub.sendMessage('db_auth_test_reply', reply='An error occurred, please try again later')
             return
 
-        pub.sendMessage('db_auth_test_reply', reply='Authentication details were not accepted')
-        #
-        # account = HydroShareAccountDetails(result)
-        # hydroshare = HydroShareUtility()
-        # if hydroshare.authenticate(**account.to_dict()):
-        #     pub.sendMessage('db_auth_test_reply', reply='Successfully authenticated!')
-        # else:
-        #     pub.sendMessage('db_auth_test_reply', reply='Authentication details were not accepted')
-        # print result
+        auth_details = OdmDatabaseDetails(result)
+        if service_manager.test_connection(auth_details.ToDict()):
+            pub.sendMessage('db_auth_test_reply', reply='Successfully authenticated!')
+        else:
+            pub.sendMessage('db_auth_test_reply', reply='Authentication details were not accepted')
 
     def OnRemoveHydroShareAuth(self, result=None):
         if result is None:
@@ -129,13 +162,11 @@ class VisualH2OWindow(wx.Frame):
         pass
 
     def on_edit_database(self, event, connections=None):
-        print "Clicked edit db button!"
-        result = DatabaseConnectionDialog(self, connections).ShowModal()
+        result = DatabaseConnectionDialog(self, connections, self.select_database_choice.GetCurrentSelection()).ShowModal()
         print result
 
     def on_edit_hydroshare(self, event, accounts=None):
-        print "Edit hydroshare clicked"
-        result = HydroShareAccountDialog(self, accounts).ShowModal()
+        result = HydroShareAccountDialog(self, accounts, self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
         print result
 
     def on_database_chosen(self, event, test_arg):
@@ -169,31 +200,33 @@ class VisualH2OWindow(wx.Frame):
         edit_database_button = wx.Button(self.panel, wx.ID_ANY, label=u'Edit...')
         edit_hydroshare_button = wx.Button(self.panel, wx.ID_ANY, label=u'Edit...')
 
-        print self._list_saved_databse_connections()
-
-        select_database_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_databse_connections())
-        select_hydroshare_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_hydroshare_accounts())
-        select_database_choice.SetSelection(0)
-        select_hydroshare_choice.SetSelection(0)
+        self.select_database_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_databse_connections())
+        self.select_hydroshare_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_hydroshare_accounts())
+        self.select_database_choice.SetMinSize(wx.Size(225, -1))
+        self.select_database_choice.SetMaxSize(wx.Size(225, -1))
+        self.select_hydroshare_choice.SetMinSize(wx.Size(225,-1))
+        self.select_hydroshare_choice.SetMaxSize(wx.Size(225,-1))
+        self.select_database_choice.SetSelection(0)
+        self.select_hydroshare_choice.SetSelection(0)
 
         self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, accounts=self.HydroShareConnections), edit_hydroshare_button)
         self.Bind(wx.EVT_BUTTON, partial(self.on_edit_database, connections=self.DatabaseConnections), edit_database_button)
 
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND)
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND)
+        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
+        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
 
-        connections_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=wx.ALIGN_LEFT)
-        connections_sizer.Add(edit_hydroshare_button, pos=(1, 8), span=(1, 1), flag=wx.ALIGN_LEFT)
-        connections_sizer.Add(select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
-        connections_sizer.Add(select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_LEFT | wx.EXPAND)
+        connections_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.EXPAND, border=7)
+        connections_sizer.Add(edit_hydroshare_button, pos=(1, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.RIGHT | wx.EXPAND, border=7)
+        connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+        connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
 
         ######################################
         # Build selection sizer and objects  #
         ######################################
 
-        selection_display_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select Time Series to generate and upload'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND)
+        selection_display_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select Time Series to generate and upload'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND, border=7)
         self.list_display = wx.ListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_AUTOARRANGE | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING | wx.LC_VRULES)
-        selection_display_sizer.Add(self.list_display, pos=(2, 0), span=(1, 4))
+        selection_display_sizer.Add(self.list_display, pos=(2, 0), span=(1, 4), border=7)
 
         ######################################
         # Build action sizer and objects     #
@@ -204,8 +237,8 @@ class VisualH2OWindow(wx.Frame):
         self.status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
 
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_LEFT)
-        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND)
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -233,9 +266,6 @@ class VisualH2OWindow(wx.Frame):
 
         self.panel.SetSizerAndFit(main_sizer)
         self.Show(True)
-
-    def saveConfigFile(self):
-        pass
 
     def OnButtonClick(self, event):
         print "You clicked the button !"

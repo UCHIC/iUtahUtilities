@@ -7,13 +7,16 @@ class H20State:
 
 
 class OdmDatabaseDetails:
-    def __init__(self):
+    def __init__(self, values=None):
         self.name = ""
         self.engine = ""
         self.user = ""
         self.password = ""
         self.address = ""
         self.database = ""
+
+        if values is not None:
+
 
     def ToDict(self):
         return {'engine': self.engine, 'user': self.user, 'password': self.password, 'address': self.address,

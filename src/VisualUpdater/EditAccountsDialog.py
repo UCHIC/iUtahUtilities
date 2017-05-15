@@ -89,7 +89,7 @@ class HydroShareAccountDialog(wx.Dialog):
         client_id_sizer.Add(self.label5, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
         self.client_id_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_ALPHANUMERIC))
-        self.client_id_input.SetMaxLength(32)
+        self.client_id_input.SetMaxLength(64)
         client_id_sizer.Add(self.client_id_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1), wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
 
         client_id_sizer.AddGrowableCol(1)
@@ -105,7 +105,7 @@ class HydroShareAccountDialog(wx.Dialog):
         client_secret_sizer.Add(self.label6, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
         self.client_secret_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_ALPHANUMERIC))
-        self.client_secret_input.SetMaxLength(32)
+        self.client_secret_input.SetMaxLength(256)
         client_secret_sizer.Add(self.client_secret_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1), wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
 
         client_secret_sizer.AddGrowableCol(1)

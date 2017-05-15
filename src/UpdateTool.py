@@ -296,7 +296,7 @@ if __name__ == "__main__":
         os.makedirs(raw_dump_location)
     if not os.path.exists(qc_dump_location):
         os.makedirs(qc_dump_location)
-    if user_args.verbose:
+    if user_args.verbose or True:
         sys.stdout = Logger(log_file, overwrite=True)
     else:
         sys.stdout = open(log_file, 'w')

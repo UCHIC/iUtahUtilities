@@ -1,4 +1,5 @@
 import re
+
 import dateutil.parser
 import xml.etree.ElementTree as ElementTree
 
@@ -122,6 +123,7 @@ class HydroShareUtility:
         matched_sites = []
         unmatched_sites = []
         for site in site_list:
+            print site
             found_match = False
             for resource_id in resource_list:
                 resource_title = self.resource_cache[resource_id].name
@@ -196,7 +198,7 @@ class HydroShareUtility:
         filtered_resources = []
         if self.auth is None:
             raise HydroShareUtilityException("Cannot query resources without authentication")
-        all_resources = self.client.getResourceList(owner=owner)
+        all_resources = self.client.resources(owner=owner)
         if regex_string is None:
             return [r['resource_id'] for r in all_resources if 'resource_id' in r]
         if regex_string == "show_me_what_you_got":

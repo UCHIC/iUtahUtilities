@@ -11,8 +11,8 @@ import jsonpickle
 # import wx.lib.pubsub.pub as Publisher
 from pubsub import pub
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility
+from Utilities.DatasetGenerator import OdmDatasetUtility
 from Utilities.Odm2Wrapper import *
-from GAMUTRawData.CSVDataFileGenerator import OdmDatabaseDetails
 from GAMUTRawData.odmservices import ServiceManager
 from EditConnectionsDialog import DatabaseConnectionDialog
 from EditAccountsDialog import HydroShareAccountDialog
@@ -34,6 +34,11 @@ class VisualH2OWindow(wx.Frame):
         self.ActiveOdmConnection = None  # type: ServiceManager
         self.ActiveHydroshare = None     # type: HydroShareUtility
 
+        self._series = None              # type: dict
+        self._resources = None           # type: dict
+
+        self.series_view_choices = ['Site Code', 'Site Name', 'Variable Code', 'Variable Name', 'QC Level']
+
         # Load persistence file
         try:
             self.LoadData()
@@ -44,9 +49,10 @@ class VisualH2OWindow(wx.Frame):
         self.status_gauge = None              # type: wx.Gauge
         self.select_database_choice = None    # type: wx.Choice
         self.select_hydroshare_choice = None  # type: wx.Choice
-        self.odm2_series_display = None       # type: wx.ListCtrl
+        self.odm2_series_display = None       # type: wx.ListBox
         # self.hydroshare_display = None        # type: # wx.ListCtrl
         self.hydroshare_display = None        # type: wx.ListBox
+        self.series_view_selector = None      # type: wx.Choice
 
         # just technicalities, honestly
         wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX, size=self.MAIN_WINDOW_SIZE)
@@ -101,7 +107,7 @@ class VisualH2OWindow(wx.Frame):
             self.select_hydroshare_choice.SetSelection(hs_selected)
 
         if self.odm2_series_display is not None:
-            pass
+            self.populate_series_list()
 
         if self.hydroshare_display is not None:
             pass
@@ -116,7 +122,7 @@ class VisualH2OWindow(wx.Frame):
     def OnSaveDatabaseAuth(self, result=None):
         if result is None:
             return
-        connection = OdmDatabaseDetails(result)
+        connection = OdmDatasetUtility(result)
         self.DatabaseConnections.pop(result['name'], None)
         self.DatabaseConnections[connection.name] = connection
         self.SaveData()
@@ -125,7 +131,7 @@ class VisualH2OWindow(wx.Frame):
         if result is None:
             pub.sendMessage('db_auth_test_reply', reply='An error occurred, please try again later')
             return
-        db_details = OdmDatabaseDetails(result)
+        db_details = OdmDatasetUtility(result)
         if db_details.VerifyConnection():
             pub.sendMessage('db_auth_test_reply', reply='Successfully authenticated!')
         else:
@@ -192,10 +198,8 @@ class VisualH2OWindow(wx.Frame):
             if connection.VerifyConnection():
                 service_manager._current_connection = connection.ToDict()
                 series_service = service_manager.get_series_service()
-                series_list = series_service.get_all_series()
-                for series in series_list:
-                    print series
-                    self.odm2_series_display.Append(str(series))
+                self._series = series_service.get_all_series()
+                self.populate_series_list()
         else:
             print "No selection made"
         event.Skip()
@@ -211,9 +215,35 @@ class VisualH2OWindow(wx.Frame):
             print 'successful auth to hydroshare'
             resources = self.ActiveHydroshare.filterOwnedResourcesByRegex('.*')
             for resource in resources:
-                print resource
-                self.hydroshare_display.Append(str(resource))
+                self.hydroshare_display.Append(self.ActiveHydroshare.resource_cache[resource].name)
         event.Skip()
+
+    def populate_series_list(self, event=None):
+        view_as = self.series_view_selector.GetStringSelection()
+        if view_as not in self.series_view_choices or self._series is None:
+            print "Invalid series view chosen"
+            return
+        self.odm2_series_display.Clear()
+        items = []
+
+        if view_as == 'Site Code':
+            items = set([series.site_code for series in self._series])
+            # self.odm2_series_display.Append(series.site_code)
+        elif view_as == 'Site Name':
+            items = set([series.site_name for series in self._series])
+            # self.odm2_series_display.Append(series.site_name)
+        elif view_as == 'Variable Code':
+            items = set([series.variable_code for series in self._series])
+            # self.odm2_series_display.Append(series.variable_code)
+        elif view_as == 'Variable Name':
+            items = set([series.variable_name for series in self._series])
+            # self.odm2_series_display.Append(series.variable_name)
+        elif view_as == 'QC Level':
+            items = set([series.quality_control_level_code for series in self._series])
+            # self.odm2_series_display.Append(series.quality_control_level_code)
+
+        for item in items:
+            self.odm2_series_display.Append(item)
 
     def OnClick(self, event):
         print 'Clicked!!'
@@ -227,6 +257,7 @@ class VisualH2OWindow(wx.Frame):
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         connections_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         selection_label_sizer = wx.GridBagSizer(vgap=7, hgap=7)
+        dataset_resource_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         data_management_sizer = wx.BoxSizer(wx.HORIZONTAL)
         action_status_sizer = wx.GridBagSizer(vgap=7, hgap=7)
 
@@ -262,18 +293,35 @@ class VisualH2OWindow(wx.Frame):
         # Build selection sizer and objects  #
         ######################################
 
-        self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
-        self.odm2_series_display.SetMinSize(wx.Size(300, -1))
-        self.odm2_series_display.SetMaxSize(wx.Size(300, -1))
-        self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
-        self.hydroshare_display.SetMinSize(wx.Size(300, -1))
-        self.hydroshare_display.SetMaxSize(wx.Size(300, -1))
+
+        self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
+        # self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
+        self.odm2_series_display.SetMinSize(wx.Size(320, 150))
+        self.odm2_series_display.SetMaxSize(wx.Size(320, 150))
+        self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
+        # self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
+        self.hydroshare_display.SetMinSize(wx.Size(320, 150))
+        self.hydroshare_display.SetMaxSize(wx.Size(320, 150))
 
         self.Bind(wx.EVT_LISTBOX, self.OnClick, self.hydroshare_display)
 
-        data_management_sizer.SetMinSize(wx.Size(635, -1))
-        data_management_sizer.Add(self.odm2_series_display, 0, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
-        data_management_sizer.Add(self.hydroshare_display, 0, wx.ALL, 5)
+        self.series_view_selector = wx.Choice(self.panel, wx.ID_ANY, choices=self.series_view_choices)
+        self.series_view_selector.SetSelection(0)
+        self.Bind(wx.EVT_CHOICE, self.populate_series_list, self.series_view_selector)
+
+        # data_management_sizer.SetMinSize(wx.Size(635, -1))
+        # data_management_sizer.Add(self.odm2_series_display, 0, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
+        # data_management_sizer.Add(self.hydroshare_display, 0, wx.ALL, 5)
+
+
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'ODM Series'), pos=(0, 0), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'HydroShare Resources'), pos=(0, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.RIGHT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'View series as'), pos=(2, 0), span=(1, 1), flag=wx.ALIGN_RIGHT | wx.BOTTOM | wx.RIGHT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.odm2_series_display, pos=(1, 0), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.hydroshare_display, pos=(1, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.series_view_selector, pos=(2, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+
+        ######################################
 
         ######################################
         # Build action sizer and objects     #
@@ -293,7 +341,8 @@ class VisualH2OWindow(wx.Frame):
 
         main_sizer.Add(connections_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(selection_label_sizer, wx.EXPAND | wx.ALL, 5)
-        main_sizer.Add(data_management_sizer, wx.EXPAND | wx.ALL, 5)
+        # main_sizer.Add(data_management_sizer, wx.EXPAND | wx.ALL, 5)
+        main_sizer.Add(dataset_resource_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(action_status_sizer, wx.EXPAND | wx.ALL, 5)
 
         ######################################

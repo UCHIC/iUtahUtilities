@@ -2,7 +2,7 @@ import string
 import wx
 import wx.xrc
 
-\CV_ALPHANUMERIC = string.letters + string.digits
+CV_ALPHANUMERIC = string.letters + string.digits
 CV_WORD = CV_ALPHANUMERIC + '_'
 CV_DIGIT_ONLY = string.digits
 CV_ALPHA_ONLY = string.letters

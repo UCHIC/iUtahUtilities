@@ -101,31 +101,29 @@ class DatabaseConnectionDialog(wx.Dialog):
 
         dialog_sizer.Add(client_id_sizer, 1, wx.EXPAND, 5)
 
-        client_secret_sizer = wx.GridBagSizer(7, 7)
-        client_secret_sizer.SetFlexibleDirection(wx.BOTH)
-        client_secret_sizer.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
+        port_engine_sizer = wx.GridBagSizer(7, 7)
+        port_engine_sizer.SetFlexibleDirection(wx.BOTH)
+        port_engine_sizer.SetNonFlexibleGrowMode(wx.FLEX_GROWMODE_SPECIFIED)
 
         self.label6 = wx.StaticText(self, wx.ID_ANY, u"Port", wx.DefaultPosition, wx.Size(65, -1), 0)
         self.label6.Wrap(-1)
-        client_secret_sizer.Add(self.label6, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
+        port_engine_sizer.Add(self.label6, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.port_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(65, -1), 0, validator=CharValidator(CV_DIGIT_ONLY))
+        self.port_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(100, -1), 0, validator=CharValidator(CV_DIGIT_ONLY))
         self.port_input.SetMaxLength(32)
-        client_secret_sizer.Add(self.port_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1),
-                                wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
+        port_engine_sizer.Add(self.port_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1), wx.ALIGN_LEFT | wx.ALL, 5)
 
         self.m_staticText28 = wx.StaticText(self, wx.ID_ANY, u"Engine", wx.DefaultPosition, wx.Size(65, -1), 0)
         self.m_staticText28.Wrap(-1)
-        client_secret_sizer.Add(self.m_staticText28, wx.GBPosition(0, 2), wx.GBSpan(1, 1), wx.ALL, 5)
+        port_engine_sizer.Add(self.m_staticText28, wx.GBPosition(0, 2), wx.GBSpan(1, 1), wx.ALL | wx.ALIGN_RIGHT, 5)
 
         engine_selector_comboChoices = [u"mssql", u"psql"]
-        self.engine_selector_combo = wx.ComboBox(self, wx.ID_ANY, u"mssql", wx.DefaultPosition, wx.Size(65, -1),
-                                                 engine_selector_comboChoices, 0)
-        client_secret_sizer.Add(self.engine_selector_combo, wx.GBPosition(0, 3), wx.GBSpan(1, 1), wx.ALL, 5)
+        self.engine_selector_combo = wx.ComboBox(self, wx.ID_ANY, u"mssql", wx.DefaultPosition, wx.Size(100, -1), engine_selector_comboChoices, 0)
+        port_engine_sizer.Add(self.engine_selector_combo, wx.GBPosition(0, 3), wx.GBSpan(1, 1), wx.ALIGN_LEFT | wx.ALL, 5)
 
-        client_secret_sizer.AddGrowableCol(1)
+        port_engine_sizer.AddGrowableCol(1)
 
-        dialog_sizer.Add(client_secret_sizer, 1, wx.EXPAND, 5)
+        dialog_sizer.Add(port_engine_sizer, 1, wx.EXPAND, 5)
 
         databse_name_sizer = wx.GridBagSizer(7, 7)
         databse_name_sizer.SetFlexibleDirection(wx.BOTH)

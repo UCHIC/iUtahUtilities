@@ -184,7 +184,7 @@ class HydroShareUtility:
             resource_files = self.resource_cache[resource_id].files
         return resource_files
 
-    def filterResourcesByRegex(self, regex_string, owner=None, regex_flags=re.IGNORECASE):
+    def filterResourcesByRegex(self, regex_string=None, owner=None, regex_flags=re.IGNORECASE):
         """
         Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
         :param owner: username of the owner of the resource
@@ -218,6 +218,15 @@ class HydroShareUtility:
         if owner is None:
             owner = self.user_info['username']
         return self.filterResourcesByRegex(regex_string=regex_string, owner=owner, regex_flags=regex_flags)
+
+    def getResourceList(self):
+        """
+        Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
+        :param regex_string: String to be used as the regex filter
+        :param regex_flags: Flags to be passed to the regex search
+        :return: A list of resource_cache that matched the filter
+        """
+        return self.filterResourcesByRegex(owner=self.user_info['username'])
 
     def upload(self, files_list, resource_id, retry_on_failure=False):
         """

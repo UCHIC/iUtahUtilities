@@ -2,9 +2,12 @@ import sys
 import os
 import logging
 import datetime
+from time import sleep
+
 import pandas
 import pyodbc
 import jsonpickle
+from multiprocessing import Process, Queue
 from sqlalchemy.exc import InvalidRequestError
 
 from odmdata import Series
@@ -67,6 +70,12 @@ contributors = [
     {"contributor": {"name": "Scott Jones", "organization": "Utah State University"}}]
 
 
+def _OdmDatabaseConnectionTestTimed(queue):
+    db_auth = queue.get(True)
+    if service_manager.test_connection(db_auth):
+        queue.put(True)
+    else:
+        queue.put(False)
 
 class OdmDatabaseDetails:
     def __init__(self, values=None):
@@ -86,6 +95,23 @@ class OdmDatabaseDetails:
             self.address = values['address'] if 'address' in values else ""
             self.database = values['db'] if 'db' in values else ""
             self.port = values['port'] if 'port' in values else ""
+
+    def VerifyConnection(self):
+        queue = Queue()
+        result = False
+        process = Process(target=_OdmDatabaseConnectionTestTimed, args=(queue,))
+        try:
+            process.start()
+            queue.put(self.ToDict())
+            sleep(2)
+            result = queue.get(True, 8)
+        except Exception as exc:
+            print exc
+
+        if process.is_alive():
+            process.terminate()
+            process.join()
+        return result
 
     def ToDict(self):
         return {'engine': self.engine, 'user': self.user, 'password': self.password, 'address': self.address,

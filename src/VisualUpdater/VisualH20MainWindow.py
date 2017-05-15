@@ -11,6 +11,7 @@ import jsonpickle
 # import wx.lib.pubsub.pub as Publisher
 from pubsub import pub
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility
+from Utilities.Odm2Wrapper import *
 from GAMUTRawData.CSVDataFileGenerator import OdmDatabaseDetails
 from GAMUTRawData.odmservices import ServiceManager
 from EditConnectionsDialog import DatabaseConnectionDialog
@@ -30,17 +31,22 @@ class VisualH2OWindow(wx.Frame):
         self.HydroShareConnections = {}
         self.DatabaseConnections = {}
 
+        self.ActiveOdmConnection = None  # type: ServiceManager
+        self.ActiveHydroshare = None     # type: HydroShareUtility
+
         # Load persistence file
         try:
             self.LoadData()
         except:
             print "This looks like a first run"
 
-
         # Widgets
-        self.status_gauge = None
-        self.select_database_choice = None
-        self.select_hydroshare_choice = None
+        self.status_gauge = None              # type: wx.Gauge
+        self.select_database_choice = None    # type: wx.Choice
+        self.select_hydroshare_choice = None  # type: wx.Choice
+        self.odm2_series_display = None       # type: wx.ListCtrl
+        # self.hydroshare_display = None        # type: # wx.ListCtrl
+        self.hydroshare_display = None        # type: wx.ListBox
 
         # just technicalities, honestly
         wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX, size=self.MAIN_WINDOW_SIZE)
@@ -94,6 +100,13 @@ class VisualH2OWindow(wx.Frame):
             self.select_hydroshare_choice.SetItems(self._list_saved_hydroshare_accounts())
             self.select_hydroshare_choice.SetSelection(hs_selected)
 
+        if self.odm2_series_display is not None:
+            pass
+
+        if self.hydroshare_display is not None:
+            pass
+
+
     def OnRemoveDatabaseAuth(self, result=None):
         if result is None:
             return
@@ -112,9 +125,8 @@ class VisualH2OWindow(wx.Frame):
         if result is None:
             pub.sendMessage('db_auth_test_reply', reply='An error occurred, please try again later')
             return
-
-        auth_details = OdmDatabaseDetails(result)
-        if service_manager.test_connection(auth_details.ToDict()):
+        db_details = OdmDatabaseDetails(result)
+        if db_details.VerifyConnection():
             pub.sendMessage('db_auth_test_reply', reply='Successfully authenticated!')
         else:
             pub.sendMessage('db_auth_test_reply', reply='Authentication details were not accepted')
@@ -164,24 +176,48 @@ class VisualH2OWindow(wx.Frame):
     def on_edit_database(self, event, connections=None):
         result = DatabaseConnectionDialog(self, connections, self.select_database_choice.GetCurrentSelection()).ShowModal()
         print result
+        event.Skip()
 
     def on_edit_hydroshare(self, event, accounts=None):
         result = HydroShareAccountDialog(self, accounts, self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
         print result
+        event.Skip()
 
-    def on_database_chosen(self, event, test_arg):
-        if event.GetSelection() == 1:
-            print "They wanna make a new connection"
-        elif event.GetSelection() > 1:
-            print "They've selected a connection to use"
+    def on_database_chosen(self, event):
+        if event.GetSelection() > 0:
+            print "Lets connect"
+            selection_string = self.select_database_choice.GetStringSelection()
+            print selection_string
+            connection = self.DatabaseConnections[selection_string]
+            if connection.VerifyConnection():
+                service_manager._current_connection = connection.ToDict()
+                series_service = service_manager.get_series_service()
+                series_list = series_service.get_all_series()
+                for series in series_list:
+                    print series
+                    self.odm2_series_display.Append(str(series))
         else:
             print "No selection made"
+        event.Skip()
 
-    def on_hydroshare_chosen(self, event, test_arg):
-        if event.GetSelection() == 1:
-            print "They wanna make a new connection"
-        elif event.GetSelection() > 1:
-            print "They've selected a connection to use"
+    def on_hydroshare_chosen(self, event):
+        if event.GetSelection() == 0:
+            print "No selection was made"
+
+        account_string = self.select_hydroshare_choice.GetStringSelection()
+        account_details = self.HydroShareConnections[account_string]  # type: HydroShareAccountDetails
+        self.ActiveHydroshare = HydroShareUtility()
+        if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
+            print 'successful auth to hydroshare'
+            resources = self.ActiveHydroshare.filterOwnedResourcesByRegex('.*')
+            for resource in resources:
+                print resource
+                self.hydroshare_display.Append(str(resource))
+        event.Skip()
+
+    def OnClick(self, event):
+        print 'Clicked!!'
+        event.Skip()
 
     def _build_main_window(self):
         ######################################
@@ -191,7 +227,7 @@ class VisualH2OWindow(wx.Frame):
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         connections_sizer = wx.GridBagSizer(vgap=7, hgap=7)
         selection_label_sizer = wx.GridBagSizer(vgap=7, hgap=7)
-        selection_display_sizer = wx.GridBagSizer(vgap=7, hgap=7)
+        data_management_sizer = wx.BoxSizer(wx.HORIZONTAL)
         action_status_sizer = wx.GridBagSizer(vgap=7, hgap=7)
 
         ######################################
@@ -211,6 +247,8 @@ class VisualH2OWindow(wx.Frame):
 
         self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, accounts=self.HydroShareConnections), edit_hydroshare_button)
         self.Bind(wx.EVT_BUTTON, partial(self.on_edit_database, connections=self.DatabaseConnections), edit_database_button)
+        self.Bind(wx.EVT_CHOICE, self.on_hydroshare_chosen, self.select_hydroshare_choice)
+        self.Bind(wx.EVT_CHOICE, self.on_database_chosen, self.select_database_choice)
 
         connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
         connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
@@ -224,9 +262,18 @@ class VisualH2OWindow(wx.Frame):
         # Build selection sizer and objects  #
         ######################################
 
-        selection_display_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select Time Series to generate and upload'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND, border=7)
-        self.list_display = wx.ListCtrl(self, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.LC_AUTOARRANGE | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING | wx.LC_VRULES)
-        selection_display_sizer.Add(self.list_display, pos=(2, 0), span=(1, 4), border=7)
+        self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
+        self.odm2_series_display.SetMinSize(wx.Size(300, -1))
+        self.odm2_series_display.SetMaxSize(wx.Size(300, -1))
+        self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LC_ALIGN_LEFT | wx.LC_ALIGN_TOP | wx.LC_HRULES | wx.LC_REPORT | wx.LC_SORT_ASCENDING)
+        self.hydroshare_display.SetMinSize(wx.Size(300, -1))
+        self.hydroshare_display.SetMaxSize(wx.Size(300, -1))
+
+        self.Bind(wx.EVT_LISTBOX, self.OnClick, self.hydroshare_display)
+
+        data_management_sizer.SetMinSize(wx.Size(635, -1))
+        data_management_sizer.Add(self.odm2_series_display, 0, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
+        data_management_sizer.Add(self.hydroshare_display, 0, wx.ALL, 5)
 
         ######################################
         # Build action sizer and objects     #
@@ -246,7 +293,7 @@ class VisualH2OWindow(wx.Frame):
 
         main_sizer.Add(connections_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(selection_label_sizer, wx.EXPAND | wx.ALL, 5)
-        main_sizer.Add(selection_display_sizer, wx.EXPAND | wx.ALL, 5)
+        main_sizer.Add(data_management_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(action_status_sizer, wx.EXPAND | wx.ALL, 5)
 
         ######################################
@@ -269,6 +316,9 @@ class VisualH2OWindow(wx.Frame):
 
     def OnButtonClick(self, event):
         print "You clicked the button !"
+        event.Skip()
+
 
     def OnPressEnter(self, event):
         print "You pressed enter !"
+        event.Skip()

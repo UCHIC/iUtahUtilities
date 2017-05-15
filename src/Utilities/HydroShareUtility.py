@@ -123,7 +123,6 @@ class HydroShareUtility:
         matched_sites = []
         unmatched_sites = []
         for site in site_list:
-            print site
             found_match = False
             for resource_id in resource_list:
                 resource_title = self.resource_cache[resource_id].name
@@ -259,9 +258,11 @@ class HydroShareUtility:
                 return self.upload(files_list, resource_id, retry_on_failure=False)
             else:
                 print("Upload failed - could not complete upload to HydroShare due to exception: {}".format(e))
+                return False
         except KeyError as e:
             print('Incorrectly formatted arguments given. Expected key not found: {}'.format(e))
-        return []
+            return False
+        return True
 
     def setResourcesAsPublic(self, resource_ids):
         if self.auth is None:
@@ -373,14 +374,19 @@ class HydroShareUtility:
     def deleteResource(self, resource_id, confirm=True):
         if self.auth is None:
             raise HydroShareUtilityException("Cannot modify resources without authentication")
-        resource = self.resource_cache[resource_id]
-        if confirm:
-            user_input = raw_input('Are you sure you want to delete the resource {}? (y/N): '.format(resource.name))
-            if user_input.lower() == 'N':
-                return
-        print 'Deleting resource {}'.format(resource.name)
-        self.resource_cache.pop(resource_id)
-        self.client.deleteResource(resource_id)
+        try:
+            resource_name = self.resource_cache[resource_id] if resource_id in self.resource_cache else resource_id
+            if confirm:
+                user_input = raw_input('Are you sure you want to delete the resource {}? (y/N): '.format(resource_name))
+                if user_input.lower() != 'y':
+                    return
+            print 'Deleting resource {}'.format(resource_name)
+            if resource_id in self.resource_cache:
+                self.resource_cache.pop(resource_id)
+            self.client.deleteResource(resource_id)
+        except Exception as e:
+            print 'Exception encountered while deleting resource {}: {}'.format(resource_id, e)
+
 
     def createNewResource(self, resource):
         """

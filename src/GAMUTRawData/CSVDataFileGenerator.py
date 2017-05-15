@@ -25,8 +25,8 @@ sys.path.insert(0, directory)
 time_format = '%Y-%m-%d'
 formatString = '%s  %s: %s'
 service_manager = ServiceManager()
-UPDATE_CACHE = True
-# UPDATE_CACHE = False
+# UPDATE_CACHE = True
+UPDATE_CACHE = False
 
 issues = []
 
@@ -395,7 +395,7 @@ def outputValues(ss, dvObjects, site, header_str, dump_location):
                 if currentYear != 1900:
                     file_name = "iUTAH_GAMUT_{site}_RawData_{yr}.csv".format(site=site.code, yr=currentYear)
                     text_file.close()
-                    print "{} outputValues: Finished creating {}".format(datetime.datetime.now, file_name)
+                    print "{} Finished creating {}".format(datetime.datetime.now, file_name)
                 currentYear = time.local_date_time.year
                 text_file = open(dump_location + file_name, "w")
                 text_file.write(header_str)
@@ -613,7 +613,7 @@ class RawDataCsvLocalDataset:
             return None
 
     def writeToFile(self, series_service, series_list, filepath=None):
-        print('WriteToFile: Processing site {} with {} series items'.format(self.site.code, len(series_list)))
+        print('Processing site {} with {} series items'.format(self.site.code, len(series_list)))
         if filepath is None:
             filepath = self.csv_filepath
         site_files = []
@@ -665,8 +665,8 @@ class RawDataCsvLocalDataset:
                 # generate header
                 file_str = self.generateHeader()
                 file_str += generateSiteInformation(self.site, self.network)
-                file_str += var_data.printToFile([var for var in df]) + "#\n"
-                file_str += sourceInfo.outputSourceInfo() + "#\n"
+                file_str += var_data.printToFile([var for var in df if isinstance(var, str)])
+                file_str += "#\n" + sourceInfo.outputSourceInfo() + "#\n"
 
                 file_out.write(file_str)
                 del file_str
@@ -676,7 +676,7 @@ class RawDataCsvLocalDataset:
                 df.to_csv(file_out)
                 file_out.close()
                 file_info.is_empty = False
-                print ('{} handleConnection: Success - finished creating {}'.format(datetime.datetime.now(), filepath))
+                print ('{} Finished creating {}'.format(datetime.datetime.now(), filepath))
             else:
                 site_files.append(file_info)
                 file_out = self.createFile(file_info.file_path)
@@ -688,6 +688,8 @@ class RawDataCsvLocalDataset:
 
         except InvalidRequestError as e:
             print ("We had an invalid request: {}".format(e))
+        except UnicodeEncodeError as e:
+            print('---\nEncoding error while writing to file: \n{}\n{}\n---'.format(type(e), e))
         except Exception as e:
             print('---\nIssue encountered while writing data to file: \n{}\n{}\n---'.format(type(e), e))
         return site_files
@@ -828,6 +830,8 @@ class CompactVariableData:
         self.var_dict[var.code] = (var, method)
 
     def printToFile(self, vars_to_print):
+        if not isinstance(vars_to_print, str) or len(vars_to_print) == 0:
+            return ""
         formatted = ""
         formatted += "# Variable and Method Information\n"
         formatted += "# ---------------------------\n"

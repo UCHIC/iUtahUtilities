@@ -127,6 +127,23 @@ class Series(Base):
                 self.quality_control_level_id, self.quality_control_level_code, self.begin_date_time,
                 self.end_date_time, self.begin_date_time_utc, self.end_date_time_utc, self.value_count]
 
+    def dict_repr(self):
+        keys = ['SeriesID', 'SiteID', 'SiteCode', 'SiteName', 'VariableID', 'VariableCode', 'VariableName',
+                'Speciation',
+                'VariableUnitsID', 'VariableUnitsName', 'SampleMedium', 'ValueType', 'TimeSupport', 'TimeUnitsID',
+                'TimeUnitsName', 'DataType', 'GeneralCategory', 'MethodID', 'MethodDescription', 'SourceID',
+                'SourceDescription', 'Organization', 'Citation', 'QualityControlLevelID', 'QualityControlLevelCode',
+                'BeginDateTime', 'EndDateTime', 'BeginDateTimeUTC', 'EndDateTimeUTC', 'ValueCount'
+                ]
+        values = [self.id, self.site_id, self.site_code, self.site_name, self.variable_id, self.variable_code,
+                 self.variable_name, self.speciation, self.variable_units_id, self.variable_units_name,
+                 self.sample_medium, self.value_type, self.time_support, self.time_units_id, self.time_units_name,
+                 self.data_type, self.general_category, self.method_id, self.method_description,
+                 self.source_id, self.source_description, self.organization, self.citation,
+                 self.quality_control_level_id, self.quality_control_level_code, self.begin_date_time,
+                 self.end_date_time, self.begin_date_time_utc, self.end_date_time_utc, self.value_count]
+        return OrderedDict(zip(keys, values))
+
 
 def returnDict():
     keys = ['SeriesID', 'SiteID', 'SiteCode', 'SiteName', 'VariableID', 'VariableCode', 'VariableName', 'Speciation',

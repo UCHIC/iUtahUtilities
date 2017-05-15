@@ -193,9 +193,8 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
         print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
         discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
         # discovered_resources = hydroshare.filterOwnedResourcesByRegex("show_me_what_you_got")
-        #
-        # good_resources = []
-        # bad_resources = []
+
+        bad_resources = []
 
         for resource_id in discovered_resources:
             # resource_id = resource_info['resource_id']
@@ -225,26 +224,30 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
 
         # Check for matching resources for each site - we can't update a resource if we don't know what it is
         paired_sites, unpaired_sites = hydroshare.pairSitesToResources(sites.keys(), discovered_resources)
-        #
-        # # Create new resources if needed, and add the new resource to the site/resource pair list
-        # if resource_generator is not None:
-        #     print 'Creating any missing resources'
-        #     for site_code in unpaired_sites:
-        #         valid_files = [f for f in sites[site_code] if not f.is_empty]
-        #         if len(valid_files) == 0:
-        #             continue
-        #         resource_details = resource_generator(site_code, valid_files)
-        #         print 'Creating new resource {}'.format(resource_details.resource_name)
-        #         resource_id = hydroshare.createNewResource(resource_details)
-        #         paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
-        #         unpaired_sites.remove(site_code)
+
+        # Create new resources if needed, and add the new resource to the site/resource pair list
+        if resource_generator is not None:
+            print 'Creating any missing resources'
+            for site_code in unpaired_sites:
+                valid_files = [f for f in sites[site_code] if not f.is_empty]
+                if len(valid_files) == 0:
+                    continue
+                resource_details = resource_generator(site_code, valid_files)
+                print 'Creating new resource {}'.format(resource_details.resource_name)
+                resource_id = hydroshare.createNewResource(resource_details)
+                paired_sites.append({'resource_id': resource_id, 'site_code': site_code})
+                unpaired_sites.remove(site_code)
 
         print 'Performing file operations for {} resources'.format(len(paired_sites))
         # Upload new, proper files - delete files that have been uploaded and are empty
         for pair in paired_sites:
             site_code = pair['site_code']
-            # hydroshare.removeResourceFiles([f for f in sites[site_code] if f.is_empty], pair['resource_id'])
-            hydroshare.upload([f for f in sites[site_code] if not f.is_empty], pair['resource_id'])
+            hydroshare.removeResourceFiles([f for f in sites[site_code] if f.is_empty], pair['resource_id'])
+            success = hydroshare.upload([f for f in sites[site_code] if not f.is_empty], pair['resource_id'])
+            if not success:
+                bad_resources.append('https://www.hydroshare.org/resource/{}/'.format(pair['resource_id']))
+
+        print 'Resources that were unable to update: \n{}\n'.format(bad_resources)
 
         # Make sure our resources are public, this has potential to change if a resource has only one file
         hydroshare.setResourcesAsPublic(discovered_resources)
@@ -283,7 +286,6 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
         return pair_dict
 
 
-
 if __name__ == "__main__":
 
     user_args = Arguments(sys.argv)
@@ -318,15 +320,23 @@ if __name__ == "__main__":
     if user_args.destination in user_args.VALID_HS_TARGETS:
         print "\nRAW:"
         stopwatch_timer = datetime.datetime.now()
-        raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE,
-                                       resource_generator=getNewRawDataResourceInformation)
+        raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
         print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
         print "\n\nQC:"
         stopwatch_timer = datetime.datetime.now()
-        qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE,
-                                       resource_generator=getNewQC1ResourceInformation)
+        qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, resource_generator=getNewQC1ResourceInformation)
         print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
-        print 'All pairs: \nRaw:\n{}\nQC1:\n{}'.format(raw_pairs, qc1_pairs)
+        all_sites = set(qc1_pairs.keys() + raw_pairs.keys())
+        link_dict = {}
+        for site in all_sites:
+            link_dict[site] = {}
+            if site in qc1_pairs.keys():
+                link_dict[site]['controlled'] = qc1_pairs[site]
+            if site in raw_pairs.keys():
+                link_dict[site]['raw'] = raw_pairs[site]
+
+        print '\nvar linkMap = {}'.format(link_dict)
+
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

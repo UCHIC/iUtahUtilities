@@ -249,26 +249,26 @@ class VisualH2OWindow(wx.Frame):
             layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
         return layer_dict
 
-    def _resolve_dataset_conflicts(self, checked_string):
-        if checked_string == 'SiteCode' and 'SiteName' in self.series_categories_checklist.GetCheckedStrings():
-            site_name_int = self.series_categories_checklist.FindString('SiteName')
-            self.series_categories_checklist.Check(site_name_int, check=False)
-        if checked_string == 'SiteName' and 'SiteCode' in self.series_categories_checklist.GetCheckedStrings():
-            site_name_int = self.series_categories_checklist.FindString('SiteCode')
-            self.series_categories_checklist.Check(site_name_int, check=False)
-        if checked_string == 'VariableCode' and 'VariableName' in self.series_categories_checklist.GetCheckedStrings():
-            site_name_int = self.series_categories_checklist.FindString('VariableName')
-            self.series_categories_checklist.Check(site_name_int, check=False)
-        if checked_string == 'VariableName' and 'VariableCode' in self.series_categories_checklist.GetCheckedStrings():
-            site_name_int = self.series_categories_checklist.FindString('VariableCode')
-            self.series_categories_checklist.Check(site_name_int, check=False)
-
+    def _resolve_dataset_conflicts(self, checked_index):
+        conflicts = {'SiteCode': 'SiteName', 'SiteName': 'SiteCode', 'VariableCode': 'VariableName', 'VariableName': 'VariableCode'}
+        checked_string = self.series_categories_checklist.GetString(checked_index)
+        if checked_string in conflicts.keys():
+            conflict_index = self.series_categories_checklist.FindString(conflicts[checked_string])
+            if self.series_categories_checklist.IsChecked(conflict_index):
+                self.series_categories_checklist.Check(conflict_index, check=False)
+                self._MoveListItem(curr_index=conflict_index, dest_index=len(self.series_categories_checklist.Checked))
 
     def populate_dataset_tree(self, event=None):
-        self._resolve_dataset_conflicts(self.series_categories_checklist.GetString(event.GetInt()))
+        checked_count = len(self.series_categories_checklist.Checked)
+        is_checked = self.series_categories_checklist.IsChecked(event.GetInt())
+
+        if is_checked: # this is a newly checked box. All unchecked will have to shift.
+            # self._resolve_dataset_conflicts(event.GetInt())
+            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count - 1)
+        else:          # this is just unchecked. We need to move it out of the checked ones
+            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count)
 
         if self._series is None:
-            print "Nothing to populate the tree with"
             return
         self.dataset_preview_tree.DeleteAllItems()
         root = self.dataset_preview_tree.AddRoot('root')
@@ -294,9 +294,43 @@ class VisualH2OWindow(wx.Frame):
         item_int = self.series_categories_checklist.HitTest(list_pos)
         if item_int >= 0:
             self.series_categories_checklist.SetSelection(item_int)
-            print self.series_categories_checklist.GetString(item_int)
 
+            series_category_menu = wx.Menu()
+            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to root", wx.EmptyString, wx.ITEM_NORMAL))
+            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move up once", wx.EmptyString, wx.ITEM_NORMAL))
+            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move down once", wx.EmptyString, wx.ITEM_NORMAL))
+            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to tail", wx.EmptyString, wx.ITEM_NORMAL))
+
+            for item in series_category_menu.GetMenuItems():
+                self.Bind(wx.EVT_MENU, partial(self._MoveListItem, direction=item.GetText(), curr_index=item_int), item)
+
+            self.PopupMenu(series_category_menu) #, event.GetPosition())
         event.Skip()
+
+    def _MoveListItem(self, event=None, direction="None", curr_index=-1, dest_index=-1):
+        item_count = len(self.series_categories_checklist.Items)
+
+        if dest_index == -1: # or send_to_border:
+            if direction == u'Move to root':
+                dest_index = 0
+            elif direction == u'Move up once' and curr_index > 0:
+                dest_index = curr_index - 1
+            elif direction == u'Move down once' and curr_index < item_count:
+                dest_index = curr_index + 1
+            elif direction == u'Move to tail':
+                dest_index = item_count - 1
+
+        while  0 <= curr_index < item_count and dest_index != curr_index:
+            next_move = curr_index - 1 if dest_index < curr_index else curr_index + 1
+            dest_checked = self.series_categories_checklist.IsChecked(next_move)    # Is my next move checked?
+            dest_string = self.series_categories_checklist.GetString(next_move)     # Save the destination string
+            self.series_categories_checklist.SetString(next_move, self.series_categories_checklist.GetString(curr_index))      #
+            self.series_categories_checklist.Check(next_move, check=self.series_categories_checklist.IsChecked(curr_index))  #
+            self.series_categories_checklist.Check(curr_index, check=dest_checked)
+            self.series_categories_checklist.SetString(curr_index, dest_string)     #
+            curr_index += -1 if dest_index < curr_index else 1
+
+        self.series_categories_checklist.Refresh()
 
     def _build_main_window(self):
         ######################################

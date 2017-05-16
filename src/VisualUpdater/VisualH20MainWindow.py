@@ -249,7 +249,24 @@ class VisualH2OWindow(wx.Frame):
             layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
         return layer_dict
 
+    def _resolve_dataset_conflicts(self, checked_string):
+        if checked_string == 'SiteCode' and 'SiteName' in self.series_categories_checklist.GetCheckedStrings():
+            site_name_int = self.series_categories_checklist.FindString('SiteName')
+            self.series_categories_checklist.Check(site_name_int, check=False)
+        if checked_string == 'SiteName' and 'SiteCode' in self.series_categories_checklist.GetCheckedStrings():
+            site_name_int = self.series_categories_checklist.FindString('SiteCode')
+            self.series_categories_checklist.Check(site_name_int, check=False)
+        if checked_string == 'VariableCode' and 'VariableName' in self.series_categories_checklist.GetCheckedStrings():
+            site_name_int = self.series_categories_checklist.FindString('VariableName')
+            self.series_categories_checklist.Check(site_name_int, check=False)
+        if checked_string == 'VariableName' and 'VariableCode' in self.series_categories_checklist.GetCheckedStrings():
+            site_name_int = self.series_categories_checklist.FindString('VariableCode')
+            self.series_categories_checklist.Check(site_name_int, check=False)
+
+
     def populate_dataset_tree(self, event=None):
+        self._resolve_dataset_conflicts(self.series_categories_checklist.GetString(event.GetInt()))
+
         if self._series is None:
             print "Nothing to populate the tree with"
             return
@@ -257,13 +274,28 @@ class VisualH2OWindow(wx.Frame):
         root = self.dataset_preview_tree.AddRoot('root')
 
         tree_categories = list(self.series_categories_checklist.GetCheckedStrings())
+
         tree_categories.sort(key=lambda x: len(set([series.dict_repr()[x] for series in self._series])), reverse=False)
         tree_dict = self.BuildDatasetDictionary(tree_categories)
         self.AddTree(root, tree_dict)
+        event.Skip()
 
 
-    def OnClick(self, event):
-        print 'Clicked!!'
+    def OnCategoryDoubleClick(self, event):
+        checked = self.series_categories_checklist.IsChecked(event.GetInt())
+        self.series_categories_checklist.Check(event.GetInt(), check=not checked)
+        self.populate_dataset_tree(event)
+        event.Skip()
+
+
+    def OnCategoryRightClick(self, event):
+        evt_pos = event.GetPosition()
+        list_pos = self.series_categories_checklist.ScreenToClient(evt_pos)
+        item_int = self.series_categories_checklist.HitTest(list_pos)
+        if item_int >= 0:
+            self.series_categories_checklist.SetSelection(item_int)
+            print self.series_categories_checklist.GetString(item_int)
+
         event.Skip()
 
     def _build_main_window(self):
@@ -307,38 +339,14 @@ class VisualH2OWindow(wx.Frame):
         connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
         connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
 
-        ######################################
-        # Build selection sizer and objects  #
-        ######################################
-        #
-        # self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
-        # self.odm2_series_display.SetMinSize(wx.Size(360, 150))
-        # # self.odm2_series_display.SetMaxSize(wx.Size(320, 150))
-        # self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
-        # self.hydroshare_display.SetMinSize(wx.Size(360, 150))
-        # # self.hydroshare_display.SetMaxSize(wx.Size(320, 150))
-        #
-        # self.Bind(wx.EVT_LISTBOX, self.OnClick, self.hydroshare_display)
-        #
-        # self.series_view_selector = wx.Choice(self.panel, wx.ID_ANY, choices=self.series_view_choices)
-        # self.series_view_selector.SetSelection(0)
-        # self.Bind(wx.EVT_CHOICE, self.populate_series_list, self.series_view_selector)
-        #
-        # dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'View ODM Series as'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP | wx.RIGHT, border=10)
-        # dataset_resource_sizer.Add(self.series_view_selector, pos=(0, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT | wx.TOP, border=7)
-        # dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'HydroShare Resources'), pos=(0, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.RIGHT | wx.EXPAND | wx.ALL, border=7)
-        # # dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'View series as'), pos=(2, 0), span=(1, 1), flag=wx.ALIGN_RIGHT | wx.BOTTOM | wx.RIGHT | wx.EXPAND | wx.ALL, border=7)
-        # dataset_resource_sizer.Add(self.odm2_series_display, pos=(1, 0), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
-        # dataset_resource_sizer.Add(self.hydroshare_display, pos=(1, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
-
-        ######################################
+        #############################
         # Build selection sizer and objects  #
         ######################################
 
         self.series_categories_checklist = wx.CheckListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, self.series_keys)
-        self.series_categories_checklist.SetToolTip( u"Checked items are shown right. Right-click to reorder." )
+        self.Bind(wx.EVT_LISTBOX_DCLICK, self.OnCategoryDoubleClick, self.series_categories_checklist)
+        self.Bind(wx.EVT_CONTEXT_MENU, self.OnCategoryRightClick, self.series_categories_checklist)
         self.Bind(wx.EVT_CHECKLISTBOX, self.populate_dataset_tree, self.series_categories_checklist)
-        self.Bind(wx.EVT_LEFT_DCLICK, self.OnClick, self.series_categories_checklist)
 
         self.dataset_preview_tree = wx.TreeCtrl(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT)
         self.dataset_preview_tree.SetMinSize(wx.Size(300, 250))
@@ -349,8 +357,6 @@ class VisualH2OWindow(wx.Frame):
         self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
         self.hydroshare_display.SetMinSize(wx.Size(360, 150))
         # self.hydroshare_display.SetMaxSize(wx.Size(320, 150))
-
-        self.Bind(wx.EVT_LISTBOX, self.OnClick, self.hydroshare_display)
 
         self.series_view_selector = wx.Choice(self.panel, wx.ID_ANY, choices=self.series_keys)
         self.series_view_selector.SetSelection(0)

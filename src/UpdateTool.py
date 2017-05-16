@@ -61,9 +61,6 @@ class Arguments:
     """
 
     def __init__(self, args):
-        self.VALID_HS_TARGETS = ['all', 'hydroshare', 'hs']
-        self.VALID_CKAN_TARGETS = ['all', 'ckan']
-        self.destination = 'none'
         self.verbose = False
         self.debug = False
         self.auth = {}
@@ -87,12 +84,6 @@ class Arguments:
             elif '--debug' in arg:
                 self.debug = True
 
-    def validate(self):
-        valid_args = True
-        if self.destination not in self.VALID_HS_TARGETS and self.destination not in self.VALID_CKAN_TARGETS \
-                and self.destination != 'none':
-            valid_args = False
-        return valid_args
 
     def print_usage_info(self):
         help_string = ("\nLoadCKAN Tool" +
@@ -289,9 +280,6 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
 if __name__ == "__main__":
 
     user_args = Arguments(sys.argv)
-    if not user_args.validate():
-        user_args.print_usage_info()
-        exit(0)
     if not os.path.exists(file_path):
         os.makedirs(file_path)
     if not os.path.exists(raw_dump_location):
@@ -317,26 +305,24 @@ if __name__ == "__main__":
     print 'QC Level 1 files updated - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
     # Start the upload process to Hydroshare
-    if user_args.destination in user_args.VALID_HS_TARGETS:
-        print "\nRAW:"
-        stopwatch_timer = datetime.datetime.now()
-        raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
-        print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
-        print "\n\nQC:"
-        stopwatch_timer = datetime.datetime.now()
-        qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, resource_generator=getNewQC1ResourceInformation)
-        print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    print "\nRAW:"
+    stopwatch_timer = datetime.datetime.now()
+    raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
+    print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    print "\n\nQC:"
+    stopwatch_timer = datetime.datetime.now()
+    qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, resource_generator=getNewQC1ResourceInformation)
+    print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
 
-        all_sites = set(qc1_pairs.keys() + raw_pairs.keys())
-        link_dict = {}
-        for site in all_sites:
-            link_dict[site] = {}
-            if site in qc1_pairs.keys():
-                link_dict[site]['controlled'] = qc1_pairs[site]
-            if site in raw_pairs.keys():
-                link_dict[site]['raw'] = raw_pairs[site]
+    all_sites = set(qc1_pairs.keys() + raw_pairs.keys())
+    link_dict = {}
+    for site in all_sites:
+        link_dict[site] = {}
+        if site in qc1_pairs.keys():
+            link_dict[site]['controlled'] = qc1_pairs[site]
+        if site in raw_pairs.keys():
+            link_dict[site]['raw'] = raw_pairs[site]
 
-        print '\nvar linkMap = {}'.format(link_dict)
-
+    print '\nvar linkMap = {}'.format(link_dict)
 
     print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

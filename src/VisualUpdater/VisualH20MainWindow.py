@@ -34,11 +34,13 @@ class VisualH2OWindow(wx.Frame):
         self.ActiveOdmConnection = None  # type: ServiceManager
         self.ActiveHydroshare = None     # type: HydroShareUtility
 
-        self._series = None              # type:
-        self._resources = None           # type: dict
+        self._series_list = None              # type: list
+        # self._series_dict = None              # type: dict
+        self._resources = None                # type: dict
 
         self.series_keys = ['SiteCode', 'SiteName', 'VariableCode', 'VariableName', 'Speciation', 'VariableUnitsName',
-                            'SampleMedium', 'ValueType', 'TimeSupport', 'TimeUnitsName', 'DataType', 'GeneralCategory',                             'MethodDescription', 'SourceDescription', 'Organization', 'Citation',
+                            'SampleMedium', 'ValueType', 'TimeSupport', 'TimeUnitsName', 'DataType', 'GeneralCategory',
+                            'MethodDescription', 'SourceDescription', 'Organization', 'Citation',
                             'QualityControlLevelCode', 'BeginDateTime', 'EndDateTime', 'BeginDateTimeUTC',
                             'EndDateTimeUTC', 'ValueCount']
 
@@ -109,8 +111,8 @@ class VisualH2OWindow(wx.Frame):
             self.select_hydroshare_choice.SetItems(self._list_saved_hydroshare_accounts())
             self.select_hydroshare_choice.SetSelection(hs_selected)
 
-        if self.odm2_series_display is not None:
-            self.populate_series_list()
+        # if self.odm2_series_display is not None:
+        self.populate_series_list()
 
         if self.hydroshare_display is not None:
             pass
@@ -201,12 +203,14 @@ class VisualH2OWindow(wx.Frame):
             if connection.VerifyConnection():
                 service_manager._current_connection = connection.ToDict()
                 series_service = service_manager.get_series_service()
-                self._series = series_service.get_all_series()
-                series_dict = self._series[0].dict_repr()
-                for key in series_dict.keys():
-                    print "{}: {}".format(key, series_dict[key])
-
-                self.populate_series_list()
+                self._series_list = [series.dict_repr() for series in series_service.get_all_series()]
+                # all_series = series_service.get_all_series()
+                # for series in all_series:
+                #     self._series[series.site_code] = series
+                # self._series_list = [series_service.get_all_series()]
+                # for item in self._series_list:
+                #     self._series_dict
+                self.populate_dataset_tree()
         else:
             print "No selection made"
         event.Skip()
@@ -225,14 +229,14 @@ class VisualH2OWindow(wx.Frame):
                 self.hydroshare_display.Append(self.ActiveHydroshare.resource_cache[resource].name)
         event.Skip()
 
-    def populate_series_list(self, event=None):
-        view_as = self.series_view_selector.GetStringSelection()
-        if self._series is None:
-            return
-        self.odm2_series_display.Clear()
-        items = set([series.dict_repr()[view_as] for series in self._series])
-        for item in items:
-            self.odm2_series_display.Append(str(item))
+    # def populate_series_list(self, event=None):
+    #     view_as = self.series_view_selector.GetStringSelection()
+    #     if self._series is None:
+    #         return
+    #     self.odm2_series_display.Clear()
+    #     items = set([series.dict_repr()[view_as] for series in self._series])
+    #     for item in items:
+    #         self.odm2_series_display.Append(str(item))
 
     def AddTree(self, treeId, dict):
         if len(dict) > 0:
@@ -244,9 +248,58 @@ class VisualH2OWindow(wx.Frame):
         layer_dict = {}
         if layer >= len(categories):
             return {}
-        keys = set([str(series.dict_repr()[categories[layer]]) for series in self._series])
-        for key in keys:
-            layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
+
+
+
+
+        previous_attributes = categories[layer:]
+        current_attribute = categories[layer]
+        attribute_values = set([str(series[current_attribute]) for series in self._series_list])
+
+        tree_dict = {}
+
+        for level in categories:
+            tree_dict[level]
+
+
+        # for series in self._series_list:
+        #     for attribute in categories:
+        #         if attribute not in tree_dict.keys():
+        #             tree_dict[attribute] = {}
+        #         tree_dict[attribute] = series[attribute]
+
+    #
+        #
+        #
+        # for series in self._series_list:
+        #     for attribute in categories:
+        #         layer_dict[attribute]
+        #         if series[current_attribute]
+        #         for value in attribute_values:
+        #             layer_dict[value] =
+
+
+        #
+        # for
+        #
+        # #
+        # # if layer == 0:
+        # #     for attr in attribute_values:
+        # #
+        # #         layer_dict[attr] =
+        # #     pass
+        # # else:
+        #
+        #
+        #
+        # for value in attribute_values:
+        # #     # We want to iterate through every item, in order.
+        #     print value
+        #
+        #
+        # keys = set([str(series.dict_repr()[categories[layer]]) for series in self._series])
+        # for key in keys:
+        #     layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
         return layer_dict
 
     def _resolve_dataset_conflicts(self, checked_index):
@@ -256,37 +309,48 @@ class VisualH2OWindow(wx.Frame):
             conflict_index = self.series_categories_checklist.FindString(conflicts[checked_string])
             if self.series_categories_checklist.IsChecked(conflict_index):
                 self.series_categories_checklist.Check(conflict_index, check=False)
-                self._MoveListItem(curr_index=conflict_index, dest_index=len(self.series_categories_checklist.Checked))
+                self._MoveListItem(curr_index=conflict_index, dest_index=len(self.series_categories_checklist.GetCheckedItems()))
 
     def populate_dataset_tree(self, event=None):
-        checked_count = len(self.series_categories_checklist.Checked)
-        is_checked = self.series_categories_checklist.IsChecked(event.GetInt())
+        checked_strings = list(self.series_categories_checklist.GetCheckedItems())
+        # checked_count = len(checked_strings)
+        # if event is not None:
+        #     if self.series_categories_checklist.IsChecked(event.GetInt()):
+        #         # self._resolve_dataset_conflicts(event.GetInt())
+        #         self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count - 1)
+        #     else:
+        #         self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count)
 
-        if is_checked: # this is a newly checked box. All unchecked will have to shift.
-            # self._resolve_dataset_conflicts(event.GetInt())
-            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count - 1)
-        else:          # this is just unchecked. We need to move it out of the checked ones
-            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count)
-
-        if self._series is None:
+        if self._series_list is None:
             return
         self.dataset_preview_tree.DeleteAllItems()
         root = self.dataset_preview_tree.AddRoot('root')
 
-        tree_categories = list(self.series_categories_checklist.GetCheckedStrings())
-
-        tree_categories.sort(key=lambda x: len(set([series.dict_repr()[x] for series in self._series])), reverse=False)
-        tree_dict = self.BuildDatasetDictionary(tree_categories)
+        tree_dict = self.BuildDatasetDictionary(checked_strings)
         self.AddTree(root, tree_dict)
-        event.Skip()
+        # event.Skip()
 
 
     def OnCategoryDoubleClick(self, event):
         checked = self.series_categories_checklist.IsChecked(event.GetInt())
         self.series_categories_checklist.Check(event.GetInt(), check=not checked)
+        checked_count = len(self.series_categories_checklist.GetCheckedItems())
+        if self.series_categories_checklist.IsChecked(event.GetInt()):
+            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count - 1)
+        else:
+            self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count)
         self.populate_dataset_tree(event)
         event.Skip()
 
+    def _build_category_context_menu(self, selected_item):
+        series_category_menu = wx.Menu()
+        series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to root", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move up once", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move down once", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to tail", wx.EmptyString, wx.ITEM_NORMAL))
+
+        for item in series_category_menu.GetMenuItems():
+            self.Bind(wx.EVT_MENU, partial(self._MoveListItem, direction=item.GetText(), curr_index=selected_item), item)
 
     def OnCategoryRightClick(self, event):
         evt_pos = event.GetPosition()
@@ -294,17 +358,7 @@ class VisualH2OWindow(wx.Frame):
         item_int = self.series_categories_checklist.HitTest(list_pos)
         if item_int >= 0:
             self.series_categories_checklist.SetSelection(item_int)
-
-            series_category_menu = wx.Menu()
-            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to root", wx.EmptyString, wx.ITEM_NORMAL))
-            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move up once", wx.EmptyString, wx.ITEM_NORMAL))
-            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move down once", wx.EmptyString, wx.ITEM_NORMAL))
-            series_category_menu.AppendItem(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Move to tail", wx.EmptyString, wx.ITEM_NORMAL))
-
-            for item in series_category_menu.GetMenuItems():
-                self.Bind(wx.EVT_MENU, partial(self._MoveListItem, direction=item.GetText(), curr_index=item_int), item)
-
-            self.PopupMenu(series_category_menu) #, event.GetPosition())
+            self.PopupMenu(self._build_category_context_menu(item_int))
         event.Skip()
 
     def _MoveListItem(self, event=None, direction="None", curr_index=-1, dest_index=-1):
@@ -330,6 +384,7 @@ class VisualH2OWindow(wx.Frame):
             self.series_categories_checklist.SetString(curr_index, dest_string)     #
             curr_index += -1 if dest_index < curr_index else 1
 
+        self.populate_dataset_tree()
         self.series_categories_checklist.Refresh()
 
     def _build_main_window(self):
@@ -385,7 +440,7 @@ class VisualH2OWindow(wx.Frame):
         self.dataset_preview_tree = wx.TreeCtrl(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT)
         self.dataset_preview_tree.SetMinSize(wx.Size(300, 250))
 
-        self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
+        # self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
         # self.odm2_series_display.SetMinSize(wx.Size(360, 150))
         # self.odm2_series_display.SetMaxSize(wx.Size(320, 150))
         self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )

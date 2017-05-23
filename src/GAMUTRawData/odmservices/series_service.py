@@ -282,6 +282,7 @@ class SeriesService():
         # logger.debug("%s" % self._edit_session.query(Series).order_by(Series.id).all())
         return self._edit_session.query(Series).order_by(Series.id).all()
 
+
     def get_series_by_site(self, site_id):
         """
 

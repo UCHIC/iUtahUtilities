@@ -182,10 +182,12 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
     hydroshare = HydroShareUtility()
     if hydroshare.authenticate(**user_auth):
         print("Successfully authenticated. Getting resource_cache and checking for duplicated files")
-        discovered_resources = hydroshare.filterOwnedResourcesByRegex(resource_regex)
-        # discovered_resources = hydroshare.filterOwnedResourcesByRegex("show_me_what_you_got")
+        discovered_resources = hydroshare.filterResourcesByRegex(resource_regex)
 
         bad_resources = []
+
+        for resource in discovered_resources:
+            print 'Resource: {}'.format(resource)
 
         for resource_id in discovered_resources:
             # resource_id = resource_info['resource_id']

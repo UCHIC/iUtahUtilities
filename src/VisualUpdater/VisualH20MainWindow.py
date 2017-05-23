@@ -4,18 +4,23 @@ import os
 import re
 import smtplib
 import sys
+from collections import defaultdict
 from functools import partial
 
 import wx
+import wx.dataview
+import wx.grid
 import jsonpickle
 # import wx.lib.pubsub.pub as Publisher
 from pubsub import pub
-from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility
+from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility, ResourceTemplate
 from Utilities.DatasetGenerator import OdmDatasetUtility
 from Utilities.Odm2Wrapper import *
 from GAMUTRawData.odmservices import ServiceManager
 from EditConnectionsDialog import DatabaseConnectionDialog
 from EditAccountsDialog import HydroShareAccountDialog
+from ResourceTemplatesDialog import HydroShareResourceTemplateDialog
+from H20MapWidget import H20MapWidget
 from ResourceTemplatesDialog import HydroShareResourceTemplateDialog
 
 
@@ -27,9 +32,10 @@ class VisualH2OWindow(wx.Frame):
         ###########################################
         # Declare/populate variables, wx objects  #
         ###########################################
-        self.MAIN_WINDOW_SIZE = (840, 720)
+        self.MAIN_WINDOW_SIZE = (1024, 720)
         self.HydroShareConnections = {}
         self.DatabaseConnections = {}
+        self.ResourceTemplates = {}
 
         self.ActiveOdmConnection = None  # type: ServiceManager
         self.ActiveHydroshare = None     # type: HydroShareUtility
@@ -68,6 +74,8 @@ class VisualH2OWindow(wx.Frame):
         ###########################################
         # Setup subscribers/publishers callbacks  #
         ###########################################
+        pub.subscribe(self.OnDeleteResourceTemplate, 'hs_resource_remove')
+        pub.subscribe(self.OnSaveResourceTemplate, 'hs_resource_save')
         pub.subscribe(self.OnSaveHydroShareAuth, 'hs_auth_save')
         pub.subscribe(self.OnTestHydroShareAuth, 'hs_auth_test')
         pub.subscribe(self.OnRemoveHydroShareAuth, 'hs_auth_remove')
@@ -77,7 +85,7 @@ class VisualH2OWindow(wx.Frame):
 
     def SaveData(self):
         self.UpdateControls()
-        data = {'HS': self.HydroShareConnections, 'DB': self.DatabaseConnections}
+        data = {'HS': self.HydroShareConnections, 'DB': self.DatabaseConnections, 'Templates': self.ResourceTemplates}
         try:
             json_out = open(PERSIST_FILE, 'w')
             json_out.write(jsonpickle.encode(data))
@@ -91,6 +99,7 @@ class VisualH2OWindow(wx.Frame):
             data = jsonpickle.decode(json_in.read())
             self.HydroShareConnections = data['HS'] if 'HS' in data else {}
             self.DatabaseConnections = data['DB'] if 'DB' in data else {}
+            self.ResourceTemplates = data['Templates'] if 'Templates' in data else {}
             json_in.close()
         except IOError as e:
             print 'Error reading cached file data - Clearing files and recreating cache.\n{}'.format(e)
@@ -112,11 +121,24 @@ class VisualH2OWindow(wx.Frame):
             self.select_hydroshare_choice.SetSelection(hs_selected)
 
         # if self.odm2_series_display is not None:
-        self.populate_series_list()
+        # self.populate_series_list()
 
         if self.hydroshare_display is not None:
             pass
 
+    def OnDeleteResourceTemplate(self, result=None):
+        if result is None:
+            return
+        self.ResourceTemplates.pop(result['selector'], None)
+        self.SaveData()
+
+    def OnSaveResourceTemplate(self, result=None):
+        if result is None:
+            return
+        template = ResourceTemplate(result)
+        self.ResourceTemplates.pop(result['selector'], None)
+        self.ResourceTemplates[template.template_name] = template
+        self.SaveData()
 
     def OnRemoveDatabaseAuth(self, result=None):
         if result is None:
@@ -128,7 +150,7 @@ class VisualH2OWindow(wx.Frame):
         if result is None:
             return
         connection = OdmDatasetUtility(result)
-        self.DatabaseConnections.pop(result['name'], None)
+        self.DatabaseConnections.pop(result['selector'], None)
         self.DatabaseConnections[connection.name] = connection
         self.SaveData()
 
@@ -185,14 +207,10 @@ class VisualH2OWindow(wx.Frame):
         pass
 
     def on_edit_database(self, event, connections=None):
-        result = DatabaseConnectionDialog(self, connections, self.select_database_choice.GetCurrentSelection()).ShowModal()
-        print result
-        event.Skip()
+        result = DatabaseConnectionDialog(self, self.DatabaseConnections, self.select_database_choice.GetCurrentSelection()).ShowModal()
 
     def on_edit_hydroshare(self, event, accounts=None):
-        result = HydroShareAccountDialog(self, accounts, self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
-        print result
-        event.Skip()
+        result = HydroShareAccountDialog(self, self.HydroShareConnections, self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
 
     def on_database_chosen(self, event):
         if event.GetSelection() > 0:
@@ -249,57 +267,19 @@ class VisualH2OWindow(wx.Frame):
         if layer >= len(categories):
             return {}
 
-
-
-
-        previous_attributes = categories[layer:]
-        current_attribute = categories[layer]
-        attribute_values = set([str(series[current_attribute]) for series in self._series_list])
-
-        tree_dict = {}
-
-        for level in categories:
-            tree_dict[level]
-
-
-        # for series in self._series_list:
-        #     for attribute in categories:
-        #         if attribute not in tree_dict.keys():
-        #             tree_dict[attribute] = {}
-        #         tree_dict[attribute] = series[attribute]
-
-    #
-        #
-        #
-        # for series in self._series_list:
-        #     for attribute in categories:
-        #         layer_dict[attribute]
-        #         if series[current_attribute]
-        #         for value in attribute_values:
-        #             layer_dict[value] =
-
-
-        #
-        # for
-        #
+        # previous_attributes = categories[layer:]
+        # current_attribute = categories[layer]
+        # attribute_values = set([str(series[current_attribute]) for series in self._series_list])
         # #
-        # # if layer == 0:
-        # #     for attr in attribute_values:
-        # #
-        # #         layer_dict[attr] =
-        # #     pass
-        # # else:
+        # tree_dict = {}
         #
         #
-        #
-        # for value in attribute_values:
-        # #     # We want to iterate through every item, in order.
-        #     print value
-        #
-        #
-        # keys = set([str(series.dict_repr()[categories[layer]]) for series in self._series])
-        # for key in keys:
-        #     layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
+        # print layer
+        # print categories
+
+        keys = set([str(series[categories[layer]]) for series in self._series_list])
+        for key in keys:
+            layer_dict[key] = self.BuildDatasetDictionary(categories, layer + 1)
         return layer_dict
 
     def _resolve_dataset_conflicts(self, checked_index):
@@ -312,7 +292,7 @@ class VisualH2OWindow(wx.Frame):
                 self._MoveListItem(curr_index=conflict_index, dest_index=len(self.series_categories_checklist.GetCheckedItems()))
 
     def populate_dataset_tree(self, event=None):
-        checked_strings = list(self.series_categories_checklist.GetCheckedItems())
+        checked_strings = list(self.series_categories_checklist.GetCheckedStrings())
         # checked_count = len(checked_strings)
         # if event is not None:
         #     if self.series_categories_checklist.IsChecked(event.GetInt()):
@@ -320,14 +300,69 @@ class VisualH2OWindow(wx.Frame):
         #         self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count - 1)
         #     else:
         #         self._MoveListItem(curr_index=event.GetInt(), dest_index=checked_count)
-
-        if self._series_list is None:
-            return
         self.dataset_preview_tree.DeleteAllItems()
+
+        if self._series_list is None or len(checked_strings) == 0:
+            # self.mapping_grid.ClearGrid()
+            return
+        # self.dataset_preview_tree.DeleteAllItems()
         root = self.dataset_preview_tree.AddRoot('root')
 
-        tree_dict = self.BuildDatasetDictionary(checked_strings)
-        self.AddTree(root, tree_dict)
+        super_new_dicts = defaultdict(list)
+        for d in self._series_list:
+            for k, l in d.items():
+                if isinstance(l, list):
+                    for value in l:
+                        super_new_dicts[str(value)].append(k)
+                else:
+                    super_new_dicts[str(l)].append(k)
+
+        print(super_new_dicts)
+        self.AddTree(root, super_new_dicts)
+
+        # raise Exception('uberexception')
+
+        #
+        # strings = []
+        # category_tree = {}
+        #
+        # for category in checked_strings:
+        #     set
+        #
+        #
+        #
+        # for series in self._series_list:
+        #     my_root = root
+        #     for category in checked_strings:
+        #         if series[category] in category_tree:
+        #             continue
+        #         else:
+        #
+        #             my_root = self.dataset_preview_tree.AppendItem(series[category])
+        #
+
+        dict_1 = {}
+        #
+        # for series in self._series_list:
+        #     for category in checked_strings:
+        #         if dict_1.keys:
+
+
+        tree_dict = {}
+        #
+        # for series in self._series_list:
+        #     root_string = "Your_String_Here"
+        #     for category in checked_strings:
+        #         root_string += "_" + series[category]
+        #     strings.append(root_string)
+
+        # for string in strings:
+        #     print string
+
+        # tree_dict = self.BuildDatasetDictionary(checked_strings)
+        # self.mapping_grid.Recreate(tree_dict)
+
+        # self.AddTree(root, tree_dict)
         # event.Skip()
 
 
@@ -428,7 +463,7 @@ class VisualH2OWindow(wx.Frame):
         connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
         connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
 
-        #############################
+        ######################################
         # Build selection sizer and objects  #
         ######################################
 
@@ -437,28 +472,47 @@ class VisualH2OWindow(wx.Frame):
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnCategoryRightClick, self.series_categories_checklist)
         self.Bind(wx.EVT_CHECKLISTBOX, self.populate_dataset_tree, self.series_categories_checklist)
 
-        self.dataset_preview_tree = wx.TreeCtrl(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT)
-        self.dataset_preview_tree.SetMinSize(wx.Size(300, 250))
+
+
+        # self.dataset_preview_tree = wx.TreeCtrl(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT)
+        # self.dataset_preview_tree.SetMinSize(wx.Size(300, 250))
+
+
 
         # self.odm2_series_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
         # self.odm2_series_display.SetMinSize(wx.Size(360, 150))
         # self.odm2_series_display.SetMaxSize(wx.Size(320, 150))
-        self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
-        self.hydroshare_display.SetMinSize(wx.Size(360, 150))
+
+        # self.hydroshare_display = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_MULTIPLE|wx.LB_NEEDED_SB|wx.LB_SORT )
+        # self.hydroshare_display.SetMinSize(wx.Size(360, 150))
         # self.hydroshare_display.SetMaxSize(wx.Size(320, 150))
+
+        # self.mapping_grid = wx.grid.Grid(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, 0)
+        # self.mapping_grid = H20MapWidget(self.panel, id=wx.ID_ANY, pos=wx.DefaultPosition, size=wx.DefaultSize, rows=4, columns=6)
+
+        # Label Appearance
+
+        # Cell Defaults
+        # self.mapping_grid.SetDefaultCellAlignment(wx.ALIGN_CENTER, wx.ALIGN_CENTER)
+        # self.Bind(wx.grid.E)
+
+        self.dataset_preview_tree = wx.TreeCtrl(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT)
+        self.dataset_preview_tree.SetMinSize(wx.Size(300, 250))
+
 
         self.series_view_selector = wx.Choice(self.panel, wx.ID_ANY, choices=self.series_keys)
         self.series_view_selector.SetSelection(0)
-        self.Bind(wx.EVT_CHOICE, self.populate_series_list, self.series_view_selector)
+        # self.Bind(wx.EVT_CHOICE, self.populate_series_list, self.series_view_selector)
 
         dataset_resource_sizer_new.Add(wx.StaticText(self.panel, wx.ID_ANY, 'View ODM Series as'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP | wx.RIGHT, border=10)
         dataset_resource_sizer_new.Add(self.series_view_selector, pos=(0, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT | wx.TOP, border=7)
         dataset_resource_sizer_new.Add(wx.StaticText(self.panel, wx.ID_ANY, 'HydroShare Resources'), pos=(0, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.RIGHT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer_new.Add(self.series_categories_checklist, pos=(1, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         # dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'View series as'), pos=(2, 0), span=(1, 1), flag=wx.ALIGN_RIGHT | wx.BOTTOM | wx.RIGHT | wx.EXPAND | wx.ALL, border=7)
+        # dataset_resource_sizer_new.Add(self.mapping_grid, pos=(1, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer_new.Add(self.dataset_preview_tree, pos=(1, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         # dataset_resource_sizer_new.Add(self.odm2_series_display, pos=(1, 1), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
-        dataset_resource_sizer_new.Add(self.hydroshare_display, pos=(1, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
+        # dataset_resource_sizer_new.Add(self.mapping_grid, pos=(1, 2), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
 
 
         ######################################
@@ -491,8 +545,23 @@ class VisualH2OWindow(wx.Frame):
         # File menu
         file_menu = wx.Menu()
         file_menu.Append(wx.ID_ABOUT, "&About", " Information about this program")
+
+        resource_template_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage Resource Templates')
+        self.Bind(wx.EVT_MENU, self.OnEditResourceTemplates, resource_template_menu_item)
+        file_menu.Append(resource_template_menu_item)
+
+
+        odm_connection_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage ODM Connections')
+        self.Bind(wx.EVT_MENU, self.on_edit_database, odm_connection_menu_item)
+        file_menu.Append(odm_connection_menu_item)
+
+
+        hydroshare_account_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage HydroShare Accounts')
+        self.Bind(wx.EVT_MENU, self.on_edit_hydroshare, hydroshare_account_menu_item)
+        file_menu.Append(hydroshare_account_menu_item)
+
         file_menu.AppendSeparator()
-        file_menu.Append(wx.ID_CLOSE, 'Quit', 'Quit application')
+        file_menu.Append(wx.ID_EXIT, 'Quit', 'Quit application')
 
         # Menu bar
         menuBar = wx.MenuBar()
@@ -501,6 +570,12 @@ class VisualH2OWindow(wx.Frame):
 
         self.panel.SetSizerAndFit(main_sizer)
         self.Show(True)
+
+    def OnEditResourceTemplates(self, event):
+        result = HydroShareResourceTemplateDialog(self, self.ResourceTemplates).ShowModal()
+        print result
+        event.Skip()
+
 
     def OnButtonClick(self, event):
         print "You clicked the button !"

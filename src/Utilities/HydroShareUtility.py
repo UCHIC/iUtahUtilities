@@ -8,6 +8,7 @@ from hs_restclient import *
 from GAMUTRawData.CSVDataFileGenerator import GenericResourceDetails
 from oauthlib.oauth2 import InvalidGrantError, InvalidClientError
 
+# service_manager = ServiceManager()
 
 class HydroShareAccountDetails:
     def __init__(self, values=None):
@@ -28,6 +29,102 @@ class HydroShareAccountDetails:
         return dict(username=self.username, password=self.password,
                     client_id=self.client_id, client_secret=self.client_secret)
 
+class HydroShareResource:
+    def __init__(self, resource_dict):
+        self.id = resource_dict['resource_id'] if 'resource_id' in resource_dict else ""
+        self.owner = resource_dict['creator'] if 'creator' in resource_dict else ""
+        self.title = resource_dict['resource_title'] if 'resource_title' in resource_dict else ""
+        self.files = []
+        self.period_start = None
+        self.period_end = None
+        self.metadata_xml = None
+
+    def __str__(self):
+        return '{} with {} files'.format(self.title, len(self.files))
+
+class ResourceTemplate:
+    def __init__(self, values=None):
+        self.template_name = ""
+        self.name_prefix = ""
+        self.abstract = ""
+        self.keywords = []
+        self.funding_agency = ""
+        self.agency_url = ""
+        self.award_title = ""
+        self.award_number = ""
+
+        if values is not None:
+            self.template_name = values['name'] if 'name' in values else ""
+            self.name_prefix = values['resource_name'] if 'resource_name' in values else ""
+            self.abstract = values['abstract'] if 'abstract' in values else ""
+            self.funding_agency = values['funding_agency'] if 'funding_agency' in values else ""
+            self.agency_url = values['agency_url'] if 'agency_url' in values else ""
+            self.award_title = values['award_title'] if 'award_title' in values else ""
+            self.award_number = values['award_number'] if 'award_number' in values else ""
+
+
+# def getNewQC1ResourceInformation(site_code, valid_files=None):
+#     """
+#
+#     :param site_code: The site code, used to get site details from the iutahdbs server
+#     :type site_code: str
+#     :param valid_files: File Details for the files we will be uploading to the resource
+#     :type valid_files: list of FileDetails
+#     :return:
+#     :rtype:
+#     """
+#     db_code = site_code.split('_')[0]
+#     service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
+#                                            'address': 'iutahdbs.uwrl.usu.edu', 'db': DB_CODE_LOOKUP[db_code]}
+#     series_service = service_manager.get_series_service()
+#     site = series_service.get_site_by_code(site_code)  # type: Site
+#     new_resource = GenericResourceDetails()
+#     new_resource.resource_name = "iUTAH GAMUT Network Quality Control Level 1 Data at " \
+#                                  "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
+#     new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
+#     new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'Quality Controlled Level 1']
+#     if valid_files is not None and len(valid_files) > 0:
+#         variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
+#         new_resource.keywords.extend(list(variables))
+#         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
+#         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
+#         start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
+#         end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
+#         if start_cov is not None and end_cov is not None:
+#             temporal_data = {"coverage":
+#                              {"type": "period",
+#                               "value": {"start": start_cov.strftime(time_format),
+#                                         "end": end_cov.strftime(time_format)}}}
+#             new_resource.metadata.append(temporal_data)
+#
+#     # Add Credits
+#     credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
+#                                      'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
+#                                                     'Hydro-sustainability',
+#                                      'award_number': '1208732',
+#                                      'agency_url': 'http://www.nsf.gov'}}
+#     new_resource.metadata.append(credit_dict)
+#
+#     authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
+#     new_resource.metadata.append(authors)
+#
+#     spatial_coverage = dict(coverage={'type': 'point',
+#                                       'value': {
+#                                           'east': '{}'.format(site.longitude),
+#                                           'north': '{}'.format(site.latitude),
+#                                           'units': 'Decimal degrees',
+#                                           'name': '{}'.format(site.name),
+#                                           'elevation': '{}'.format(site.elevation_m),
+#                                           'projection': '{}'.format(site.spatial_ref.srs_name)
+#                                       }})
+#     new_resource.metadata.append(spatial_coverage)
+#
+#     for contrib in contributors:
+#         new_resource.metadata.append(contrib)
+#
+#     return new_resource
+
+
 class HydroShareUtilityException(Exception):
     def __init__(self, args):
         super(HydroShareUtilityException, self).__init__(args)
@@ -38,8 +135,7 @@ class HydroShareUtility:
         self.client = None  # type: HydroShare
         self.auth = None
         self.user_info = None
-        self.re_period = re.compile(r'(?P<tag_start>^start=)(?P<start>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_end>end=)('
-                                    r'?P<end>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_scheme>scheme=)(?P<scheme>.+$)', re.I)
+        self.re_period = re.compile(r'(?P<tag_start>^start=)(?P<start>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_end>end=)(?P<end>[0-9-]{10}T[0-9:]{8}).{2}(?P<tag_scheme>scheme=)(?P<scheme>.+$)', re.I)
         self.xml_ns = {
             'dc': "http://purl.org/dc/elements/1.1/",
             'dcterms': "http://purl.org/dc/terms/",
@@ -75,6 +171,7 @@ class HydroShareUtility:
             print('Invalid client ID and/or client secret: {}'.format(e))
         self.auth = None
         return False
+
 
     def purgeDuplicateGamutFiles(self, resource_id, regex, confirm_delete=False):
         """
@@ -116,7 +213,7 @@ class HydroShareUtility:
         :param site_list: List of sites to be matched with corresponding HydroShare resource_cache
         :type site_list: list of str
         :param resource_list: Resources to attempt to match to the file list
-        :type resource_list: List of HydroShare resource_cache
+        :type resource_list: List of HydroShareResource
         :return: Returns matched and unmatched files dictionary lists in form [{'resource': resource, 'file', file_dict,
                  'overwrite_remote': True/False }, { ... } ]
         """
@@ -124,11 +221,11 @@ class HydroShareUtility:
         unmatched_sites = []
         for site in site_list:
             found_match = False
-            for resource_id in resource_list:
-                resource_title = self.resource_cache[resource_id].name
-                if not re.search(site, resource_title, re.IGNORECASE):
+            for resource in resource_list:
+                # resource_title = self.resource_cache[resource_id].name
+                if not re.search(site, resource.title, re.IGNORECASE):
                     continue
-                matched_sites.append({'resource_id': resource_id, 'site_code': site})
+                matched_sites.append({'resource_id': resource.title, 'site_code': site})
                 found_match = True
                 break
             if not found_match:
@@ -141,7 +238,7 @@ class HydroShareUtility:
         :param file_list: List of files to be matched with corresponding HydroShare resource_cache
         :type file_list: List of dictionary objects, formatted as {'path': path, 'name': name, 'site': site}
         :param resource_list: Resources to attempt to match to the file list
-        :type resource_list: List of HydroShare resource_cache
+        :type resource_list: List of HydroShareResource
         :return: Returns matched and unmatched files dictionary lists in form [{'resource': resource, 'file', file_dict,
                  'overwrite_remote': True/False }, { ... } ]
         """
@@ -149,41 +246,37 @@ class HydroShareUtility:
         unmatched_files = []
         for local_file in file_list:
             found_match = False
-            for resource_id in resource_list:
-                resource_title = self.resource_cache[resource_id].name
-                if not re.search(local_file['site'], resource_title, re.IGNORECASE):
+            for resource in resource_list:
+                # resource_title = self.resource_cache[resource_id].name
+                if not re.search(local_file['site'], resource.title, re.IGNORECASE):
                     continue
-                resource_files = self.getResourceFileList(resource_id)
+                resource_files = self.getResourceFileList(resource.id)
                 file_list = []
                 for resource_file in resource_files:
-                    file_list.append(resource_file['url'])
+                    file_url = resource_file['url']
+                    file_list.append(file_url)
+                print file_list
                 duplicates = len([remote_file for remote_file in file_list if local_file['name'] in remote_file])
-                matched_files.append({'resource_id': resource_id, 'file': local_file, 'overwrite_remote': duplicates})
+                matched_files.append({'resource_id': resource.id, 'file': local_file, 'overwrite_remote': duplicates})
                 found_match = True
                 break
             if not found_match:
                 unmatched_files.append(local_file)
         return matched_files, unmatched_files
 
-    def getResourceFileList(self, resource_id, refresh_cache=False):
+    def getResourceFileList(self, resource_id):
         """
 
         :param resource_id: ID of resource for which to retrieve a file list
         :type resource_id: str
-        :param refresh_cache: If False: try to use cached resource data; else: update local cache and return file list
-        :type refresh_cache: bool
         :return: List of files in resource
         :rtype: list of str
         """
-        if resource_id not in self.resource_cache:
-            self.resource_cache[resource_id] = HSResource()
-            self.resource_cache[resource_id].id = resource_id
-        if len(self.resource_cache[resource_id].files) == 0 or refresh_cache:
-            resource_files = list(self.client.getResourceFileList(resource_id))
-            self.resource_cache[resource_id].files = [f['url'] for f in resource_files]
-        else:
-            resource_files = self.resource_cache[resource_id].files
-        return resource_files
+        try:
+            return list(self.client.getResourceFileList(resource_id))
+        except Exception as e:
+            print 'Error while fetching resource files {}'.format(e)
+            return []
 
     def filterResourcesByRegex(self, regex_string=None, owner=None, regex_flags=re.IGNORECASE):
         """
@@ -195,39 +288,19 @@ class HydroShareUtility:
         :return: A list of resource_cache that matched the filter
         """
         filtered_resources = []
+        if owner is None:
+            owner = self.user_info['username']
         if self.auth is None:
             raise HydroShareUtilityException("Cannot query resources without authentication")
         all_resources = self.client.resources(owner=owner)
-        if regex_string is None:
-            return [r['resource_id'] for r in all_resources if 'resource_id' in r]
-        if regex_string == "show_me_what_you_got":
-            return all_resources
         regex_filter = re.compile(regex_string, regex_flags)
         for resource in all_resources:
-            if regex_filter.search(resource['resource_title']) is not None:
-                filtered_resources.append(resource['resource_id'])
-                self.resource_cache[resource['resource_id']] = HSResource(resource)
+            if regex_string is not None and regex_filter.search(resource['resource_title']) is None:
+                continue
+            resource_object = HydroShareResource(resource)
+            resource_object.files = [os.path.basename(f['url']) for f in self.getResourceFileList(resource_object.id)]
+            filtered_resources.append(resource_object)
         return filtered_resources
-
-    def filterOwnedResourcesByRegex(self, regex_string, owner=None, regex_flags=re.IGNORECASE):
-        """
-        Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
-        :param regex_string: String to be used as the regex filter
-        :param regex_flags: Flags to be passed to the regex search
-        :return: A list of resource_cache that matched the filter
-        """
-        if owner is None:
-            owner = self.user_info['username']
-        return self.filterResourcesByRegex(regex_string=regex_string, owner=owner, regex_flags=regex_flags)
-
-    def getResourceList(self):
-        """
-        Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
-        :param regex_string: String to be used as the regex filter
-        :param regex_flags: Flags to be passed to the regex search
-        :return: A list of resource_cache that matched the filter
-        """
-        return self.filterResourcesByRegex(owner=self.user_info['username'])
 
     def upload(self, files_list, resource_id, retry_on_failure=False):
         """
@@ -348,7 +421,7 @@ class HydroShareUtility:
 
     def getResourceCoveragePeriod(self, resource_id, refresh_cache=False):
         if resource_id not in self.resource_cache:
-            self.resource_cache[resource_id] = HSResource()
+            self.resource_cache[resource_id] = HydroShareResource({'resource_id': resource_id})
             self.resource_cache[resource_id].id = resource_id
         if self.resource_cache[resource_id].metadata_xml is None or refresh_cache:
             metadata = self.client.getScienceMetadata(resource_id)
@@ -407,19 +480,8 @@ class HydroShareUtility:
             resource_id = self.client.createResource(resource_type='GenericResource', title=resource.resource_name,
                                                      abstract=resource.abstract, keywords=resource.keywords,
                                                      metadata=resource.getMetadata())
-            new_resource = HSResource()
+            new_resource = HydroShareResource()
             new_resource.id = resource_id
             new_resource.name = resource.resource_name
             self.resource_cache[resource_id] = new_resource
             return resource_id
-
-
-class HSResource:
-    def __init__(self, resource_dict=None):
-        self.id = "" if resource_dict is None else resource_dict['resource_id']
-        self.owner = "" if resource_dict is None else resource_dict['creator']
-        self.name = "" if resource_dict is None else resource_dict['resource_title']
-        self.files = []
-        self.period_start = None
-        self.period_end = None
-        self.metadata_xml = None

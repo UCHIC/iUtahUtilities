@@ -278,6 +278,19 @@ class HydroShareUtility:
             print 'Error while fetching resource files {}'.format(e)
             return []
 
+    def getAllResources(self):
+        filtered_resources = []
+        owner = self.user_info['username']
+        if self.auth is None:
+            raise HydroShareUtilityException("Cannot query resources without authentication")
+        all_resources = self.client.resources(owner=owner)
+        for resource in all_resources:
+            resource_object = HydroShareResource(resource)
+            # resource_object.files = [os.path.basename(f['url']) for f in self.getResourceFileList(resource_object.id)]
+            filtered_resources.append(resource_object)
+        return filtered_resources
+
+
     def filterResourcesByRegex(self, regex_string=None, owner=None, regex_flags=re.IGNORECASE):
         """
         Apply a regex filter to all available resource_cache. Useful for finding GAMUT resource_cache
@@ -480,7 +493,7 @@ class HydroShareUtility:
             resource_id = self.client.createResource(resource_type='GenericResource', title=resource.resource_name,
                                                      abstract=resource.abstract, keywords=resource.keywords,
                                                      metadata=resource.getMetadata())
-            new_resource = HydroShareResource()
+            new_resource = HydroShareResource({})
             new_resource.id = resource_id
             new_resource.name = resource.resource_name
             self.resource_cache[resource_id] = new_resource

@@ -10,6 +10,8 @@ from multiprocessing import Process, Queue
 from time import sleep
 from sqlalchemy.exc import InvalidRequestError
 
+from Utilities.HydroShareUtility import HydroShareResource
+
 from GAMUTRawData.odmdata import Series
 from GAMUTRawData.odmdata import Site
 from GAMUTRawData.odmdata import SpatialReference
@@ -29,13 +31,13 @@ service_manager = ServiceManager()
 UPDATE_CACHE = True
 
 class FileDetails(object):
-    def __init__(self, site_code=None, site_name=None, file_path=None, file_name=None, variable_names=None):
+    def __init__(self, site_code="", site_name="", file_path="", file_name="", variable_names=None):
         self.coverage_start = None
         self.coverage_end = None
-        self.file_path = "" if file_path is None else file_path
-        self.file_name = "" if file_name is None else file_name
-        self.site_code = "" if site_code is None else site_code
-        self.site_name = "" if site_name is None else site_name
+        self.file_path = file_path
+        self.file_name = file_name
+        self.site_code = site_code
+        self.site_name = site_name
         self.variable_names = [] if variable_names is None else variable_names
         self.is_empty = True
         self.created = False
@@ -44,6 +46,23 @@ class FileDetails(object):
         fd_str = '{site} - {s_name} - {f_name}'
         return fd_str.format(site=self.site_code, s_name=self.site_name, f_name=self.file_name)
 
+
+class H2ODataset:
+    def __init__(self, name='', odm_series=None, hs_resource='', odm_db_name='', chunk_by_series=False, chunk_by_year=False):
+        self.name = name                                                # type: str
+        self.odm_series = odm_series if odm_series is not None else {}  # type: dict # {'odm_db_name': [1, 2, 4]}
+        self.hs_resource = hs_resource                                  # type: HydroShareResource
+        self.odm_db_name = odm_db_name                                  # type: HydroShareResource
+        self.chunk_by_series = chunk_by_series                          # type: bool
+        self.chunk_by_year = chunk_by_year                              # type: bool
+
+    def __dict__(self):
+        return {'dataset_name': self.name, 'odm_series': self.odm_series, 'hs_resource': self.hs_resource,
+                'chunk_by_series': self.chunk_by_series, 'chunk_by_year': self.chunk_by_year,
+                'odm_db_name': self.odm_db_name}
+
+    def __str__(self):
+        return 'Dataset {} with {} series and destination resource {}'.format(self.name, len(self.odm_series), self.hs_resource)
 
 def _OdmDatabaseConnectionTestTimed(queue):
     db_auth = queue.get(True)
@@ -91,6 +110,11 @@ class OdmDatasetUtility:
     def ToDict(self):
         return {'engine': self.engine, 'user': self.user, 'password': self.password, 'address': self.address,
                 'db': self.database}
+
+
+def GenerateDatasetFromSeries():
+
+    pass
 
 
 def dataParser(dump_loc, data_type, year):

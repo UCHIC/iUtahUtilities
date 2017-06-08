@@ -1,3 +1,0 @@
-[submodule "src/hs_restclient"]
-	path = src/hs_restclient
-	url = https://github.com/hydroshare/hs_restclient.git

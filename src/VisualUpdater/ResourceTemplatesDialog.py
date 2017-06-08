@@ -47,7 +47,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer2.Add(self.template_name_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer2, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer2, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer21 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -62,7 +62,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer21.Add(self.resource_name_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer21, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer21, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer22 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -77,7 +77,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer22.Add(self.resource_abstract_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer22, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer22, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer23 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -92,7 +92,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer23.Add(self.funding_agency_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer23, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer23, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer24 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -107,7 +107,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer24.Add(self.agency_url_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer24, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer24, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer25 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -122,7 +122,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer25.Add(self.award_title_input, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer25, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer25, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer26 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -130,14 +130,14 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
         self.m_staticText16.Wrap(-1)
         self.m_staticText16.SetMinSize(wx.Size(100, -1))
 
-        bSizer26.Add(self.m_staticText16, 0, wx.ALL, 7)
+        bSizer26.Add(self.m_staticText16, flag=wx.ALL | wx.EXPAND, border=5)
 
         self.award_number_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.DefaultSize, 0)
         self.award_number_input.SetMinSize(wx.Size(250, -1))
 
-        bSizer26.Add(self.award_number_input, 0, wx.ALL, 5)
+        bSizer26.Add(self.award_number_input, flag=wx.ALL | wx.EXPAND, border=5)
 
-        bSizer1.Add(bSizer26, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer26, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer211 = wx.BoxSizer(wx.VERTICAL)
 
@@ -149,7 +149,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
 
         bSizer211.Add(bSizer201, 1, wx.EXPAND, 5)
 
-        bSizer1.Add(bSizer211, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer211, flag=wx.ALL | wx.EXPAND, border=5)
 
         bSizer2111 = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -165,7 +165,7 @@ class HydroShareResourceTemplateDialog(wx.Dialog):
         self.save_button = wx.Button(self, wx.ID_ANY, u"Save", wx.DefaultPosition, wx.DefaultSize, 0)
         bSizer2111.Add(self.save_button, 0, wx.ALL, 5)
 
-        bSizer1.Add(bSizer2111, 1, wx.EXPAND, 5)
+        bSizer1.Add(bSizer2111, flag=wx.ALL | wx.EXPAND, border=5)
 
         self.SetSizerAndFit(bSizer1)
         self.Layout()

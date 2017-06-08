@@ -115,6 +115,9 @@ class Series(Base):
                 other.quality_control_level_id, other.quality_control_level_code, other.begin_date_time,
                 other.end_date_time, other.begin_date_time_utc, other.end_date_time_utc, other.value_count]
 
+    def __lt__(self, other):
+        return self.site_id < other.site_id
+
     def get_table_columns(self):
         return self.__table__.columns.keys()
 

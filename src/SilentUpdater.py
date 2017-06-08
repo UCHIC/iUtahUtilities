@@ -10,7 +10,8 @@ import re
 import smtplib
 import sys
 import json
-
+import Utilities.ActionManager as ActionManager
+from Utilities.DatasetGenerator import *
 
 __title__ = 'iUtahUtilities Update Tool'
 WINDOWS_OS = 'nt' in os.name
@@ -26,33 +27,9 @@ from Utilities.CkanUtility import CkanUtility
 with open('./settings.json') as json_data:
     settings = json.load(json_data)
 
-EMAIL_SERVER = "mail.usu.edu"
-EMAIL_FROM = "CSVgenerator@GAMUT.exe"
-EMAIL_SUBJECT = "CSV Generator Report"
-FORMAT_STRING = '%s  %s: %s'
-
-curr_year = datetime.datetime.now().strftime('%Y')
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
-
-# Raw Data strings and patterns
-raw_dump_location = '{path}RawData{slash}{year}{slash}'.format(path=file_path, year=curr_year, slash=DIR_SYMBOL)
-RE_RAW_DATA_SITE_CODE = r'(^.*iUTAH_GAMUT_)(?P<site>.*)(_rawdata_{year}\.csv$)'.format(year=curr_year)
-RE_RAW_RESOURCES = r"(?=.*raw.?data)(?=.*iUtah)(?=.*Gamut).+"
-RE_RAW_FILE = r'^.*(?P<name>(?P<required>iUTAH_GAMUT_)(?P<unused_1>.*)(' \
-              r'_rawdata_)(?P<year>20[0-9]{2})(?P<duplicated>.*?)(?P<filetype>\.csv))$'
-
-# Quality Control Level 1 strings and patterns
-qc_dump_location = '{file_path}QualityControlled{slash}'.format(file_path=file_path, slash=DIR_SYMBOL)
-RE_QC1_RESOURCES = r"(?=.*quality.?control.?level.?1.?)(?=.*iUtah)(?=.*Gamut).+"
-RE_QC1_DATA_SITE_CODE = r'(^.*iUTAH_GAMUT_)(?P<site>.*)(_Quality_Control_Level_1_)(?P<var>.+)(\.csv$)'
-RE_QC1_FILE = r'^.*(?P<name>(?P<required>iUTAH_GAMUT_)(?P<unused_1>.*)(_Quality_Control_Level_1_)(?P<var_code>.*)(' \
-              r'?P<duplicated>(_[a-z0-9]{7})|((%20|\ )\([0-9]+\)))(?P<filetype>\.csv))$'
-
-
-# Resource template class
-# Update the auth file to use json
-# Allow multiple years
+series_dump_location = file_path + 'SeriesFiles/{series}/'
 
 
 class Arguments:
@@ -63,40 +40,21 @@ class Arguments:
     def __init__(self, args):
         self.verbose = False
         self.debug = False
-        self.auth = {}
+        self.op_file_path = './operations_file.json'
         for arg in args:
-            if '--destination=' in arg:
-                self.destination = str.lower(arg.split('--destination=')[1])
-            elif '-d=' in arg:
-                self.destination = str.lower(arg.split('-d=')[1])
-            elif '--verbose' in arg:
+            if '--verbose' in arg:
                 self.verbose = True
-            elif '--username=' in arg:
-                self.auth['username'] = arg.split('--username=')[1]
-            elif '--password=' in arg:
-                self.auth['password'] = arg.split('--password=')[1]
-            elif '--client_id=' in arg:
-                self.auth['client_id'] = arg.split('--client_id=')[1]
-            elif '--client_secret=' in arg:
-                self.auth['client_secret'] = arg.split('--client_secret=')[1]
-            elif '--auth_file=' in arg:
-                self.auth['auth_file'] = arg.split('--auth_file=')[1]
+            elif '--file=' in arg:
+                self.op_file_path = arg.split('--file=')[1]
             elif '--debug' in arg:
                 self.debug = True
 
 
     def print_usage_info(self):
         help_string = ("\nLoadCKAN Tool" +
-                       "\n   -d=hs     --destination=hs       Update resource file on Hydroshare" +
-                       "\n   -d=ckan   --destination=ckan     Update resource file on CKAN" +
-                       "\n   -d=all    --destination=all      Update resource file on both servers" +
-                       "\n   --auth_file=<path>               Absolute or relative path of credentials file" +
-                       "\n   --debug                          Not currently used" +
-                       "\n   --verbose                        Prints to stdout as well as to log file" +
-                       "\n   --username=<username>            Username for Hydroshare account" +
-                       "\n   --password=<password>            Password for given username" +
-                       "\n   --client-id=<client id>          Client id given by HydroShare API" +
-                       "\n   --client-secret=<secret>         Client secret given by HydroShare API")
+                       "\n   --file=<path>                  Absolute or relative path of operations file" +
+                       "\n   --debug                        Not currently used" +
+                       "\n   --verbose                      Prints to stdout as well as to log file")
         original_output = None
         if not sys.__stdout__ == sys.stdout:
             print(help_string)
@@ -124,44 +82,6 @@ class Logger(object):
     def write(self, message):
         self.terminal.write(message)
         self.log.write(message)
-
-
-def send_email(issue_list, to, attach=None):
-    print("Sending email with {} issues".format(len(issue_list)))
-    message = ""
-    for i in issue_list:
-        message += '\n{}'.format(i)
-
-    recipients = [to]  # must be a list
-    file_content = ""
-
-    try:
-        fo = open(attach, "r")
-        for f in fo.readline():
-            file_content += "\n" + f
-    except IOError as e:
-        print('File Error: {}'.format(e))
-
-    email_body = """
-    From:  {sender}
-    To: {recipients}
-    Subject: GAMUT CSV Report
-
-    CSV generater had the following issues when it was run at {start_time}:
-    {message}
-
-    log_file={log_file}:
-    {file_content}
-    """
-
-    email_body = email_body.format(sender=EMAIL_FROM, recipients=recipients,
-                                   start_time=datetime.datetime.now().strftime('%Y-%m-%d %H'),
-                                   message=message, log_file=log_file, file_content=file_content)
-
-    # Send the mail
-    server = smtplib.SMTP(EMAIL_SERVER)
-    server.sendmail(EMAIL_FROM, recipients, email_body)
-    server.quit()
 
 
 def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_generator=None):
@@ -279,51 +199,78 @@ def uploadToHydroShare(user_auth, sites, resource_regex, file_regex, resource_ge
         return pair_dict
 
 
+def build_dirs(dir_name):
+    if not os.path.exists(dir_name):
+        os.makedirs(dir_name)
+
+
 if __name__ == "__main__":
     user_args = Arguments(sys.argv)
-    if not os.path.exists(file_path):
-        os.makedirs(file_path)
-    if not os.path.exists(raw_dump_location):
-        os.makedirs(raw_dump_location)
-    if not os.path.exists(qc_dump_location):
-        os.makedirs(qc_dump_location)
+    build_dirs(file_path)
     if user_args.verbose or True:
         sys.stdout = Logger(log_file, overwrite=True)
     else:
         sys.stdout = open(log_file, 'w')
 
+    operations = ActionManager.GetActionsFromFile(user_args.op_file_path)
+    if operations is None:
+        print('Error in loading actions from file {} - program exiting'.format(user_args.op_file_path))
+        exit()
+
+    # Get valid connections
     start_time = datetime.datetime.now()
-    raw_files = {}
-    qc_files = {}
 
-    # Update the local Raw Data files
-    raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
-    print 'Raw files updated - time taken: {}'.format(datetime.datetime.now() - start_time)
+    hs_connections = operations.GetValidHydroShareConnections()
 
-    # Update the local Quality Control Level 1 files
-    stopwatch_timer = datetime.datetime.now()
-    qc_files = dataParser(qc_dump_location, 'QC', curr_year)
-    print 'QC Level 1 files updated - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    print 'HydroShare connections verified in {} seconds. ' \
+          'Validating ODM connections'.format(datetime.datetime.now() - start_time)
+    start_time = datetime.datetime.now()
 
-    # Start the upload process to Hydroshare
-    print "\nRAW:"
-    stopwatch_timer = datetime.datetime.now()
-    raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
-    print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
-    print "\n\nQC:"
-    stopwatch_timer = datetime.datetime.now()
-    qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, resource_generator=getNewQC1ResourceInformation)
-    print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    odm_connections = operations.GetValidOdmConnections()
 
-    all_sites = set(qc1_pairs.keys() + raw_pairs.keys())
-    link_dict = {}
-    for site in all_sites:
-        link_dict[site] = {}
-        if site in qc1_pairs.keys():
-            link_dict[site]['controlled'] = qc1_pairs[site]
-        if site in raw_pairs.keys():
-            link_dict[site]['raw'] = raw_pairs[site]
+    print 'ODM connections verified in {} seconds'.format(datetime.datetime.now() - start_time)
 
-    print '\nvar linkMap = {}'.format(link_dict)
+    print hs_connections
+    print odm_connections
 
-    print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)
+    # Go through each dataset
+
+    for dataset in operations.Datasets:                         # type: H2ODataset
+        print('Creating series files for dataset: {}').format(dataset)
+        increment_time = datetime.datetime.now()
+
+        # Make sure HydroShare and odm_connections are valid and exist
+
+        # After that, send to dataset generator with odm_connection and with series numbers, options
+
+
+        print 'Raw files updated - time taken: {}'.format(datetime.datetime.now() - increment_time)
+
+    #
+    # # Update the local Raw Data files
+    # raw_files = dataParser(raw_dump_location, 'Raw', curr_year)
+    #
+    # # Update the local Quality Control Level 1 files
+    # qc_files = dataParser(qc_dump_location, 'QC', curr_year)
+    #
+    # # Start the upload process to Hydroshare
+    # print "\nRAW:"
+    # stopwatch_timer = datetime.datetime.now()
+    # raw_pairs = uploadToHydroShare(settings['hydroshare_auth'], raw_files, RE_RAW_RESOURCES, RE_RAW_FILE, resource_generator=getNewRawDataResourceInformation)
+    # print 'Raw files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    # print "\n\nQC:"
+    # stopwatch_timer = datetime.datetime.now()
+    # qc1_pairs = uploadToHydroShare(settings['hydroshare_auth'], qc_files, RE_QC1_RESOURCES, RE_QC1_FILE, resource_generator=getNewQC1ResourceInformation)
+    # print 'QC Level 1 files uploaded - time taken: {}'.format(datetime.datetime.now() - stopwatch_timer)
+    #
+    # all_sites = set(qc1_pairs.keys() + raw_pairs.keys())
+    # link_dict = {}
+    # for site in all_sites:
+    #     link_dict[site] = {}
+    #     if site in qc1_pairs.keys():
+    #         link_dict[site]['controlled'] = qc1_pairs[site]
+    #     if site in raw_pairs.keys():
+    #         link_dict[site]['raw'] = raw_pairs[site]
+
+    # print '\nvar linkMap = {}'.format(link_dict)
+    # print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)

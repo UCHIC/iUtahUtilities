@@ -42,22 +42,19 @@ class VisualH2OWindow(wx.Frame):
         self.ActiveHydroshare = None     # type: HydroShareUtility
 
         self._series_dict = {}           # type: dict[int, Series]
-        self._resources = None           # type: dict
+        self._resources = None           # type: list[HydroShareResource]
 
-        self.series_keys = ['Site', 'Variable', 'QualityControlLevel', 'Year']
-
-        # Load persistence file
         try:
             self.LoadData()
         except:
             print "This looks like a first run"
 
         # Widgets
-        self.status_gauge = None              # type: wx.Gauge
-        self.select_database_choice = None    # type: wx.Choice
-        self.select_hydroshare_choice = None  # type: wx.Choice
-        self.mapping_grid = None              # type: H20Widget
-        self.dataset_prefix_input = None      # type: wx.TextCtrl
+        self.status_gauge = None               # type: wx.Gauge
+        self.select_database_choice = None     # type: wx.Choice
+        self.select_hydroshare_choice = None   # type: wx.Choice
+        self.mapping_grid = None               # type: H20Widget
+        self.dataset_prefix_input = None       # type: wx.TextCtrl
         self.available_series_listbox = None   # type: wx.ListBox
 
         # just technicalities, honestly
@@ -213,15 +210,17 @@ class VisualH2OWindow(wx.Frame):
         event.Skip()
 
     def on_hydroshare_chosen(self, event):
-        if event.GetSelection() == 0:
-            print "No selection was made"
-
-        account_string = self.select_hydroshare_choice.GetStringSelection()
-        account_details = self.ActionManager.HydroShareConnections[account_string]  # type: HydroShareAccountDetails
-        self.ActiveHydroshare = HydroShareUtility()
-        if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
-            self._resources = self.ActiveHydroshare.getAllResources()
-            self._update_target_choices()
+        self._resources = None
+        if event.GetSelection() != 0:
+            account_string = self.select_hydroshare_choice.GetStringSelection()
+            account_details = self.ActionManager.HydroShareConnections[account_string]  # type: HydroShareAccountDetails
+            self.ActiveHydroshare = HydroShareUtility()
+            if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
+                self._resources = self.ActiveHydroshare.getAllResources()
+                self.OnPrintLog('Successfully authenticated HydroShare account details')
+            else:
+                self.OnPrintLog('Unable to authenticate HydroShare account - please check your credentials')
+        self._update_target_choices()
         event.Skip()
 
     def SeriesToString(self, series):
@@ -335,8 +334,29 @@ class VisualH2OWindow(wx.Frame):
             event.Skip()
 
     def _save_dataset_clicked(self, event):
-        string_result = 'Marked {} series for upload to {}'.format(len(self.available_series_listbox.Selections), self.select_destination_choice.GetStringSelection())
+        if len(self.selected_series_listbox.Items) == 0:
+            self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
+            return
+        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(0) == 'No Selected Series':
+            self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
+            return
+        if self.select_hydroshare_choice.GetSelection() == 0:
+            self.OnPrintLog('Invalid options - please select a HydroShare account to use')
+            return
+        if self.hydroshare_destination_radio.GetStringSelection() == 'Use Existing' and self.select_destination_choice.GetSelection() == 0:
+            self.OnPrintLog('Invalid options - please select a destination HydroShare resource')
+            return
+
+
+        string_result = 'Marked {} series for upload to {}'.format(len(self.selected_series_listbox.Items), self.select_destination_choice.GetStringSelection())
         self.log_message_listbox.Append(string_result)
+        curr_dataset = H2ODataset(
+                name='Dataset {}'.format(len(self.ActionManager.Datasets)),
+                odm_series=[int(RE_SERIES_INFO.match(item).groupdict()['id']) for item in self.selected_series_listbox.Items],
+                hs_resource=self.select_hydroshare_choice.GetStringSelection()
+        )
+
+
 
     def _build_main_window(self):
         ######################################
@@ -357,8 +377,8 @@ class VisualH2OWindow(wx.Frame):
 
         self.select_database_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_databse_connections())
         self.select_hydroshare_choice = wx.Choice(self.panel, wx.ID_ANY, choices=self._list_saved_hydroshare_accounts())
-        self.select_database_choice.SetMinSize(wx.Size(225, 23))
-        self.select_hydroshare_choice.SetMinSize(wx.Size(225, 23))
+        self.select_database_choice.SetMinSize(wx.Size(260, 23))
+        self.select_hydroshare_choice.SetMinSize(wx.Size(260, 23))
         self.select_database_choice.SetSelection(0)
         self.select_hydroshare_choice.SetSelection(0)
 
@@ -367,13 +387,13 @@ class VisualH2OWindow(wx.Frame):
         self.Bind(wx.EVT_CHOICE, self.on_hydroshare_chosen, self.select_hydroshare_choice)
         self.Bind(wx.EVT_CHOICE, self.on_database_chosen, self.select_database_choice)
 
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP | wx.EXPAND | wx.EXPAND, border=7)
+        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=7)
+        connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        connections_sizer.Add(edit_database_button, pos=(1, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=7)
 
-        connections_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.EXPAND, border=7)
-        connections_sizer.Add(edit_hydroshare_button, pos=(1, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.RIGHT | wx.EXPAND, border=7)
-        connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 5), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
-        connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 7), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=15)
+        connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 7), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=15)
+        connections_sizer.Add(edit_hydroshare_button, pos=(1, 11), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=15)
 
         ######################################
         # Build selection sizer and objects  #
@@ -428,9 +448,8 @@ class VisualH2OWindow(wx.Frame):
         self.remove_from_selected_button.Disable()
         self.add_to_selected_button.Disable()
 
-
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Available Series'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.BOTTOM, border=7)
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Series'), pos=(0, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.BOTTOM, border=7)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Available Series'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Series'), pos=(0, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND , border=7)
         dataset_resource_sizer.Add(self.available_series_listbox, pos=(1, 0), span=(4, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
         dataset_resource_sizer.Add(self.selected_series_listbox, pos=(1, 3), span=(4, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM| wx.RIGHT | wx.EXPAND , border=7)
         dataset_resource_sizer.Add(self.add_to_selected_button, pos=(2, 2), span=(1, 1), flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=3)
@@ -453,20 +472,22 @@ class VisualH2OWindow(wx.Frame):
         ######################################
 
         toggle_execute_button = wx.Button(self.panel, wx.ID_ANY, label=u'Run Script')
+        self.Bind(wx.EVT_BUTTON, self.OnRunScriptClicked, toggle_execute_button)
         save_config_button = wx.Button(self.panel, wx.ID_ANY, label=u'Save Script')
+        self.Bind(wx.EVT_BUTTON, self.OnSaveScriptClicked, save_config_button)
 
         self.status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
         self.status_gauge.SetMinSize(wx.Size(550, 25))
 
-        self.log_message_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_EXTENDED)
+        self.log_message_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.Size(-1, 110), [], wx.LB_EXTENDED)
         self.log_message_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnAvailableCategoryRightClick, self.log_message_listbox)
 
-        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
+        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=3)
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=3)
+        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=3)
+        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=3)
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -515,3 +536,9 @@ class VisualH2OWindow(wx.Frame):
         result = HydroShareResourceTemplateDialog(self, self.ActionManager.ResourceTemplates).ShowModal()
         event.Skip()
 
+    def OnRunScriptClicked(self, event):
+        self.OnPrintLog('Running script (almost)')
+
+    def OnSaveScriptClicked(self, event):
+        self.OnPrintLog('Saving the script')
+        self.SaveData()

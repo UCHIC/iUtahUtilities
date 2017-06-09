@@ -54,7 +54,7 @@ setup/Output/setup.exe
 
 *.log
 .idea
-*.png
+
 *.uml
 GAMUT_CSV_Files
 

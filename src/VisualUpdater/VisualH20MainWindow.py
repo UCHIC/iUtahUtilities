@@ -82,7 +82,7 @@ class VisualH2OWindow(wx.Frame):
     def OnPrintLog(self, message=""):
         if message is None or not isinstance(message, str) or len(message) == 0:
             return
-        self.completed_datasets_listbox.Append(message)
+        self.log_message_listbox.Append(message)
 
     def SaveData(self):
         self.UpdateControls()
@@ -197,7 +197,6 @@ class VisualH2OWindow(wx.Frame):
         self.available_series_listbox.Clear()
         self.selected_series_listbox.Clear()
         self.OnPrintLog('Database selected - fetching series')
-        pub.sendMessage('logger', message='Database selected - fetching series')
         if event.GetSelection() > 0:
             self._series_dict.clear()
             selection_string = self.select_database_choice.GetStringSelection()
@@ -337,7 +336,7 @@ class VisualH2OWindow(wx.Frame):
 
     def _save_dataset_clicked(self, event):
         string_result = 'Marked {} series for upload to {}'.format(len(self.available_series_listbox.Selections), self.select_destination_choice.GetStringSelection())
-        self.completed_datasets_listbox.Append(string_result)
+        self.log_message_listbox.Append(string_result)
 
     def _build_main_window(self):
         ######################################
@@ -412,68 +411,62 @@ class VisualH2OWindow(wx.Frame):
 
         left_arrow = wx.Bitmap('./VisualUpdater/previous_icon.png', wx.BITMAP_TYPE_ANY)
         image = wx.Bitmap.ConvertToImage(left_arrow)
-        image = image.Scale(30, 30, wx.IMAGE_QUALITY_HIGH)
+        image = image.Scale(20, 20, wx.IMAGE_QUALITY_HIGH)
         left_arrow = wx.Bitmap(image)
 
         right_arrow = wx.Bitmap('./VisualUpdater/next_icon.png', wx.BITMAP_TYPE_ANY)
         image = wx.Bitmap.ConvertToImage(right_arrow)
-        image = image.Scale(30, 30, wx.IMAGE_QUALITY_HIGH)
+        image = image.Scale(20, 20, wx.IMAGE_QUALITY_HIGH)
         right_arrow = wx.Bitmap(image)
 
         self.add_to_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, right_arrow, wx.DefaultPosition, wx.DefaultSize) #wx.Size(arrow_width + 5, arrow_height + 5))
-        self.add_to_selected_button.SetMaxSize(wx.Size(40, 90))
-        self.add_to_selected_button.SetMinSize(wx.Size(40, 90))
         self.Bind(wx.EVT_BUTTON, self._move_to_selected_series, self.add_to_selected_button)
 
         self.remove_from_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, left_arrow, wx.DefaultPosition, wx.DefaultSize) # wx.Size(arrow_width + 5, arrow_height + 5))
-        self.remove_from_selected_button.SetMaxSize(wx.Size(40, 90))
-        self.remove_from_selected_button.SetMinSize(wx.Size(40, 90))
         self.Bind(wx.EVT_BUTTON, self._move_from_selected_series, self.remove_from_selected_button)
 
         self.remove_from_selected_button.Disable()
         self.add_to_selected_button.Disable()
 
-        self.completed_datasets_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_EXTENDED)
-        self.completed_datasets_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
-        self.Bind(wx.EVT_CONTEXT_MENU, self.OnAvailableCategoryRightClick, self.completed_datasets_listbox)
 
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Available Series'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP | wx.RIGHT, border=10)
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Series'), pos=(0, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP | wx.RIGHT, border=10)
-        dataset_resource_sizer.Add(self.available_series_listbox, pos=(1, 0), span=(4, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.ALL | wx.EXPAND | wx.ALL, border=5)
-        dataset_resource_sizer.Add(self.selected_series_listbox, pos=(1, 3), span=(4, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.ALL | wx.EXPAND | wx.ALL, border=5)
-        dataset_resource_sizer.Add(self.add_to_selected_button, pos=(1, 2), span=(2, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=1)
-        dataset_resource_sizer.Add(self.remove_from_selected_button, pos=(3, 2), span=(2, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=1)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Available Series'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.BOTTOM, border=7)
+        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Series'), pos=(0, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.BOTTOM, border=7)
+        dataset_resource_sizer.Add(self.available_series_listbox, pos=(1, 0), span=(4, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.selected_series_listbox, pos=(1, 3), span=(4, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM| wx.RIGHT | wx.EXPAND , border=7)
+        dataset_resource_sizer.Add(self.add_to_selected_button, pos=(2, 2), span=(1, 1), flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=3)
+        dataset_resource_sizer.Add(self.remove_from_selected_button, pos=(3, 2), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, border=3)
         dataset_resource_sizer.Add(self.grouping_radio_buttons, pos=(5, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer.Add(self.hydroshare_destination_radio, pos=(5, 1), span=(1, 2), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer.Add(self.chunk_checkbox, pos=(5, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer.Add(self.select_destination_choice, pos=(6, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
         dataset_resource_sizer.Add(self.save_dataset_button, pos=(6, 3), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
-        dataset_resource_sizer.Add(self.completed_datasets_listbox, pos=(7, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.LEFT | wx.EXPAND | wx.ALL, border=7)
 
         # self.dataset_prefix_input = wx.TextCtrl(self.panel, wx.ID_ANY, u'Generated_Files', wx.DefaultPosition, wx.Size(75, -1), 7, validator=CharValidator(CV_WORD))
         # self.Bind(wx.EVT_TEXT, self.UpdateSeriesInGrid, self.dataset_prefix_input)
-
-        # self.series_categories_checklist = wx.CheckListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, self.series_keys)
-        # self.Bind(wx.EVT_LISTBOX_DCLICK, self.OnCategoryDoubleClick, self.series_categories_checklist)
-        # self.Bind(wx.EVT_CONTEXT_MENU, self.OnCategoryRightClick, self.series_categories_checklist)
-        # self.Bind(wx.EVT_CHECKLISTBOX, self.UpdateSeriesInGrid, self.series_categories_checklist)
 
         # self.series_view_selector = wx.Choice(self.panel, wx.ID_ANY, choices=self.series_keys)
         # self.series_view_selector.SetSelection(0)
         # self.Bind(wx.EVT_CHOICE, self.populate_series_list, self.series_view_selector)
 
         ######################################
-        # Build action sizer and objects     #
+        # Build action sizer and logging box #
         ######################################
 
         toggle_execute_button = wx.Button(self.panel, wx.ID_ANY, label=u'Run Script')
+        save_config_button = wx.Button(self.panel, wx.ID_ANY, label=u'Save Script')
 
         self.status_gauge = wx.Gauge(self, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
-        self.status_gauge.SetMinSize(wx.Size(460, 25))
+        self.status_gauge.SetMinSize(wx.Size(550, 25))
 
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        self.log_message_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, [], wx.LB_EXTENDED)
+        self.log_message_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
+        self.Bind(wx.EVT_CONTEXT_MENU, self.OnAvailableCategoryRightClick, self.log_message_listbox)
+
         action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -481,9 +474,7 @@ class VisualH2OWindow(wx.Frame):
 
         main_sizer.Add(connections_sizer, flag=wx.ALL | wx.EXPAND, border=5)
         main_sizer.Add(selection_label_sizer, flag=wx.ALL | wx.EXPAND, border=5)
-        # main_sizer.Add(data_management_sizer, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(dataset_resource_sizer, flag=wx.ALL | wx.EXPAND, border=5)
-        # main_sizer.Add(dataset_resource_sizer_new, wx.EXPAND | wx.ALL, 5)
         main_sizer.Add(action_status_sizer, flag=wx.ALL | wx.EXPAND, border=5)
 
         ######################################

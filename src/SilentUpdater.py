@@ -4,6 +4,19 @@ Tool for updating iUtah GAMUT data in HydroShare and CKAN repositories
 
 """
 
+"""
+
+
+
+    HydroShare auth details
+
+    Dataset details:
+        Files to generate
+            Series partitioning things
+        HydroShare resource to upload to
+
+"""
+
 import datetime
 import os
 import re

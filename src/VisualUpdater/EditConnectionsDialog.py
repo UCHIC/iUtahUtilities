@@ -42,7 +42,7 @@ class DatabaseConnectionDialog(wx.Dialog):
         self.label2.Wrap(-1)
         account_name_sizer1.Add(self.label2, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.connection_name_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_WORD))
+        self.connection_name_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(PATTERNS.CV_WORD))
         self.connection_name_input.SetMaxLength(32)
         account_name_sizer1.Add(self.connection_name_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1), wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
 
@@ -58,7 +58,7 @@ class DatabaseConnectionDialog(wx.Dialog):
         self.label3.Wrap(-1)
         hs_username_sizer.Add(self.label3, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.db_username_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_USERNAME))
+        self.db_username_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(PATTERNS.CV_USERNAME))
         self.db_username_input.SetMaxLength(32)
         hs_username_sizer.Add(self.db_username_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1),
                               wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
@@ -92,7 +92,7 @@ class DatabaseConnectionDialog(wx.Dialog):
         self.label5.Wrap(-1)
         client_id_sizer.Add(self.label5, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.hostname_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_HOSTNAME))
+        self.hostname_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(PATTERNS.CV_HOSTNAME))
         self.hostname_input.SetMaxLength(32)
         client_id_sizer.Add(self.hostname_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1),
                             wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)
@@ -109,7 +109,7 @@ class DatabaseConnectionDialog(wx.Dialog):
         self.label6.Wrap(-1)
         port_engine_sizer.Add(self.label6, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.port_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(100, -1), 0, validator=CharValidator(CV_DIGIT_ONLY))
+        self.port_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(100, -1), 0, validator=CharValidator(PATTERNS.CV_DIGIT_ONLY))
         self.port_input.SetMaxLength(32)
         port_engine_sizer.Add(self.port_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1), wx.ALIGN_LEFT | wx.ALL, 5)
 
@@ -133,7 +133,7 @@ class DatabaseConnectionDialog(wx.Dialog):
         self.label51.Wrap(-1)
         databse_name_sizer.Add(self.label51, wx.GBPosition(0, 0), wx.GBSpan(1, 1), wx.ALL, 7)
 
-        self.database_name_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(CV_WORD))
+        self.database_name_input = wx.TextCtrl(self, wx.ID_ANY, wx.EmptyString, wx.DefaultPosition, wx.Size(250, -1), 0, validator=CharValidator(PATTERNS.CV_WORD))
         self.database_name_input.SetMaxLength(32)
         databse_name_sizer.Add(self.database_name_input, wx.GBPosition(0, 1), wx.GBSpan(1, 1),
                                wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 5)

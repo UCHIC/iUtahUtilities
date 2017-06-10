@@ -2,13 +2,14 @@ import string
 import wx
 import wx.xrc
 
-CV_ALPHANUMERIC = string.letters + string.digits
-CV_WORD = CV_ALPHANUMERIC + '_'
-CV_DIGIT_ONLY = string.digits
-CV_ALPHA_ONLY = string.letters
-CV_DENY_CUSTOM = ''
-CV_HOSTNAME = CV_ALPHANUMERIC + '.://&'
-CV_USERNAME = CV_ALPHANUMERIC + '_.@'
+class PATTERNS:
+    CV_ALPHANUMERIC = string.letters + string.digits
+    CV_WORD = CV_ALPHANUMERIC + '_'
+    CV_DIGIT_ONLY = string.digits
+    CV_ALPHA_ONLY = string.letters
+    CV_DENY_CUSTOM = ''
+    CV_HOSTNAME = CV_ALPHANUMERIC + '.://&'
+    CV_USERNAME = CV_ALPHANUMERIC + '_.@'
 
 class CharValidator(wx.PyValidator):
     ''' Validates data as it is entered into the text controls. '''

@@ -1,4 +1,3 @@
-
 import datetime
 import os
 import re
@@ -29,20 +28,96 @@ service_manager = ServiceManager()
 
 RE_SERIES_INFO = re.compile(r'^(?P<id>\d+) +(?P<site>\S+) +(?P<var>\S+) +QC (?P<qc>[\d.]+)$', re.I)
 
+# transformer = {
+#    "Buzzstream Field #2": lambda our_field: our_field * 2,
+#     "Buzzstream #3": lambda num2: return num2/2
+# }
+#
+# for field in buzz_fields:
+#     if field in transformer:
+#         buzz_field = transformer[field](out_field)
+#
+# def dothing(stuff):
+#     print(stuff)
+#
+# switcheroo = {
+#     1: lambda thing: dothing(thing),
+#     2: dothing
+# }
+#
+# switcheroo[1]()
+#
+# def add(a, b):
+#     return a+b
+#
+# def add7(a):
+#     return add(7, a)
+#
+
+series_to_string = lambda series: (str(series.id).ljust(6) + series.site_code.ljust(20) +
+                                   series.variable_code.ljust(20) + ' QC {}'.format(series.quality_control_level_code))
+
+
+class Orientation:
+    VERTICAL = 1
+    HORIZONTAL = 0
+
+
+class WxHelper:
+    # def __init__(self, app, panel):
+
+
+    @staticmethod
+    def GetBitmap(path, size_x=None, size_y=None):
+        image = wx.Bitmap.ConvertToImage(wx.Bitmap(path, wx.BITMAP_TYPE_ANY))
+        if size_x is not None and size_y is not None:
+            image = image.Scale(size_x, size_y, wx.IMAGE_QUALITY_HIGH)
+        return wx.Bitmap(image)
+
+    @staticmethod
+    def InitializeGridBagSizer(padding_x=5, padding_y=5):
+        sizer = wx.GridBagSizer(vgap=padding_y, hgap=padding_x)
+        sizer.SetFlexibleDirection(direction=wx.BOTH)
+        sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
+        return sizer
+
+    @staticmethod
+    def InitializeRadioBox(parent, label, options, orientation=Orientation.VERTICAL):
+        radiobox = wx.RadioBox(parent, wx.ID_ANY, label, wx.DefaultPosition, wx.DefaultSize, options, orientation,
+                               wx.RA_SPECIFY_ROWS)
+        radiobox.SetSelection(0)
+        return radiobox
+
+    @staticmethod
+    def InitializeButton(app, parent, label, event_function=None, size_x=None, size_y=None):
+        button = wx.Button(parent, wx.ID_ANY, label, wx.DefaultPosition, wx.DefaultSize, 0)
+        if size_x is not None and size_y is not None:
+            button.SetMinSize(wx.Size(size_x, size_y))
+            button.SetMaxSize(wx.Size(size_x, size_y))
+        if event_function is not None:
+            app.Bind(wx.EVT_BUTTON, event_function, button)
+        return button
+
+    @staticmethod
+    def GetLabel(parent, text):
+        return wx.StaticText(parent, wx.ID_ANY, text)
+
+
 class VisualH2OWindow(wx.Frame):
     def __init__(self, parent, id, title):
         ###########################################
         # Declare/populate variables, wx objects  #
         ###########################################
         self.MAIN_WINDOW_SIZE = (940, 860)
+        self.WX_MONOSPACE = wx.Font(9, 75, 90, 90, False, "Inconsolata")
         self.ActionManager = ActionManager()
         self.ActionManager.__output__file = PERSIST_OP_FILE
 
         self.ActiveOdmConnection = None  # type: ServiceManager
-        self.ActiveHydroshare = None     # type: HydroShareUtility
+        self.ActiveHydroshare = None  # type: HydroShareUtility
 
-        self._series_dict = {}           # type: dict[int, Series]
-        self._resources = None           # type: list[HydroShareResource]
+        self._series_dict = {}  # type: dict[int, Series]
+        self._resources = None  # type: list[HydroShareResource]
 
         try:
             self.LoadData()
@@ -50,15 +125,16 @@ class VisualH2OWindow(wx.Frame):
             print "This looks like a first run"
 
         # Widgets
-        self.status_gauge = None               # type: wx.Gauge
-        self.select_database_choice = None     # type: wx.Choice
-        self.select_hydroshare_choice = None   # type: wx.Choice
-        self.mapping_grid = None               # type: H20Widget
-        self.dataset_prefix_input = None       # type: wx.TextCtrl
-        self.available_series_listbox = None   # type: wx.ListBox
+        self.status_gauge = None  # type: wx.Gauge
+        self.select_database_choice = None  # type: wx.Choice
+        self.select_hydroshare_choice = None  # type: wx.Choice
+        self.mapping_grid = None  # type: H20Widget
+        self.dataset_prefix_input = None  # type: wx.TextCtrl
+        self.available_series_listbox = None  # type: wx.ListBox
 
         # just technicalities, honestly
-        wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX, size=self.MAIN_WINDOW_SIZE)
+        wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX,
+                          size=self.MAIN_WINDOW_SIZE)
         self.parent = parent
         self.Centre()
         self._build_main_window()
@@ -177,7 +253,8 @@ class VisualH2OWindow(wx.Frame):
 
     def _list_saved_databse_connections(self):
         if len(self.ActionManager.DatabaseConnections) > 0:
-            return ['Select a connection'] + [connection for connection in self.ActionManager.DatabaseConnections.keys()]
+            return ['Select a connection'] + [connection for connection in
+                                              self.ActionManager.DatabaseConnections.keys()]
         else:
             return ['No saved connections']
 
@@ -185,10 +262,12 @@ class VisualH2OWindow(wx.Frame):
         pass
 
     def on_edit_database(self, event, connections=None):
-        result = DatabaseConnectionDialog(self, self.ActionManager.DatabaseConnections, self.select_database_choice.GetCurrentSelection()).ShowModal()
+        result = DatabaseConnectionDialog(self, self.ActionManager.DatabaseConnections,
+                                          self.select_database_choice.GetCurrentSelection()).ShowModal()
 
     def on_edit_hydroshare(self, event, accounts=None):
-        result = HydroShareAccountDialog(self, self.ActionManager.HydroShareConnections, self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
+        result = HydroShareAccountDialog(self, self.ActionManager.HydroShareConnections,
+                                         self.select_hydroshare_choice.GetCurrentSelection()).ShowModal()
 
     def on_database_chosen(self, event):
         self.available_series_listbox.Clear()
@@ -240,19 +319,25 @@ class VisualH2OWindow(wx.Frame):
 
         self.available_series_listbox.Clear()
         for series in self._series_dict.values():
-            self.available_series_listbox.Append(self.SeriesToString(series))
+            self.available_series_listbox.Append(series_to_string(series))
 
         self.remove_from_selected_button.Enable()
         self.add_to_selected_button.Enable()
 
     def _build_category_context_menu(self, selected_item, evt_parent):
         series_category_menu = wx.Menu()
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Site: Select All", wx.EmptyString, wx.ITEM_NORMAL))
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Site: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Variable: Select All", wx.EmptyString, wx.ITEM_NORMAL))
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"Variable: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"QC Code: Select All", wx.EmptyString, wx.ITEM_NORMAL))
-        series_category_menu.Append(wx.MenuItem(series_category_menu, wx.ID_ANY, u"QC Code: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"Site: Select All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"Site: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"Variable: Select All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"Variable: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"QC Code: Select All", wx.EmptyString, wx.ITEM_NORMAL))
+        series_category_menu.Append(
+            wx.MenuItem(series_category_menu, wx.ID_ANY, u"QC Code: Deselect All", wx.EmptyString, wx.ITEM_NORMAL))
 
         if evt_parent == 'Selected Listbox':
             listbox = self.selected_series_listbox
@@ -260,11 +345,13 @@ class VisualH2OWindow(wx.Frame):
             listbox = self.available_series_listbox
 
         for item in series_category_menu.GetMenuItems():
-            self.Bind(wx.EVT_MENU, partial(self._category_selection, control=listbox, direction=item.GetText(), curr_index=selected_item), item)
+            self.Bind(wx.EVT_MENU, partial(self._category_selection, control=listbox, direction=item.GetText(),
+                                           curr_index=selected_item), item)
         return series_category_menu
 
     def _move_to_selected_series(self, event):
-        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(0) == 'No Selected Series':
+        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(
+                0) == 'No Selected Series':
             self.selected_series_listbox.Delete(0)
 
         selected = [self.available_series_listbox.GetString(i) for i in self.available_series_listbox.GetSelections()]
@@ -276,7 +363,8 @@ class VisualH2OWindow(wx.Frame):
             self.available_series_listbox.Append('No Available Series')
 
     def _move_from_selected_series(self, event):
-        if len(self.available_series_listbox.Items) == 1 and self.available_series_listbox.GetString(0) == 'No Available Series':
+        if len(self.available_series_listbox.Items) == 1 and self.available_series_listbox.GetString(
+                0) == 'No Available Series':
             self.available_series_listbox.Delete(0)
 
         selected = [self.selected_series_listbox.GetString(i) for i in self.selected_series_listbox.GetSelections()]
@@ -286,7 +374,6 @@ class VisualH2OWindow(wx.Frame):
 
         if len(self.selected_series_listbox.Items) == 0:
             self.selected_series_listbox.Append('No Selected Series')
-
 
     def OnAvailableCategoryRightClick(self, event):
         evt_pos = event.GetPosition()
@@ -337,7 +424,8 @@ class VisualH2OWindow(wx.Frame):
         if len(self.selected_series_listbox.Items) == 0:
             self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
             return
-        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(0) == 'No Selected Series':
+        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(
+                0) == 'No Selected Series':
             self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
             return
         if self.select_hydroshare_choice.GetSelection() == 0:
@@ -347,19 +435,18 @@ class VisualH2OWindow(wx.Frame):
             self.OnPrintLog('Invalid options - please select a destination HydroShare resource')
             return
 
-
-        string_result = 'Marked {} series for upload to {}'.format(len(self.selected_series_listbox.Items), self.select_destination_choice.GetStringSelection())
+        string_result = 'Marked {} series for upload to {}'.format(len(self.selected_series_listbox.Items),
+                                                                   self.select_destination_choice.GetStringSelection())
         self.log_message_listbox.Append(string_result)
         curr_dataset = H2ODataset(
-                name=self.dataset_name_input.Value,
-                odm_series=[int(RE_SERIES_INFO.match(item).groupdict()['id']) for item in self.selected_series_listbox.Items],
-                hs_resource=self.select_hydroshare_choice.GetStringSelection(),
-                odm_db_name=self.select_database_choice.GetStringSelection(),
-                chunk_by_series=self.grouping_radio_buttons.GetSelection() == 1,
-                chunk_by_year=self.chunk_checkbox.Value
+            name=self.dataset_name_input.Value,
+            odm_series=[int(RE_SERIES_INFO.match(item).groupdict()['id']) for item in
+                        self.selected_series_listbox.Items],
+            hs_resource=self.select_hydroshare_choice.GetStringSelection(),
+            odm_db_name=self.select_database_choice.GetStringSelection(),
+            chunk_by_series=self.grouping_radio_buttons.GetSelection() == 1,
+            chunk_by_year=self.chunk_checkbox.Value
         )
-
-
 
     def _build_main_window(self):
         ######################################
@@ -367,19 +454,10 @@ class VisualH2OWindow(wx.Frame):
         ######################################
         self.panel = wx.Panel(self, wx.ID_ANY)
         main_sizer = wx.BoxSizer(wx.VERTICAL)
-        connections_sizer = wx.GridBagSizer(vgap=5, hgap=5)
-        selection_label_sizer = wx.GridBagSizer(vgap=5, hgap=5)
-        dataset_resource_sizer = wx.GridBagSizer(vgap=5, hgap=5)
-        action_status_sizer = wx.GridBagSizer(vgap=5, hgap=5)
-
-        connections_sizer.SetFlexibleDirection(direction=wx.BOTH)
-        connections_sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
-        selection_label_sizer.SetFlexibleDirection(direction=wx.BOTH)
-        selection_label_sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
-        dataset_resource_sizer.SetFlexibleDirection(direction=wx.BOTH)
-        dataset_resource_sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
-        action_status_sizer.SetFlexibleDirection(direction=wx.BOTH)
-        action_status_sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
+        connections_sizer = WxHelper.InitializeGridBagSizer()
+        selection_label_sizer = WxHelper.InitializeGridBagSizer()
+        dataset_resource_sizer = WxHelper.InitializeGridBagSizer()
+        action_status_sizer = WxHelper.InitializeGridBagSizer()
 
         ######################################
         #   Build connection details sizer   #
@@ -394,127 +472,136 @@ class VisualH2OWindow(wx.Frame):
         self.select_database_choice.SetSelection(0)
         self.select_hydroshare_choice.SetSelection(0)
 
-        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, accounts=self.ActionManager.HydroShareConnections), edit_hydroshare_button)
-        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_database, connections=self.ActionManager.DatabaseConnections), edit_database_button)
+        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_hydroshare, accounts=self.ActionManager.HydroShareConnections),
+                  edit_hydroshare_button)
+        self.Bind(wx.EVT_BUTTON, partial(self.on_edit_database, connections=self.ActionManager.DatabaseConnections),
+                  edit_database_button)
         self.Bind(wx.EVT_CHOICE, self.on_hydroshare_chosen, self.select_hydroshare_choice)
         self.Bind(wx.EVT_CHOICE, self.on_database_chosen, self.select_database_choice)
 
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a database connection'), pos=(0, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=7)
-        connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
-        connections_sizer.Add(edit_database_button, pos=(1, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=7)
+        connections_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(0, 0),
+                              span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=7)
+        connections_sizer.Add(self.select_database_choice, pos=(1, 0), span=(1, 4),
+                              flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        connections_sizer.Add(edit_database_button, pos=(1, 4), span=(1, 1),
+                              flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=7)
 
-        connections_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Select a HydroShare account'), pos=(0, 8), span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=15)
-        connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 8), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=15)
-        connections_sizer.Add(edit_hydroshare_button, pos=(1, 12), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=15)
+        connections_sizer.Add(self.GetLabel(u'Select a HydroShare account'), pos=(0, 8),
+                              span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=15)
+        connections_sizer.Add(self.select_hydroshare_choice, pos=(1, 8), span=(1, 4),
+                              flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=15)
+        connections_sizer.Add(edit_hydroshare_button, pos=(1, 12), span=(1, 1),
+                              flag=wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT, border=15)
 
         ######################################
         # Build selection sizer and objects  #
         ######################################
 
-        self.available_series_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, ['No Available Series'], wx.LB_EXTENDED)
+        self.available_series_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+                                                   ['No Available Series'], wx.LB_EXTENDED)
         self.available_series_listbox.SetMinSize(wx.Size(375, 200))
-        self.available_series_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
+        self.available_series_listbox.SetFont(self.WX_MONOSPACE)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnAvailableCategoryRightClick, self.available_series_listbox)
 
-        self.selected_series_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, ['No Selected Series'], wx.LB_EXTENDED)
+        self.selected_series_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+                                                  ['No Selected Series'], wx.LB_EXTENDED)
         self.selected_series_listbox.SetMinSize(wx.Size(375, 200))
-        self.selected_series_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
+        self.selected_series_listbox.SetFont(self.WX_MONOSPACE)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnSelectedCategoryRightClick, self.selected_series_listbox)
 
-        orientation = 1
+        self.grouping_radio_buttons = WxHelper.InitializeRadioBox(self.panel, u"Series File Grouping",
+                                                                  [u"Single File for all series",
+                                                                   u"One file per series"])
 
-        self.grouping_radio_buttons_Choices = [u"Single File for all series", u"One file per series"]
-        self.grouping_radio_buttons = wx.RadioBox(self.panel, wx.ID_ANY, u"Series File Grouping", wx.DefaultPosition, wx.DefaultSize, self.grouping_radio_buttons_Choices, orientation, wx.RA_SPECIFY_ROWS)
-        self.grouping_radio_buttons.SetSelection(0)
-        self.grouping_radio_buttons.SetHelpText(u"Single file: All selected time series will be dumped to a shared CSV file.\n"
-                                      u"Multi-file: All selected time series will be contained in their own respective CSV file.")
+        self.chunk_checkbox = wx.CheckBox(self.panel, wx.ID_ANY, u"Chunk file(s) by year", wx.Point(-1, -1),
+                                          wx.DefaultSize, 0)
 
-        self.chunk_checkbox = wx.CheckBox(self.panel, wx.ID_ANY, u"Chunk file(s) by year", wx.Point(-1, -1), wx.DefaultSize, 0)
-
-        hs_radio_options = [u"Create new resource from template", u"Use an existing HydroShare resource"]
-        self.hydroshare_destination_radio = wx.RadioBox(self.panel, wx.ID_ANY, u"HydroShare Resource", wx.DefaultPosition, wx.DefaultSize, hs_radio_options, orientation, wx.RA_SPECIFY_ROWS)
+        self.hydroshare_destination_radio = WxHelper.InitializeRadioBox(self.panel, u"HydroShare Resource",
+                                                                        [u"Create new resource from template",
+                                                                         u"Use an existing HydroShare resource"])
         self.hydroshare_destination_radio.SetSelection(1)
         self.Bind(wx.EVT_RADIOBOX, self._update_target_choices, self.hydroshare_destination_radio)
 
-        select_destination_choiceChoices = ['Please connect to a HydroShare account']
-        self.select_destination_choice = wx.Choice(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, select_destination_choiceChoices, 0)
+        self.select_destination_choice = wx.Choice(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+                                                   ['Please connect to a HydroShare account'], 0)
         self.select_destination_choice.SetMaxSize(wx.Size(-1, 25))
         self.select_destination_choice.SetSelection(0)
 
         # Buttons (and bitmaps) to add or remove series from the active dataset
-        left_arrow = wx.Bitmap('./VisualUpdater/previous_icon.png', wx.BITMAP_TYPE_ANY)
-        image = wx.Bitmap.ConvertToImage(left_arrow)
-        image = image.Scale(20, 20, wx.IMAGE_QUALITY_HIGH)
-        left_arrow = wx.Bitmap(image)
+        left_arrow = WxHelper.GetBitmap('./VisualUpdater/previous_icon.png', 20, 20)
+        right_arrow = WxHelper.GetBitmap('./VisualUpdater/next_icon.png', 20, 20)
 
-        right_arrow = wx.Bitmap('./VisualUpdater/next_icon.png', wx.BITMAP_TYPE_ANY)
-        image = wx.Bitmap.ConvertToImage(right_arrow)
-        image = image.Scale(20, 20, wx.IMAGE_QUALITY_HIGH)
-        right_arrow = wx.Bitmap(image)
-
-        self.add_to_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, right_arrow, wx.DefaultPosition, wx.DefaultSize) #wx.Size(arrow_width + 5, arrow_height + 5))
+        self.add_to_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, right_arrow, wx.DefaultPosition,
+                                                      wx.DefaultSize)
         self.Bind(wx.EVT_BUTTON, self._move_to_selected_series, self.add_to_selected_button)
 
-        self.remove_from_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, left_arrow, wx.DefaultPosition, wx.DefaultSize) # wx.Size(arrow_width + 5, arrow_height + 5))
+        self.remove_from_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, left_arrow, wx.DefaultPosition,
+                                                           wx.DefaultSize)
         self.Bind(wx.EVT_BUTTON, self._move_from_selected_series, self.remove_from_selected_button)
 
         self.remove_from_selected_button.Disable()
         self.add_to_selected_button.Disable()
 
         # Dataset action buttons
-        self.save_dataset_button = wx.Button(self.panel, wx.ID_ANY, u" Save Dataset ", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.save_dataset_button.SetMinSize(wx.Size(100, 30))
-        self.save_dataset_button.SetMaxSize(wx.Size(100, 30))
-        self.Bind(wx.EVT_BUTTON, self._save_dataset_clicked, self.save_dataset_button)
-
-        self.copy_dataset_button = wx.Button(self.panel, wx.ID_ANY, u" Copy Dataset ", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.copy_dataset_button.SetMinSize(wx.Size(100, 30))
-        self.copy_dataset_button.SetMaxSize(wx.Size(100, 30))
-        self.Bind(wx.EVT_BUTTON, self._save_dataset_clicked, self.save_dataset_button)
-
-        self.delete_dataset_button = wx.Button(self.panel, wx.ID_ANY, u"Delete Dataset", wx.DefaultPosition, wx.DefaultSize, 0)
-        self.delete_dataset_button.SetMinSize(wx.Size(100, 30))
-        self.delete_dataset_button.SetMaxSize(wx.Size(100, 30))
-
-        self.Bind(wx.EVT_BUTTON, self._save_dataset_clicked, self.save_dataset_button)
+        self.save_dataset_button = WxHelper.InitializeButton(self, self.panel, u" Save Dataset ",
+                                                             self._save_dataset_clicked, 100, 30)
+        self.copy_dataset_button = WxHelper.InitializeButton(self, self.panel, u" Copy Dataset ",
+                                                             self._save_dataset_clicked, 100, 30)
+        self.delete_dataset_button = WxHelper.InitializeButton(self, self.panel, u"Delete Dataset",
+                                                               self._save_dataset_clicked, 100, 30)
 
         # Dataset choice and input
-        self.dataset_selector_choice = wx.Choice(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize, ['Create new dataset'], 1)
+        self.dataset_selector_choice = wx.Choice(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
+                                                 ['Create new dataset'], 1)
         self.dataset_selector_choice.SetSelection(0)
         self.Bind(wx.EVT_CHOICE, self.OnDatasetChoiceModified, self.dataset_selector_choice)
 
-        self.dataset_name_input = wx.TextCtrl(self.panel, wx.ID_ANY, u'', wx.DefaultPosition, wx.DefaultSize, 7, validator=CharValidator(CV_WORD))
+        self.dataset_name_input = wx.TextCtrl(self.panel, wx.ID_ANY, u'', wx.DefaultPosition, wx.DefaultSize, 7,
+                                              validator=CharValidator(PATTERNS.CV_WORD))
         self.dataset_name_input.SetMinSize(wx.Size(275, 25))
-        # self.dataset_name_input.SetMaxSize(wx.Size(250, 25))
-        # self.Bind(wx.EVT_TEXT, self.UpdateSeriesInGrid, self.dataset_prefix_input)
 
         ###################################################
         # Most things, but with the options all on left   #
         ###################################################
 
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Available Series'), pos=(4, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Series'), pos=(4, 5), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
-        dataset_resource_sizer.Add(self.available_series_listbox, pos=(5, 0), span=(6, 4), flag=wx.ALIGN_CENTER | wx.LEFT | wx.EXPAND, border=7)
-        dataset_resource_sizer.Add(self.selected_series_listbox, pos=(5, 5), span=(6, 4), flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND , border=7)
-        dataset_resource_sizer.Add(self.add_to_selected_button, pos=(7, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=2)
-        dataset_resource_sizer.Add(self.remove_from_selected_button, pos=(8, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, border=2)
+        dataset_resource_sizer.Add(self.GetLabel(u'Available Series'), pos=(4, 0), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
+        dataset_resource_sizer.Add(self.GetLabel(u'Selected Series'), pos=(4, 5), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
+        dataset_resource_sizer.Add(self.available_series_listbox, pos=(5, 0), span=(6, 4),
+                                   flag=wx.ALIGN_CENTER | wx.LEFT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.selected_series_listbox, pos=(5, 5), span=(6, 4),
+                                   flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND, border=7)
+        dataset_resource_sizer.Add(self.add_to_selected_button, pos=(7, 4), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=2)
+        dataset_resource_sizer.Add(self.remove_from_selected_button, pos=(8, 4), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, border=2)
 
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Datasets'), pos=(0, 0), span=(1, 1), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
-        dataset_resource_sizer.Add(self.dataset_selector_choice, pos=(1, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
-        dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Name'), pos=(0, 5), span=(1, 1), flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND | wx.TOP, border=7)
-        dataset_resource_sizer.Add(self.dataset_name_input, pos=(1, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT, border=7)
+        dataset_resource_sizer.Add(self.GetLabel(u'Datasets'), pos=(0, 0), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
+        dataset_resource_sizer.Add(self.dataset_selector_choice, pos=(1, 0), span=(1, 4),
+                                   flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        dataset_resource_sizer.Add(self.GetLabel(u'Name'), pos=(0, 5), span=(1, 1),
+                                   flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND | wx.TOP, border=7)
+        dataset_resource_sizer.Add(self.dataset_name_input, pos=(1, 5), span=(1, 4),
+                                   flag=wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT, border=7)
 
-        dataset_resource_sizer.Add(self.hydroshare_destination_radio, pos=(2, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.ALL, border=5)
-        dataset_resource_sizer.Add(self.select_destination_choice, pos=(3, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=5)
+        dataset_resource_sizer.Add(self.hydroshare_destination_radio, pos=(2, 0), span=(1, 4),
+                                   flag=wx.ALIGN_LEFT | wx.ALL, border=5)
+        dataset_resource_sizer.Add(self.select_destination_choice, pos=(3, 0), span=(1, 4),
+                                   flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=5)
 
-        dataset_resource_sizer.Add(self.grouping_radio_buttons, pos=(2, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.ALL, border=7)
-        dataset_resource_sizer.Add(self.chunk_checkbox,         pos=(2, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.RIGHT, border=7)
+        dataset_resource_sizer.Add(self.grouping_radio_buttons, pos=(2, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.ALL,
+                                   border=7)
+        dataset_resource_sizer.Add(self.chunk_checkbox, pos=(2, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.RIGHT,
+                                   border=7)
 
-        # dataset_resource_sizer.Add(wx.StaticText(self.panel, wx.ID_ANY, 'Selected Dataset'), pos=(3, 5), span=(1, 1), flag=wx.ALIGN_CENTER | wx.TOP | wx.EXPAND, border=5)
-        dataset_resource_sizer.Add(self.delete_dataset_button, pos=(3, 8), span=(1, 1), flag=wx.ALIGN_LEFT | wx.ALL, border=2)
-        dataset_resource_sizer.Add(self.copy_dataset_button, pos=(3, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
-        dataset_resource_sizer.Add(self.save_dataset_button, pos=(3, 6), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
-
+        dataset_resource_sizer.Add(self.delete_dataset_button, pos=(3, 8), span=(1, 1), flag=wx.ALIGN_LEFT | wx.ALL,
+                                   border=2)
+        dataset_resource_sizer.Add(self.copy_dataset_button, pos=(3, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL,
+                                   border=2)
+        dataset_resource_sizer.Add(self.save_dataset_button, pos=(3, 6), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL,
+                                   border=2)
 
         ######################################
         # Build action sizer and logging box #
@@ -529,15 +616,20 @@ class VisualH2OWindow(wx.Frame):
         self.status_gauge.SetValue(0)
         self.status_gauge.SetMinSize(wx.Size(550, 25))
 
-        self.log_message_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.Size(-1, 110), [], wx.LB_EXTENDED)
+        self.log_message_listbox = wx.ListBox(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.Size(-1, 110), [],
+                                              wx.LB_EXTENDED)
         self.log_message_listbox.SetFont(wx.Font(9, 75, 90, 90, False, "Inconsolata"))
         self.log_message_listbox.SetMinSize(wx.Size(770, 75))
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnAvailableCategoryRightClick, self.log_message_listbox)
 
-        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10), flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
+        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND,
+                                border=7)
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1),
+                                flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
+        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND,
+                                border=7)
+        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10),
+                                flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -557,18 +649,16 @@ class VisualH2OWindow(wx.Frame):
         file_menu = wx.Menu()
         file_menu.Append(wx.ID_ABOUT, "&About", " Information about this program")
 
-        resource_template_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage Resource Templates')
-        self.Bind(wx.EVT_MENU, self.OnEditResourceTemplates, resource_template_menu_item)
-        file_menu.Append(resource_template_menu_item)
-
-
         odm_connection_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage ODM Connections')
-        self.Bind(wx.EVT_MENU, self.on_edit_database, odm_connection_menu_item)
-        file_menu.Append(odm_connection_menu_item)
-
-
+        resource_template_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage Resource Templates')
         hydroshare_account_menu_item = wx.MenuItem(file_menu, wx.ID_ANY, u'Manage HydroShare Accounts')
+
+        self.Bind(wx.EVT_MENU, self.on_edit_database, odm_connection_menu_item)
+        self.Bind(wx.EVT_MENU, self.OnEditResourceTemplates, resource_template_menu_item)
         self.Bind(wx.EVT_MENU, self.on_edit_hydroshare, hydroshare_account_menu_item)
+
+        file_menu.Append(odm_connection_menu_item)
+        file_menu.Append(resource_template_menu_item)
         file_menu.Append(hydroshare_account_menu_item)
 
         file_menu.AppendSeparator()
@@ -577,7 +667,7 @@ class VisualH2OWindow(wx.Frame):
         # Menu bar
         menuBar = wx.MenuBar()
         menuBar.Append(file_menu, "&File")  # Adding the "filemenu" to the MenuBar
-        self.SetMenuBar(menuBar)            # Adding the MenuBar to the Frame content.
+        self.SetMenuBar(menuBar)  # Adding the MenuBar to the Frame content.
 
         self.panel.SetSizerAndFit(main_sizer)
         self.SetAutoLayout(True)
@@ -585,7 +675,6 @@ class VisualH2OWindow(wx.Frame):
         self.panel.Fit()
         self.Fit()
         self.Show(True)
-
 
     def OnEditResourceTemplates(self, event):
         result = HydroShareResourceTemplateDialog(self, self.ActionManager.ResourceTemplates).ShowModal()
@@ -605,3 +694,6 @@ class VisualH2OWindow(wx.Frame):
             self.dataset_name_input.Value = self.dataset_selector_choice.GetStringSelection()
 
         event.Skip()
+
+    def GetLabel(self, label):
+        return WxHelper.GetLabel(self.panel, label)

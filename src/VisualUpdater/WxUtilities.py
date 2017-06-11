@@ -7,6 +7,37 @@ class Orientation:
     HORIZONTAL = 0
 
 
+class GaugeFrame(wx.Frame):
+    def __init__(self):
+        wx.Frame.__init__(self, None, -1, 'Gauge Example', size=(350, 150))
+        panel = wx.Panel(self, -1)
+        self.fool = 0
+        self.gspeed = 200
+        self.gauge = wx.Gauge(panel, -1, 50, (20, 50), (250, 25))
+        self.timer = wx.Timer(self)
+        self.timer.Start(self.gspeed)
+        self.Bind(wx.EVT_TIMER, self.TimerHandler)
+
+    def __del__(self):
+        self.timer.Stop()
+
+    def TimerHandler(self, event):
+        self.fool = self.fool+1
+        if self.fool == 20:
+            self.fool = 0
+            self.gspeed = self.gspeed - 20
+            if self.gspeed <= 0:
+                self.timer.Stop()
+                self.ShowMessage()
+                self.Close()
+            else:
+                self.timer.Start(self.gspeed)
+        self.gauge.Pulse()
+
+    def ShowMessage(self):
+        wx.MessageBox('Loading Completed', 'Info', wx.OK | wx.ICON_INFORMATION)
+
+
 class WxHelper:
     @staticmethod
     def GetBitmap(path, size_x=None, size_y=None):
@@ -69,9 +100,33 @@ class WxHelper:
         return wx.StaticText(parent, wx.ID_ANY, text)
 
     @staticmethod
-    def AddNewMenuItem(app, menu, label, on_click, return_item=False):
+    def AddNewMenuItem(app, menu, label, on_click=None, return_item=False):
         menu_item = wx.MenuItem(menu, wx.ID_ANY, label)
-        app.Bind(wx.EVT_MENU, on_click, menu_item)
+        if on_click is not None:
+            app.Bind(wx.EVT_MENU, on_click, menu_item)
         menu.Append(menu_item)
         if return_item:
             return menu_item
+
+    @staticmethod
+    def UpdateChoiceControl(control, choices):
+        if control is not None and choices is not None:
+            db_index = control.GetCurrentSelection()
+            db_name = control.GetStringSelection()
+
+            control.Clear()
+            control.SetItems(choices if isinstance(choices, list) else list(choices))
+
+            string_index = control.FindString(db_name)
+            if string_index >= 0:
+                control.SetSelection(string_index)
+            elif db_index < len(control.Items):
+                control.SetSelection(db_index)
+            else:
+                control.SetSelection(0)
+
+    @staticmethod
+    def GetMouseClickIndex(event, control):
+        evt_pos = event.GetPosition()
+        list_pos = control.ScreenToClient(evt_pos)
+        return control.HitTest(list_pos)

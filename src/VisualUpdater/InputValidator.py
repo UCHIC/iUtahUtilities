@@ -11,12 +11,12 @@ class PATTERNS:
     CV_HOSTNAME = CV_ALPHANUMERIC + '.://&'
     CV_USERNAME = CV_ALPHANUMERIC + '_.@'
 
-class CharValidator(wx.PyValidator):
+class CharValidator(wx.Validator):
     ''' Validates data as it is entered into the text controls. '''
 
     #----------------------------------------------------------------------
     def __init__(self, allow, deny=None):
-        wx.PyValidator.__init__(self)
+        wx.Validator.__init__(self)
         self.allowed = allow if allow is not None else ""
         self.denied = deny if deny is not None else ""
         self.Bind(wx.EVT_CHAR, self.OnChar)

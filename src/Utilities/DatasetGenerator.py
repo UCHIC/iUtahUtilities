@@ -30,6 +30,7 @@ service_manager = ServiceManager()
 
 UPDATE_CACHE = True
 
+
 class FileDetails(object):
     def __init__(self, site_code="", site_name="", file_path="", file_name="", variable_names=None):
         self.coverage_start = None
@@ -48,21 +49,27 @@ class FileDetails(object):
 
 
 class H2ODataset:
-    def __init__(self, name='', odm_series=None, hs_resource='', odm_db_name='', chunk_by_series=False, chunk_by_year=False):
-        self.name = name                                                # type: str
+    def __init__(self, name='', odm_series=None, destination_resource='', hs_account_name='', odm_db_name='',
+                 create_resource=False, single_file=False, chunk_by_year=False):
+        self.name = name  # type: str
         self.odm_series = odm_series if odm_series is not None else {}  # type: dict # {'odm_db_name': [1, 2, 4]}
-        self.hs_resource = hs_resource                                  # type: HydroShareResource
-        self.odm_db_name = odm_db_name                                  # type: HydroShareResource
-        self.chunk_by_series = chunk_by_series                          # type: bool
-        self.chunk_by_year = chunk_by_year                              # type: bool
+        self.destination_resource = destination_resource  # type: str
+        self.hs_account_name = hs_account_name  # type: str
+        self.odm_db_name = odm_db_name  # type: str
+        self.create_resource = create_resource  # type: bool
+        self.single_file = single_file  # type: bool
+        self.chunk_by_year = chunk_by_year  # type: bool
 
     def __dict__(self):
-        return {'dataset_name': self.name, 'odm_series': self.odm_series, 'hs_resource': self.hs_resource,
-                'chunk_by_series': self.chunk_by_series, 'chunk_by_year': self.chunk_by_year,
+        return {'name': self.name, 'odm_series': self.odm_series, 'destination_resource': self.destination_resource,
+                'hs_account_name': self.hs_account_name, 'create_resource': self.create_resource,
+                'single_file': self.single_file, 'chunk_by_year': self.chunk_by_year,
                 'odm_db_name': self.odm_db_name}
 
     def __str__(self):
-        return 'Dataset {} with {} series and destination resource {}'.format(self.name, len(self.odm_series), self.hs_resource)
+        return 'Dataset {} with {} series and destination resource {}'.format(self.name, len(self.odm_series),
+                                                                              self.destination_resource)
+
 
 def _OdmDatabaseConnectionTestTimed(queue):
     db_auth = queue.get(True)
@@ -70,6 +77,7 @@ def _OdmDatabaseConnectionTestTimed(queue):
         queue.put(True)
     else:
         queue.put(False)
+
 
 class OdmDatasetUtility:
     def __init__(self, values=None):
@@ -113,7 +121,6 @@ class OdmDatasetUtility:
 
 
 def GenerateDatasetFromSeries():
-
     pass
 
 
@@ -163,6 +170,7 @@ def dataParser(dump_loc, data_type, year):
         if len(site_files_changed) > 0:
             updated_files[site_code] = site_files_changed
     return updated_files
+
 
 def cachedVersionIsOutdated(cached_file, new_file):
     """
@@ -227,6 +235,7 @@ def createFile(self, filepath):
         print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
         return None
 
+
 class GenericDataset:
     def __init__(self, dump_location, location, site, year, file_cache=None):
         # type: (str, str, str, str, dict) -> QC1_CsvLocalDataset
@@ -246,7 +255,6 @@ class GenericDataset:
         self.csv_columns = ["DataValue", "CensorCode", "QualifierCode"]
 
         self.exception_msg = " SiteName: {site}, year: {year}, Error : {error}"
-
 
     def writeToFile(self, series_service, series_list):
         """
@@ -347,7 +355,6 @@ class GenericDataset:
 
         return site_files
 
-
     def generateHeader(self):
         """
         :return: Returns a string to be inserted as the CSV file's header
@@ -381,6 +388,7 @@ class GenericDataset:
             file_str += "# " + code.ljust(7) + description + "\n"
         file_str += "#\n"
         return file_str
+
 
 def generateSiteInformation(site, network):
     """

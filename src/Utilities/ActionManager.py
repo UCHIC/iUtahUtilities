@@ -40,7 +40,7 @@ class ActionManager:
         self.HydroShareConnections = hydroshare_connections if hydroshare_connections is not None else {}   # type: dict[str, HydroShareAccountDetails]
         self.DatabaseConnections = odm_connections if odm_connections is not None else {}                   # type: dict[str, OdmDatasetUtility]
         self.ResourceTemplates = resource_templates if resource_templates is not None else {}               # type: dict[str, ResourceTemplate]
-        self.Datasets = datasets if datasets is not None else []                                            # type: list[H2ODataset]
+        self.Datasets = datasets if datasets is not None else {}                                            # type: dict[str, H2ODataset]
         self.__output__file = PERSIST_OP_FILE if outfile is None else outfile
 
     def __str__(self):

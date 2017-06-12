@@ -30,9 +30,6 @@ service_manager = ServiceManager()
 UPDATE_CACHE = True
 
 
-
-
-
 class OdmDatabaseWrapper:
     def __init__(self, database_details):
         self.DatabaseDetails = database_details

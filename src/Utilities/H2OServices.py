@@ -37,7 +37,7 @@ class H2ODefaults:
     SETTINGS_FILE_NAME = './operations_file.json'.format()
     PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
     DATASET_DIR = '{}/H2O_dataset_files/'.format(PROJECT_DIR)
-    LOGFILE_DIR = '{}/logs/'.format(PROJECT_DIR)
+    LOGFILE_DIR = '{}/../logs/'.format(PROJECT_DIR)
     GUI_PUBLICATIONS = {
         'logger': lambda message: {'message': message},
         'Dataset_Started': lambda done, total, name: {'message': '{}/{}: Creating dataset {}'.format(done, total, name)},
@@ -60,7 +60,6 @@ class H2OLogger:
         # if self.log_to_gui:
         #     pub.sendMessage('logger', message=message)
 
-
 class H2OService:
     def __init__(self, hydroshare_connections=None, odm_connections=None, resource_templates=None, datasets=None,
                  subscriptions=None):
@@ -70,8 +69,6 @@ class H2OService:
         self.Datasets = datasets if datasets is not None else {}  # type: dict[str, H2ODataset]
         self.Subscriptions = subscriptions if subscriptions is not None else [] # type: list[str]
 
-        self.FileGenerator = DatasetGenerator(H2ODefaults.DATASET_DIR)
-        self.OdmService = ServiceManager()
         self._initialize_directories([H2ODefaults.DATASET_DIR, H2ODefaults.LOGFILE_DIR])
         sys.stdout = H2OLogger(log_to_gui='logger' in self.Subscriptions)
 
@@ -86,49 +83,61 @@ class H2OService:
 
         dataset_count = len(self.Datasets)
         current_dataset = 0
-        for dataset in self.Datasets.values():
+        for name, dataset in self.Datasets.iteritems():
             self._thread_checkpoint()
 
             current_dataset += 1
             self.NotifyVisualH20('Dataset_Started', current_dataset, dataset_count, dataset.name)
 
             odm_service = ServiceManager()
-            odm_service._current_connection =self.DatabaseConnections[dataset.odm_db_name].ToDict()
+            odm_service._current_connection = self.DatabaseConnections[dataset.odm_db_name].ToDict()
             series_service = odm_service.get_series_service()
 
-            # series_service = self._get_series_service()
-            series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series] # type: Series
-            for series in series_list:
-                self._thread_checkpoint()
-                print str(series.id).ljust(6) + series.site_code.ljust(22) + series.variable_code.ljust(25) + ' QC {}'.format(series.quality_control_level_code)
+            series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series]  # type: Series
+            cols_to_use = DatasetHelper.GetCsvColumns(series_list)
+            print 'Dataset: {}\n{}\n'.format(dataset.name, cols_to_use)
 
             self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count, dataset.name)
+
+
+    # Write series to their own files
+
+    # Write series to one file
+
+    # Chunk files by year
+
+    #
+
 
     def StopActions(self):
         if self.ThreadedFunction is not None: # and self.ThreadedFunction.is_alive():
             self.ThreadedFunction.join(1)
             self.ThreadKiller = None
 
-    def GenerateDatasetFiles(self):
+    def GenerateDatasetFiles(self, blocking=False):
+        if blocking:
+            return self._threaded_dataset_generation()
         if self.ThreadedFunction is not None and self.ThreadedFunction.is_alive():
             self.ThreadedFunction.join(3)
-        self.ThreadKiller = ['Coninue']
+        self.ThreadKiller = ['Continue']
         self.ThreadedFunction = Thread(target=self._threaded_dataset_generation)
         self.ThreadedFunction.start()
 
-    def UploadDatasetsToHydroShare(self):
+    def UploadDatasetsToHydroShare(self, blocking=False):
+        # if blocking:
+        #     return
         if self.ThreadedFunction is not None and self.ThreadedFunction.is_alive():
             self.ThreadedFunction.join(3)
+        self.ThreadKiller = ['Continue']
         self.ThreadedFunction = Thread(target=self._threaded_dataset_generation)
         self.ThreadedFunction.start()
 
     def NotifyVisualH20(self, pub_key, *args):
         if pub_key in self.Subscriptions and pub_key in H2ODefaults.GUI_PUBLICATIONS.keys():
-            print 'Notifying Visual H2O regarding {}'.format(pub_key)
             result = H2ODefaults.GUI_PUBLICATIONS[pub_key](*args)
             pub.sendMessage(pub_key, **result)
-        else:
-            print('We can\'t publish {}, no one is subscribed'.format(pub_key))
+        # else:
+        #     print('We can\'t publish {}, no one is subscribed'.format(pub_key))
 
     def to_json(self):
         return {'odm_connections': self.DatabaseConnections,

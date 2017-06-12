@@ -13,8 +13,9 @@ import wx.grid
 import jsonpickle
 from pubsub import pub
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility, ResourceTemplate
-from Utilities.DatasetGenerator import OdmDatasetUtility
-from Utilities.ActionManager import *
+from Utilities.DatasetGenerator import OdmDatasetConnection
+from Utilities.H2OServices import H2OService, H2ODataset
+# from Utilities.H2OServices import *
 from Utilities.Odm2Wrapper import *
 from GAMUTRawData.odmservices import ServiceManager
 from EditConnectionsDialog import DatabaseConnectionDialog
@@ -33,28 +34,23 @@ series_matcher_dict = {
     'QC Code': lambda series_dict, check_series: series_dict['qc'] == check_series.quality_control_level_code
 }
 
-
 class VisualH2OWindow(wx.Frame):
+
     def __init__(self, parent, id, title):
         ###########################################
         # Declare/populate variables, wx objects  #
         ###########################################
         self.MAIN_WINDOW_SIZE = (940, 860)
         self.WX_MONOSPACE = wx.Font(9, 75, 90, 90, False, "Inconsolata")
-        self.ActionManager = ActionManager()
-        self.ActionManager.__output__file = PERSIST_OP_FILE
+        self._setup_subscriptions()
+        supported_notifications = ['logger', 'Dataset_Started', 'Dataset_Generated']
+        self.H2OService = H2OService(subscriptions=supported_notifications)
 
         self.ActiveOdmConnection = None  # type: ServiceManager
         self.ActiveHydroshare = None  # type: HydroShareUtility
 
         self._series_dict = {}  # type: dict[int, Series]
         self._resources = None  # type: list[HydroShareResource]
-
-
-        try:
-            self.LoadData()
-        except:
-            print "This looks like a first run"
 
         # Widgets
         self.status_gauge = None  # type: WxHelper.SimpleGauge
@@ -74,49 +70,31 @@ class VisualH2OWindow(wx.Frame):
         self.Fit()
         self.Show(True)
 
+        self.H2OService.LoadData()
         self.UpdateControls()
 
-        ###########################################
-        # Setup subscribers/publishers callbacks  #
-        ###########################################
-        pub.subscribe(self.OnDeleteResourceTemplate, 'hs_resource_remove')
-        pub.subscribe(self.OnSaveResourceTemplate, 'hs_resource_save')
-        pub.subscribe(self.OnSaveHydroShareAuth, 'hs_auth_save')
-        pub.subscribe(self.OnTestHydroShareAuth, 'hs_auth_test')
-        pub.subscribe(self.OnRemoveHydroShareAuth, 'hs_auth_remove')
-        pub.subscribe(self.OnSaveDatabaseAuth, 'db_auth_save')
-        pub.subscribe(self.OnTestDatabaseAuth, 'db_auth_test')
-        pub.subscribe(self.OnRemoveDatabaseAuth, 'db_auth_remove')
-        pub.subscribe(self.OnPrintLog, 'logger')
+    def _setup_subscriptions(self):
+        SUBSCRIPTIONS = [
+            (self.OnDeleteResourceTemplate, 'hs_resource_remove'),
+            (self.OnSaveResourceTemplate, 'hs_resource_save'),
+            (self.OnSaveHydroShareAuth, 'hs_auth_save'),
+            (self.OnTestHydroShareAuth, 'hs_auth_test'),
+            (self.OnRemoveHydroShareAuth, 'hs_auth_remove'),
+            (self.OnSaveDatabaseAuth, 'db_auth_save'),
+            (self.OnTestDatabaseAuth, 'db_auth_test'),
+            (self.OnRemoveDatabaseAuth, 'db_auth_remove'),
+            (self.OnPrintLog, 'logger'),
+            (self.OnPrintLog, 'Dataset_Started'),
+            (self.OnPrintLog, 'Dataset_Generated')
+        ]
 
-    def Start(self):
-        if self.count >= 50:
-            return
-
-    def Stop(self):
-        if self.count == 0 or self.count >= 50 or not self.timer.IsRunning():
-            return
-        self.timer.Stop()
-        wx.Bell()
-
-    def OnTimer(self, event):
-        self.count = self.count +1
-        self.status_gauge.SetValue(self.count)
-        if self.count == 50:
-            self.timer.Stop()
-            self.text.SetLabel("Task Completed")
+        for sub_tuple in SUBSCRIPTIONS:
+            pub.subscribe(sub_tuple[0], sub_tuple[1])
 
     def OnPrintLog(self, message=""):
-        if message is None or not isinstance(message, str) or len(message) == 0:
+        if message is None or not isinstance(message, str) or len(message) <= 1:
             return
-        self.log_message_listbox.Insert(message, 0)
-
-    def SaveData(self):
-        self.UpdateControls()
-        self.ActionManager.SaveData()
-
-    def LoadData(self):
-        self.ActionManager.LoadData()
+        self.log_message_listbox.Insert('{}: {}'.format(datetime.datetime.now().strftime('%H-%M-%S'), message), 0)
 
     def UpdateControls(self, progress=None):
         if progress is not None:
@@ -128,40 +106,40 @@ class VisualH2OWindow(wx.Frame):
     def OnDeleteResourceTemplate(self, result=None):
         if result is None:
             return
-        self.ActionManager.ResourceTemplates.pop(result['selector'], None)
+        self.H2OService.ResourceTemplates.pop(result['selector'], None)
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnSaveResourceTemplate(self, result=None):
         if result is None:
             return
         template = ResourceTemplate(result)
-        self.ActionManager.ResourceTemplates.pop(result['selector'], None)
-        self.ActionManager.ResourceTemplates[template.template_name] = template
+        self.H2OService.ResourceTemplates.pop(result['selector'], None)
+        self.H2OService.ResourceTemplates[template.template_name] = template
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnRemoveDatabaseAuth(self, result=None):
         if result is None:
             return
-        self.ActionManager.DatabaseConnections.pop(result['selector'], None)
+        self.H2OService.DatabaseConnections.pop(result['selector'], None)
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnSaveDatabaseAuth(self, result=None):
         if result is None:
             return
-        connection = OdmDatasetUtility(result)
-        self.ActionManager.DatabaseConnections.pop(result['selector'], None)
-        self.ActionManager.DatabaseConnections[connection.name] = connection
+        connection = OdmDatasetConnection(result)
+        self.H2OService.DatabaseConnections.pop(result['selector'], None)
+        self.H2OService.DatabaseConnections[connection.name] = connection
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnTestDatabaseAuth(self, result=None):
         if result is None:
             pub.sendMessage('db_auth_test_reply', reply='An error occurred, please try again later')
             return
-        db_details = OdmDatasetUtility(result)
+        db_details = OdmDatasetConnection(result)
         if db_details.VerifyConnection():
             pub.sendMessage('db_auth_test_reply', reply='Successfully authenticated!')
         else:
@@ -170,18 +148,18 @@ class VisualH2OWindow(wx.Frame):
     def OnRemoveHydroShareAuth(self, result=None):
         if result is None:
             return
-        self.ActionManager.HydroShareConnections.pop(result['selector'], None)
+        self.H2OService.HydroShareConnections.pop(result['selector'], None)
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnSaveHydroShareAuth(self, result=None):
         if result is None:
             return
         account = HydroShareAccountDetails(result)
-        self.ActionManager.HydroShareConnections.pop(result['selector'], None)
-        self.ActionManager.HydroShareConnections[account.name] = account
+        self.H2OService.HydroShareConnections.pop(result['selector'], None)
+        self.H2OService.HydroShareConnections[account.name] = account
         self.UpdateControls()
-        self.ActionManager.SaveData()
+        self.H2OService.SaveData()
 
     def OnTestHydroShareAuth(self, result=None):
         if result is None:
@@ -197,36 +175,35 @@ class VisualH2OWindow(wx.Frame):
         print result
 
     def _get_dataset_choices(self):
-        if len(self.ActionManager.Datasets) > 0:
-            return ['Create a new dataset'] + list(self.ActionManager.Datasets.keys())
+        if len(self.H2OService.Datasets) > 0:
+            return ['Create a new dataset'] + list(self.H2OService.Datasets.keys())
         else:
             return ['Create a new dataset']
 
     def _get_hydroshare_choices(self):
-        if len(self.ActionManager.HydroShareConnections) > 0:
-            return ['Select an account'] + [account for account in self.ActionManager.HydroShareConnections.keys()]
+        if len(self.H2OService.HydroShareConnections) > 0:
+            return ['Select an account'] + [account for account in self.H2OService.HydroShareConnections.keys()]
         else:
             return ['No saved accounts']
 
     def _get_database_choices(self):
-        if len(self.ActionManager.DatabaseConnections) > 0:
+        if len(self.H2OService.DatabaseConnections) > 0:
             return ['Select a connection'] + [connection for connection in
-                                              self.ActionManager.DatabaseConnections.keys()]
+                                              self.H2OService.DatabaseConnections.keys()]
         else:
             return ['No saved connections']
 
     def on_edit_database(self, event):
-        result = DatabaseConnectionDialog(self, self.ActionManager.DatabaseConnections,
+        result = DatabaseConnectionDialog(self, self.H2OService.DatabaseConnections,
                                           self.database_connection_choice.GetCurrentSelection()).ShowModal()
 
     def on_edit_hydroshare(self, event):
-        result = HydroShareAccountDialog(self, self.ActionManager.HydroShareConnections,
+        result = HydroShareAccountDialog(self, self.H2OService.HydroShareConnections,
                                          self.hydroshare_account_choice.GetCurrentSelection()).ShowModal()
 
     def SetOdmConnection(self, connection):
-        # self.Start()
-        self.OnPrintLog('Starting timer')
-        self.timer.Start(1)
+        busy = wx.BusyInfo("Loading ODM series from database {}".format(connection.name))
+
         if connection.VerifyConnection():
             service_manager._current_connection = connection.ToDict()
             series_service = service_manager.get_series_service()
@@ -236,12 +213,10 @@ class VisualH2OWindow(wx.Frame):
             self.UpdateSeriesInGrid()
         else:
             self.OnPrintLog('Unable to authenticate using connection {}'.format(connection.name))
-        # self.Stop()
-        sleep(2)
-        self.timer.Stop()
-        wx.Bell()
 
     def SetHydroShareConnection(self, account_details):
+        busy = wx.BusyInfo("Loading HydroShare account information for {}".format(account_details.name))
+
         self.ActiveHydroshare = HydroShareUtility()
         if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
             self._resources = self.ActiveHydroshare.getAllResources()
@@ -250,25 +225,22 @@ class VisualH2OWindow(wx.Frame):
             self.OnPrintLog('Unable to authenticate HydroShare account - please check your credentials')
 
     def on_database_chosen(self, event):
-        self.OnPrintLog('Database selected - fetching series')
         self.available_series_listbox.Clear()
         self.selected_series_listbox.Clear()
         if event.GetSelection() > 0:
             self._series_dict.clear()
             selection_string = self.database_connection_choice.GetStringSelection()
-            self.SetOdmConnection(self.ActionManager.DatabaseConnections[selection_string])
+            self.SetOdmConnection(self.H2OService.DatabaseConnections[selection_string])
         else:
             print "No selection made"
-        # event.Skip()
 
     def on_hydroshare_chosen(self, event):
         self._resources = None
         if event.GetSelection() != 0:
             self.OnPrintLog('Connecting to HydroShare')
             account_string = self.hydroshare_account_choice.GetStringSelection()
-            self.SetHydroShareConnection(self.ActionManager.HydroShareConnections[account_string])
+            self.SetHydroShareConnection(self.H2OService.HydroShareConnections[account_string])
         self._update_target_choices()
-        event.Skip()
 
     def UpdateSeriesInGrid(self, event=None):
         if self._series_dict is None or len(self._series_dict) == 0:
@@ -350,7 +322,7 @@ class VisualH2OWindow(wx.Frame):
         elif self.hydroshare_destination_radio.GetSelection() == 1:
             choices = [item.title for item in self._resources]
         else:
-            choices = [str(item) for item in self.ActionManager.ResourceTemplates]
+            choices = [str(item) for item in self.H2OService.ResourceTemplates]
 
         WxHelper.UpdateChoiceControl(self.destination_resource_choice, choices)
         if event is not None:
@@ -358,18 +330,18 @@ class VisualH2OWindow(wx.Frame):
 
     def _delete_dataset_clicked(self, event):
         dataset_name = self.dataset_selector_choice.GetStringSelection()
-        if dataset_name in self.ActionManager.Datasets:
-            self.ActionManager.Datasets.pop(dataset_name, None)
+        if dataset_name in self.H2OService.Datasets:
+            self.H2OService.Datasets.pop(dataset_name, None)
             self.dataset_selector_choice.SetSelection(0)
             WxHelper.UpdateChoiceControl(self.dataset_selector_choice, self._get_dataset_choices())
 
     def _copy_dataset_clicked(self, event):
         dataset_name = self.dataset_selector_choice.GetStringSelection()
-        if dataset_name in self.ActionManager.Datasets:
+        if dataset_name in self.H2OService.Datasets:
             self.dataset_selector_choice.SetSelection(0)
             counter = 1
             new_name = "{}_({})".format(self.dataset_name_input.Value, counter)
-            while new_name in self.ActionManager.Datasets and counter < 10:
+            while new_name in self.H2OService.Datasets and counter < 10:
                 new_name = "{}_({})".format(self.dataset_name_input.Value, counter)
                 counter += 1
             self.dataset_name_input.Value = new_name
@@ -390,11 +362,11 @@ class VisualH2OWindow(wx.Frame):
 
         # if we aren't making a new dataset, let's remove the old one from the dictionary
         dataset_name = self.dataset_selector_choice.GetStringSelection()
-        if self.dataset_selector_choice.GetSelection() != 0 and dataset_name in self.ActionManager.Datasets:
-            self.ActionManager.Datasets.pop(dataset_name, None)
+        if self.dataset_selector_choice.GetSelection() != 0 and dataset_name in self.H2OService.Datasets:
+            self.H2OService.Datasets.pop(dataset_name, None)
 
-        self.ActionManager.Datasets[curr_dataset.name] = curr_dataset
-        self.ActionManager.SaveData()
+        self.H2OService.Datasets[curr_dataset.name] = curr_dataset
+        self.H2OService.SaveData()
         WxHelper.UpdateChoiceControl(self.dataset_selector_choice, self._get_dataset_choices())
         self.dataset_selector_choice.SetStringSelection(curr_dataset.name)
 
@@ -413,6 +385,72 @@ class VisualH2OWindow(wx.Frame):
         else:
             return True
         return False
+
+    def OnEditResourceTemplates(self, event):
+        result = HydroShareResourceTemplateDialog(self, self.H2OService.ResourceTemplates).ShowModal()
+        event.Skip()
+
+    def OnRunScriptClicked(self, event):
+        self.OnPrintLog('Running script')
+        self.H2OService.LoadData()
+        self.H2OService.GenerateDatasetFiles()
+
+    def OnStopScriptClicked(self, event):
+        self.OnPrintLog('Stopping the script')
+        self.H2OService.StopActions()
+
+    def SetAsActiveDataset(self, dataset):
+        """
+
+        :type dataset: H20Dataset
+        """
+        self.OnPrintLog('Fetching information for dataset {}'.format(dataset.name))
+
+        if dataset.odm_db_name != self.database_connection_choice.GetStringSelection():
+            if dataset.odm_db_name in self.H2OService.DatabaseConnections:
+                self.database_connection_choice.SetStringSelection(dataset.odm_db_name)
+                self.SetOdmConnection(self.H2OService.DatabaseConnections[dataset.odm_db_name])
+            else:
+                self.OnPrintLog('Error loading ODM series: Unknown connection {}'.format(dataset.odm_db_name))
+                return
+
+        if dataset.hs_account_name != self.hydroshare_account_choice.GetStringSelection():
+            if dataset.hs_account_name in self.H2OService.HydroShareConnections:
+                self.hydroshare_account_choice.SetStringSelection(dataset.hs_account_name)
+                self.SetHydroShareConnection(self.H2OService.HydroShareConnections[dataset.hs_account_name])
+            else:
+                self.OnPrintLog('HydroShare account error: Unknown connection {}'.format(dataset.hs_account_name))
+                self.hydroshare_account_choice.SetSelection(0)
+                self.OnPrintLog('To resolve, select a HydroShare account and save dataset')
+
+        selected = []
+        available = []
+
+        for id, series in self._series_dict.iteritems():
+            if id in dataset.odm_series:
+                selected.append(series_to_string(series))
+            else:
+                available.append(series_to_string(series))
+
+        self.available_series_listbox.SetItems(available)
+        self.selected_series_listbox.SetItems(selected)
+
+        self.dataset_name_input.Value = dataset.name
+        self.dataset_selector_choice.SetStringSelection(dataset.name)
+        self.hydroshare_destination_radio.SetSelection(0 if dataset.create_resource else 1)
+        self._update_target_choices()  # Update these before we try to set our destination
+        self.destination_resource_choice.SetStringSelection(dataset.destination_resource)
+        self.grouping_radio_buttons.SetSelection(0 if dataset.single_file else 1)
+        self.chunk_by_year_checkbox.Value = dataset.chunk_by_year
+
+    def OnDatasetChoiceModified(self, event):
+        if self.dataset_selector_choice.GetStringSelection() in self.H2OService.Datasets:
+            dataset = self.H2OService.Datasets[self.dataset_selector_choice.GetStringSelection()]
+            self.SetAsActiveDataset(dataset)
+        event.Skip()
+
+    def GetLabel(self, label):
+        return WxHelper.GetLabel(self.panel, label)
 
     def _build_main_window(self):
         ######################################
@@ -553,18 +591,13 @@ class VisualH2OWindow(wx.Frame):
         ######################################
 
         toggle_execute_button = WxHelper.GetButton(self, self.panel, u"Run Script", self.OnRunScriptClicked)
-        save_config_button = WxHelper.GetButton(self, self.panel, u"Save Script", self.OnSaveScriptClicked)
+        save_config_button = WxHelper.GetButton(self, self.panel, u"Stop Script", self.OnStopScriptClicked)
 
         self.status_gauge = wx.Gauge(self.panel, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
-        self.status_gauge.SetMinSize(wx.Size(550, 25))
+        # self.status_gauge.SetMinSize(wx.Size(550, 25))
 
-        self.timer = wx.Timer(self, 1)
-        self.count = 0
-
-        self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
-
-        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=-770, size_y=75,
+        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=920, size_y=150,
                                                        font=self.WX_MONOSPACE)
 
         action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND,
@@ -607,67 +640,3 @@ class VisualH2OWindow(wx.Frame):
         self.panel.SetSizerAndFit(main_sizer)
         self.SetAutoLayout(True)
         main_sizer.Fit(self.panel)
-
-    def OnEditResourceTemplates(self, event):
-        result = HydroShareResourceTemplateDialog(self, self.ActionManager.ResourceTemplates).ShowModal()
-        event.Skip()
-
-    def OnRunScriptClicked(self, event):
-        self.OnPrintLog('Running script (almost)')
-
-    def OnSaveScriptClicked(self, event):
-        self.OnPrintLog('Saving the script')
-        self.ActionManager.SaveData()
-
-    def SetAsActiveDataset(self, dataset):
-        """
-
-        :type dataset: H20Dataset
-        """
-        self.OnPrintLog('Fetching information for dataset {}, this may take a few seconds'.format(dataset.name))
-
-        if dataset.odm_db_name != self.database_connection_choice.GetStringSelection():
-            if dataset.odm_db_name in self.ActionManager.DatabaseConnections:
-                self.database_connection_choice.SetStringSelection(dataset.odm_db_name)
-                self.SetOdmConnection(self.ActionManager.DatabaseConnections[dataset.odm_db_name])
-            else:
-                self.OnPrintLog('Error loading ODM series: Unknown connection {}'.format(dataset.odm_db_name))
-                return
-
-        if dataset.hs_account_name != self.hydroshare_account_choice.GetStringSelection():
-            if dataset.hs_account_name in self.ActionManager.HydroShareConnections:
-                self.hydroshare_account_choice.SetStringSelection(dataset.hs_account_name)
-                self.SetHydroShareConnection(self.ActionManager.HydroShareConnections[dataset.hs_account_name])
-            else:
-                self.OnPrintLog('HydroShare account error: Unknown connection {}'.format(dataset.hs_account_name))
-                self.hydroshare_account_choice.SetSelection(0)
-                self.OnPrintLog('To resolve, select a HydroShare account and save dataset')
-
-        selected = []
-        available = []
-
-        for id, series in self._series_dict.iteritems():
-            if id in dataset.odm_series:
-                selected.append(series_to_string(series))
-            else:
-                available.append(series_to_string(series))
-
-        self.available_series_listbox.SetItems(available)
-        self.selected_series_listbox.SetItems(selected)
-
-        self.dataset_name_input.Value = dataset.name
-        self.dataset_selector_choice.SetStringSelection(dataset.name)
-        self.hydroshare_destination_radio.SetSelection(0 if dataset.create_resource else 1)
-        self._update_target_choices()  # Update these before we try to set our destination
-        self.destination_resource_choice.SetStringSelection(dataset.destination_resource)
-        self.grouping_radio_buttons.SetSelection(0 if dataset.single_file else 1)
-        self.chunk_by_year_checkbox.Value = dataset.chunk_by_year
-
-    def OnDatasetChoiceModified(self, event):
-        if self.dataset_selector_choice.GetStringSelection() in self.ActionManager.Datasets:
-            dataset = self.ActionManager.Datasets[self.dataset_selector_choice.GetStringSelection()]
-            self.SetAsActiveDataset(dataset)
-        event.Skip()
-
-    def GetLabel(self, label):
-        return WxHelper.GetLabel(self.panel, label)

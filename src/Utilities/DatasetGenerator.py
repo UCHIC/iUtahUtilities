@@ -31,6 +31,16 @@ service_manager = ServiceManager()
 UPDATE_CACHE = True
 
 
+class DatasetGenerator:
+    def __init__(self, base_dir):
+        self.BaseDirectory = base_dir
+
+
+    def GenerateFilesFromDataset(self, dataset):
+        generated_files = [] # type: list[FileDetails]
+
+
+
 class FileDetails(object):
     def __init__(self, site_code="", site_name="", file_path="", file_name="", variable_names=None):
         self.coverage_start = None
@@ -70,7 +80,6 @@ class H2ODataset:
         return 'Dataset {} with {} series and destination resource {}'.format(self.name, len(self.odm_series),
                                                                               self.destination_resource)
 
-
 def _OdmDatabaseConnectionTestTimed(queue):
     db_auth = queue.get(True)
     if service_manager.test_connection(db_auth):
@@ -79,7 +88,7 @@ def _OdmDatabaseConnectionTestTimed(queue):
         queue.put(False)
 
 
-class OdmDatasetUtility:
+class OdmDatasetConnection:
     def __init__(self, values=None):
         self.name = ""
         self.engine = ""
@@ -97,6 +106,9 @@ class OdmDatasetUtility:
             self.address = values['address'] if 'address' in values else ""
             self.database = values['db'] if 'db' in values else ""
             self.port = values['port'] if 'port' in values else ""
+
+    def __str__(self):
+        return 'Dataset connection details {}'.format(self.name)
 
     def VerifyConnection(self):
         queue = Queue()
@@ -119,9 +131,6 @@ class OdmDatasetUtility:
         return {'engine': self.engine, 'user': self.user, 'password': self.password, 'address': self.address,
                 'db': self.database}
 
-
-def GenerateDatasetFromSeries():
-    pass
 
 
 def dataParser(dump_loc, data_type, year):

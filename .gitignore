@@ -65,6 +65,8 @@ GAMUT_CSV_Files
 .log
 
 
+*/logs
+*/*/logs/*
 src/secret
 src/secret_dev
 src/temporary_metadata*

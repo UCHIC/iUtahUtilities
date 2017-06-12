@@ -23,10 +23,11 @@ import re
 import smtplib
 import sys
 import json
-import Utilities.ActionManager as ActionManager
 from Utilities.DatasetGenerator import *
+from pubsub import pub
 
-__title__ = 'iUtahUtilities Update Tool'
+
+# __title__ = 'iUtahUtilities Update Tool'
 WINDOWS_OS = 'nt' in os.name
 DIR_SYMBOL = '\\' if WINDOWS_OS else '/'
 PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
@@ -37,8 +38,6 @@ from exceptions import IOError
 from Utilities.HydroShareUtility import HydroShareUtility, HydroShareException, HydroShareUtilityException
 from Utilities.CkanUtility import CkanUtility
 
-with open('./settings.json') as json_data:
-    settings = json.load(json_data)
 
 file_path = '{root}{slash}GAMUT_CSV_Files{slash}'.format(root=PROJECT_DIR, slash=DIR_SYMBOL)
 log_file = '{file_path}csvgenerator.log'.format(file_path=file_path)
@@ -217,7 +216,7 @@ def build_dirs(dir_name):
         os.makedirs(dir_name)
 
 
-if __name__ == "__main__":
+if False and __name__ == "__main__":
     user_args = Arguments(sys.argv)
     build_dirs(file_path)
     if user_args.verbose or True:
@@ -225,7 +224,8 @@ if __name__ == "__main__":
     else:
         sys.stdout = open(log_file, 'w')
 
-    operations = ActionManager.GetActionsFromFile(user_args.op_file_path)
+    actions = ActionManager()
+    operations = actions.LoadData(user_args.op_file_path)
     if operations is None:
         print('Error in loading actions from file {} - program exiting'.format(user_args.op_file_path))
         exit()
@@ -287,3 +287,5 @@ if __name__ == "__main__":
 
     # print '\nvar linkMap = {}'.format(link_dict)
     # print 'Program finished running - total time: {}'.format(datetime.datetime.now() - start_time)
+
+

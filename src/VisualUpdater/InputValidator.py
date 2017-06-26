@@ -44,7 +44,9 @@ class CharValidator(wx.Validator):
         if 31 < keycode < 256:
             key = chr(keycode)
             if key in self.denied:
+                wx.Bell()
                 return
             if key not in self.allowed:
+                wx.Bell()
                 return
         event.Skip()

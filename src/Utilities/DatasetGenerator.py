@@ -34,6 +34,7 @@ UPDATE_CACHE = True
 class DatasetHelper:
     DEFAULT_COLS = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC']
     ALTERNATIVE_COLS = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC', 'SiteCode', 'VariableCode', 'QcCode', 'DataValue']
+    MAIN_COLS = ['SiteCode & VarCode & QcCode']
     #
     # @staticmethod
     # def ToCsvFile(dataset, odm_connection, output_path='./'):

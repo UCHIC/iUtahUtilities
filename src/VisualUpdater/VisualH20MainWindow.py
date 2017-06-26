@@ -34,8 +34,14 @@ series_matcher_dict = {
     'QC Code': lambda series_dict, check_series: series_dict['qc'] == check_series.quality_control_level_code
 }
 
-class VisualH2OWindow(wx.Frame):
 
+class CHOICE_DEFAULTS:
+    NEW_TEMPLATE_CHOICE = 'Create a new resource template'
+    SELECT_TEMPLATE_CHOICE = 'Select a resource template'
+
+
+
+class VisualH2OWindow(wx.Frame):
     def __init__(self, parent, id, title):
         ###########################################
         # Declare/populate variables, wx objects  #
@@ -46,7 +52,7 @@ class VisualH2OWindow(wx.Frame):
         supported_notifications = ['logger', 'Dataset_Started', 'Dataset_Generated']
         self.H2OService = H2OService(subscriptions=supported_notifications)
 
-        self.ActiveOdmConnection = None  # type: ServiceManager
+        # self.ActiveOdmConnection = None  # type: # ServiceManager
         self.ActiveHydroshare = None  # type: HydroShareUtility
 
         self._series_dict = {}  # type: dict[int, Series]
@@ -85,7 +91,7 @@ class VisualH2OWindow(wx.Frame):
             (self.OnRemoveDatabaseAuth, 'db_auth_remove'),
             (self.OnPrintLog, 'logger'),
             (self.OnPrintLog, 'Dataset_Started'),
-            (self.OnPrintLog, 'Dataset_Generated')
+            (self._update_status_gauge, 'Dataset_Generated')
         ]
 
         for sub_tuple in SUBSCRIPTIONS:
@@ -101,7 +107,7 @@ class VisualH2OWindow(wx.Frame):
             self.status_gauge = progress if 100 >= progress >= 0 else progress % 100
         WxHelper.UpdateChoiceControl(self.database_connection_choice, self._get_database_choices())
         WxHelper.UpdateChoiceControl(self.hydroshare_account_choice, self._get_hydroshare_choices())
-        WxHelper.UpdateChoiceControl(self.dataset_selector_choice, self._get_dataset_choices())
+        WxHelper.UpdateChoiceControl(self.hydroshare_resources_choice, self._get_dataset_choices())
 
     def OnDeleteResourceTemplate(self, result=None):
         if result is None:
@@ -186,6 +192,16 @@ class VisualH2OWindow(wx.Frame):
         else:
             return ['No saved accounts']
 
+    def _get_destination_resource_choices(self):
+        if self.hydroshare_destination_radio.GetSelection() == 1 and self._resources is None:
+            choices = ['Please connect to a HydroShare account']
+        elif self.hydroshare_destination_radio.GetSelection() == 1 and len(self._resources) > 1:
+            choices = ['Create a new resource'] + [item.title for item in self._resources]
+        else:
+            choices = [CHOICE_DEFAULTS.SELECT_TEMPLATE_CHOICE, CHOICE_DEFAULTS.NEW_TEMPLATE_CHOICE] + list(
+                    [str(item) for item in self.H2OService.ResourceTemplates])
+        return choices
+
     def _get_database_choices(self):
         if len(self.H2OService.DatabaseConnections) > 0:
             return ['Select a connection'] + [connection for connection in
@@ -264,9 +280,9 @@ class VisualH2OWindow(wx.Frame):
         listbox = self.selected_series_listbox if evt_parent == 'Selected Listbox' else self.available_series_listbox
 
         for text in menu_strings:
-            WxHelper.AddNewMenuItem(self, series_category_menu, text,
-                                    on_click=partial(self._category_selection, control=listbox, direction=text,
-                                                     curr_index=selected_item))
+            WxHelper.AddNewMenuItem(self, series_category_menu, text, on_click=partial(self._category_selection,
+                                                                                       control=listbox, direction=text,
+                                                                                       curr_index=selected_item))
         return series_category_menu
 
     def _move_to_selected_series(self, event):
@@ -317,28 +333,21 @@ class VisualH2OWindow(wx.Frame):
                     control.Deselect(ctrl_index)
 
     def _update_target_choices(self, event=None):
-        if self._resources is None or self.hydroshare_account_choice.GetSelection() == 0:
-            choices = ['Please connect to a HydroShare account']
-        elif self.hydroshare_destination_radio.GetSelection() == 1:
-            choices = [item.title for item in self._resources]
-        else:
-            choices = [str(item) for item in self.H2OService.ResourceTemplates]
-
-        WxHelper.UpdateChoiceControl(self.destination_resource_choice, choices)
+        WxHelper.UpdateChoiceControl(self.destination_resource_choice, self._get_destination_resource_choices())
         if event is not None:
             event.Skip()
 
     def _delete_dataset_clicked(self, event):
-        dataset_name = self.dataset_selector_choice.GetStringSelection()
+        dataset_name = self.hydroshare_resources_choice.GetStringSelection()
         if dataset_name in self.H2OService.Datasets:
             self.H2OService.Datasets.pop(dataset_name, None)
-            self.dataset_selector_choice.SetSelection(0)
-            WxHelper.UpdateChoiceControl(self.dataset_selector_choice, self._get_dataset_choices())
+            self.hydroshare_resources_choice.SetSelection(0)
+            WxHelper.UpdateChoiceControl(self.hydroshare_resources_choice, self._get_dataset_choices())
 
     def _copy_dataset_clicked(self, event):
-        dataset_name = self.dataset_selector_choice.GetStringSelection()
+        dataset_name = self.hydroshare_resources_choice.GetStringSelection()
         if dataset_name in self.H2OService.Datasets:
-            self.dataset_selector_choice.SetSelection(0)
+            self.hydroshare_resources_choice.SetSelection(0)
             counter = 1
             new_name = "{}_({})".format(self.dataset_name_input.Value, counter)
             while new_name in self.H2OService.Datasets and counter < 10:
@@ -361,14 +370,14 @@ class VisualH2OWindow(wx.Frame):
                                   chunk_by_year=self.chunk_by_year_checkbox.Value)
 
         # if we aren't making a new dataset, let's remove the old one from the dictionary
-        dataset_name = self.dataset_selector_choice.GetStringSelection()
-        if self.dataset_selector_choice.GetSelection() != 0 and dataset_name in self.H2OService.Datasets:
+        dataset_name = self.hydroshare_resources_choice.GetStringSelection()
+        if self.hydroshare_resources_choice.GetSelection() != 0 and dataset_name in self.H2OService.Datasets:
             self.H2OService.Datasets.pop(dataset_name, None)
 
         self.H2OService.Datasets[curr_dataset.name] = curr_dataset
         self.H2OService.SaveData()
-        WxHelper.UpdateChoiceControl(self.dataset_selector_choice, self._get_dataset_choices())
-        self.dataset_selector_choice.SetStringSelection(curr_dataset.name)
+        WxHelper.UpdateChoiceControl(self.hydroshare_resources_choice, self._get_dataset_choices())
+        self.hydroshare_resources_choice.SetStringSelection(curr_dataset.name)
 
     def _verify_dataset_selections(self):
         if len(self.selected_series_listbox.Items) == 0:
@@ -378,8 +387,9 @@ class VisualH2OWindow(wx.Frame):
             self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
         elif self.hydroshare_account_choice.GetSelection() == 0:
             self.OnPrintLog('Invalid options - please select a HydroShare account to use')
-        elif self.hydroshare_destination_radio.GetSelection() == '1' and self.destination_resource_choice.GetSelection() == 0:
-            self.OnPrintLog('Invalid options - please select a destination HydroShare resource')
+        elif self.hydroshare_destination_radio.GetSelection() == '1' and \
+                        self.destination_resource_choice.GetSelection() == 0:
+            self.OnPrintLog('Invalid options - please select a destination HydroShare resource or template')
         elif len(self.dataset_name_input.Value) == 0:
             self.OnPrintLog('Invalid options - please enter a dataset name')
         else:
@@ -388,7 +398,6 @@ class VisualH2OWindow(wx.Frame):
 
     def OnEditResourceTemplates(self, event):
         result = HydroShareResourceTemplateDialog(self, self.H2OService.ResourceTemplates).ShowModal()
-        event.Skip()
 
     def OnRunScriptClicked(self, event):
         self.OnPrintLog('Running script')
@@ -436,7 +445,7 @@ class VisualH2OWindow(wx.Frame):
         self.selected_series_listbox.SetItems(selected)
 
         self.dataset_name_input.Value = dataset.name
-        self.dataset_selector_choice.SetStringSelection(dataset.name)
+        self.hydroshare_resources_choice.SetStringSelection(dataset.name)
         self.hydroshare_destination_radio.SetSelection(0 if dataset.create_resource else 1)
         self._update_target_choices()  # Update these before we try to set our destination
         self.destination_resource_choice.SetStringSelection(dataset.destination_resource)
@@ -444,10 +453,18 @@ class VisualH2OWindow(wx.Frame):
         self.chunk_by_year_checkbox.Value = dataset.chunk_by_year
 
     def OnDatasetChoiceModified(self, event):
-        if self.dataset_selector_choice.GetStringSelection() in self.H2OService.Datasets:
-            dataset = self.H2OService.Datasets[self.dataset_selector_choice.GetStringSelection()]
+        if self.hydroshare_resources_choice.GetStringSelection() in self.H2OService.Datasets:
+            dataset = self.H2OService.Datasets[self.hydroshare_resources_choice.GetStringSelection()]
             self.SetAsActiveDataset(dataset)
         event.Skip()
+
+    def _destination_resource_changed(self, event):
+        if self.destination_resource_choice.GetStringSelection() == CHOICE_DEFAULTS.NEW_TEMPLATE_CHOICE:
+            self.OnEditResourceTemplates(None)
+
+    def _update_status_gauge(self, completed):
+        print (completed)
+        self.status_gauge.SetValue(completed)
 
     def GetLabel(self, label):
         return WxHelper.GetLabel(self.panel, label)
@@ -470,9 +487,9 @@ class VisualH2OWindow(wx.Frame):
         edit_hydroshare_button = WxHelper.GetButton(self, self.panel, u'Edit...', on_click=self.on_edit_hydroshare)
 
         self.database_connection_choice = WxHelper.GetChoice(self, self.panel, self._get_database_choices(),
-                                                             on_change=self.on_database_chosen, size_x=260, size_y=23)
+                                                             on_change=self.on_database_chosen, size_x=310, size_y=23)
         self.hydroshare_account_choice = WxHelper.GetChoice(self, self.panel, self._get_hydroshare_choices(),
-                                                            on_change=self.on_hydroshare_chosen, size_x=260, size_y=23)
+                                                            on_change=self.on_hydroshare_chosen, size_x=310, size_y=23)
 
         connections_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(0, 0),
                               span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=7)
@@ -512,10 +529,9 @@ class VisualH2OWindow(wx.Frame):
         self.hydroshare_destination_radio.SetSelection(1)
         self.Bind(wx.EVT_RADIOBOX, self._update_target_choices, self.hydroshare_destination_radio)
 
-        self.destination_resource_choice = wx.Choice(self.panel, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize,
-                                                     ['Please connect to a HydroShare account'], 0)
-        self.destination_resource_choice.SetMaxSize(wx.Size(-1, 25))
-        self.destination_resource_choice.SetSelection(0)
+        self.destination_resource_choice = WxHelper.GetChoice(self, self.panel,
+                                                              self._get_destination_resource_choices(),
+                                                              on_change=self._destination_resource_changed)
 
         # Buttons (and bitmaps) to add or remove series from the active dataset
         left_arrow = WxHelper.GetBitmap('./VisualUpdater/previous_icon.png', 20, 20)
@@ -541,8 +557,8 @@ class VisualH2OWindow(wx.Frame):
                                                         self._delete_dataset_clicked, size_x=100, size_y=30)
 
         # Dataset choice and input
-        self.dataset_selector_choice = WxHelper.GetChoice(self, self.panel, self._get_dataset_choices(),
-                                                          on_change=self.OnDatasetChoiceModified)
+        self.hydroshare_resources_choice = WxHelper.GetChoice(self, self.panel, self._get_dataset_choices() )#,
+                                                              # on_change=self.OnDatasetChoiceModified)
 
         self.dataset_name_input = wx.TextCtrl(self.panel, wx.ID_ANY, u'', wx.DefaultPosition, wx.DefaultSize, 7,
                                               validator=CharValidator(PATTERNS.CV_WORD))
@@ -552,39 +568,47 @@ class VisualH2OWindow(wx.Frame):
         # Most things, but with the options all on left   #
         ###################################################
 
-        dataset_sizer.Add(self.GetLabel(u'Available Series'), pos=(4, 0), span=(1, 1),
+        dataset_sizer.Add(self.GetLabel(u'Available Series'), pos=(6, 0), span=(1, 1),
+                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        dataset_sizer.Add(self.GetLabel(u'Selected Series'), pos=(6, 5), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
-        dataset_sizer.Add(self.GetLabel(u'Selected Series'), pos=(4, 5), span=(1, 1),
-                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
-        dataset_sizer.Add(self.available_series_listbox, pos=(5, 0), span=(6, 4),
+        dataset_sizer.Add(self.available_series_listbox, pos=(7, 0), span=(6, 4),
                           flag=wx.ALIGN_CENTER | wx.LEFT | wx.EXPAND, border=7)
-        dataset_sizer.Add(self.selected_series_listbox, pos=(5, 5), span=(6, 4),
+        dataset_sizer.Add(self.selected_series_listbox, pos=(7, 5), span=(6, 4),
                           flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND, border=7)
-        dataset_sizer.Add(self.add_to_selected_button, pos=(7, 4), span=(1, 1),
+        dataset_sizer.Add(self.add_to_selected_button, pos=(9, 4), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=2)
-        dataset_sizer.Add(self.remove_from_selected_button, pos=(8, 4), span=(1, 1),
+        dataset_sizer.Add(self.remove_from_selected_button, pos=(10, 4), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, border=2)
 
-        dataset_sizer.Add(self.GetLabel(u'Datasets'), pos=(0, 0), span=(1, 1),
+        dataset_sizer.Add(self.GetLabel(u'HydroShare Resources'), pos=(0, 0), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
-        dataset_sizer.Add(self.dataset_selector_choice, pos=(1, 0), span=(1, 4),
+        dataset_sizer.Add(self.hydroshare_resources_choice, pos=(1, 0), span=(1, 4),
                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
         dataset_sizer.Add(self.GetLabel(u'Name'), pos=(0, 5), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND | wx.TOP, border=7)
         dataset_sizer.Add(self.dataset_name_input, pos=(1, 5), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT,
                           border=7)
 
-        dataset_sizer.Add(self.hydroshare_destination_radio, pos=(2, 0), span=(1, 4), flag=wx.ALIGN_LEFT | wx.ALL,
+        dataset_sizer.Add(connections_sizer, pos=(2, 0), span=(1, 9),
+                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
+
+        dataset_sizer.Add(self.GetLabel(u'Upload dataset to...'), pos=(4, 0), span=(1, 1),
+                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        dataset_sizer.Add(self.hydroshare_destination_radio, pos=(3, 0), span=(1, 4),
+                          flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP,
                           border=5)
-        dataset_sizer.Add(self.destination_resource_choice, pos=(3, 0), span=(1, 4),
+
+        dataset_sizer.Add(self.destination_resource_choice, pos=(5, 0), span=(1, 4),
                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=5)
 
-        dataset_sizer.Add(self.grouping_radio_buttons, pos=(2, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.ALL, border=7)
-        dataset_sizer.Add(self.chunk_by_year_checkbox, pos=(2, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.RIGHT, border=7)
+        dataset_sizer.Add(self.grouping_radio_buttons, pos=(3, 5), span=(1, 3), flag=wx.ALIGN_LEFT | wx.ALL, border=7)
+        dataset_sizer.Add(self.chunk_by_year_checkbox, pos=(3, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.RIGHT,
+                          border=7)
 
-        dataset_sizer.Add(self.delete_dataset_button, pos=(3, 8), span=(1, 1), flag=wx.ALIGN_LEFT | wx.ALL, border=2)
-        dataset_sizer.Add(self.copy_dataset_button, pos=(3, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
-        dataset_sizer.Add(self.save_dataset_button, pos=(3, 6), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
+        dataset_sizer.Add(self.delete_dataset_button, pos=(5, 8), span=(1, 1), flag=wx.ALIGN_LEFT | wx.ALL, border=2)
+        dataset_sizer.Add(self.copy_dataset_button, pos=(5, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
+        dataset_sizer.Add(self.save_dataset_button, pos=(5, 6), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
 
         ######################################
         # Build action sizer and logging box #
@@ -613,9 +637,9 @@ class VisualH2OWindow(wx.Frame):
         # Build menu bar and setup callbacks #
         ######################################
 
-        main_sizer.Add(connections_sizer, flag=wx.ALL | wx.EXPAND, border=5)
+        # main_sizer.Add(connections_sizer, flag=wx.ALL | wx.EXPAND, border=5)
         main_sizer.Add(selection_label_sizer, flag=wx.ALL | wx.EXPAND, border=5)
-        main_sizer.Add(wx.StaticLine(self.panel), 0, flag=wx.TOP | wx.LEFT | wx.RIGHT | wx.EXPAND, border=15)
+        # main_sizer.Add(wx.StaticLine(self.panel), 0, flag=wx.TOP | wx.LEFT | wx.RIGHT | wx.EXPAND, border=15)
         main_sizer.Add(dataset_sizer, flag=wx.ALL | wx.EXPAND, border=5)
         main_sizer.Add(wx.StaticLine(self.panel), 0, flag=wx.ALL | wx.EXPAND, border=15)
         main_sizer.Add(action_status_sizer, flag=wx.ALL | wx.EXPAND, border=5)

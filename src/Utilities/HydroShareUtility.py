@@ -62,6 +62,8 @@ class ResourceTemplate:
             self.award_title = values['award_title'] if 'award_title' in values else ""
             self.award_number = values['award_number'] if 'award_number' in values else ""
 
+    def __str__(self):
+        return self.template_name
 
 # def getNewQC1ResourceInformation(site_code, valid_files=None):
 #     """

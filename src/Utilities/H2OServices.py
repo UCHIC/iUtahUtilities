@@ -9,6 +9,7 @@ from Utilities.DatasetGenerator import *
 from pubsub import pub
 import time
 import wx
+import pandas
 
 from threading import Thread
 
@@ -38,10 +39,12 @@ class H2ODefaults:
     PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
     DATASET_DIR = '{}/H2O_dataset_files/'.format(PROJECT_DIR)
     LOGFILE_DIR = '{}/../logs/'.format(PROJECT_DIR)
+    SERIES_COLUMN_NAME = lambda series: '{} & {} & QC {}'.format(series.site_code, series.variable_code,
+                                                                 series.quality_control_level_code)
     GUI_PUBLICATIONS = {
         'logger': lambda message: {'message': message},
         'Dataset_Started': lambda done, total, name: {'message': '{}/{}: Creating dataset {}'.format(done, total, name)},
-        'Dataset_Generated': lambda done, total, name: {'message': '{}/{}: Generated dataset {}'.format(done, total, name)}
+        'Dataset_Generated': lambda done, total: {'completed': (done * 100) / total}
     }
 
 class H2OLogger:
@@ -75,6 +78,28 @@ class H2OService:
         self.ThreadedFunction = None # type: Thread
         self.ThreadKiller = ['Continue']
 
+
+        self.csv_indexes = ["LocalDateTime", "UTCOffset", "DateTimeUTC"]
+        self.qualifier_columns = ["QualifierID", "QualifierCode", "QualifierDescription"]
+        self.csv_columns = ["DataValue", "LocalDateTime", "UTCOffset", "DateTimeUTC"]
+
+
+    def createFile(self, filepath):
+        """
+
+        :param file_path:
+        :type file_path:
+        :return:
+        :rtype:
+        """
+        try:
+            print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
+            file_out = open(filepath, 'w')
+            return file_out
+        except Exception as e:
+            print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
+            return None
+
     def _thread_checkpoint(self):
         return self.ThreadKiller[0] == 'Continue'
 
@@ -93,21 +118,87 @@ class H2OService:
             odm_service._current_connection = self.DatabaseConnections[dataset.odm_db_name].ToDict()
             series_service = odm_service.get_series_service()
 
-            series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series]  # type: Series
+            series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series]  # type: list[Series]
             cols_to_use = DatasetHelper.GetCsvColumns(series_list)
             print 'Dataset: {}\n{}\n'.format(dataset.name, cols_to_use)
 
-            self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count, dataset.name)
+            dataframe = None # pandas.DataFrame(index=["LocalDateTime", "UTCOffset", "DateTimeUTC"])
+
+            sleep(1)
+
+            self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count)
+            # for series in series_list:
+                # file_out = self.createFile(H2ODefaults.DATASET_DIR + dataset.name + str(series.id) + '.csv')
+                # if file_out is None:
+                #     print('Unable to create output file for {}'.format(dataset.name))
+                #
+                # dvs = series_service.get_values_by_series_and_year(series)
+                # dvs.set_index(self.csv_indexes, inplace=True)
+                #
+                # # dvs.rename(columns={"DataValue": '{} & {} & {}'.format(series.site_code, series.variable_code, series.quality_control_level_code)}, inplace=True)
+                #
+                # for column in dvs.columns.tolist():
+                #     if column not in self.csv_columns and column not in self.csv_indexes:
+                #         print 'Dropping column {}'.format(column)
+                #         dvs.drop(column, axis=1, inplace=True)
+                #
+                # if dataframe is None:
+                #     dataframe = dvs
+                #     continue
+                #
+                # print 'Dataframe keys: {}'.format(dataframe.keys())
+                # print 'DVS keys      : {}'.format(dvs.keys())
+                #
+                # result = dataframe.merge(dvs)
+                #
+                # # dataframe = result
+                #
+                # # print result
+                # # dataframe = result
+                # # dataframe.set_index(self.csv_indexes, inplace=True)
+                #
+                # # dataframe.insert(1, 'DataValues', dvs, allow_duplicates=True)
+                #
+                # # df = pandas.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
+                # #                          values="DataValue")
+                # # dv_raw = series_service.get_variables_by_site_id_qc(series.variable_id, series.site_id, 1)  # type:
+                #
+                # # Get the qualifiers that we use in this series, merge it with our DataValue set
+                # # q_list = [[q.id, q.code, q.description] for q in series_service.get_qualifiers_by_series_id(series.id)]
+                # # q_df = pandas.DataFrame(data=q_list, columns=self.qualifier_columns)
+                # # dv_set = dv_raw.merge(q_df, how='left', on="QualifierID")  # type: pandas.DataFrame
+                # # del dv_raw
+                # # dv_set.set_index(self.csv_indexes, inplace=True)
+                #
+                # # Drop the columns that we aren't interested in, and correct any names afterwards
+                # # for column in dv_set.columns.tolist():
+                # #     if column not in self.csv_columns:
+                # #         dv_set.drop(column, axis=1, inplace=True)
+                # # dv_set.rename(columns={"DataValue": series.variable_code}, inplace=True)
+                #
+                # del dvs
+                # result.to_csv(file_out)
+                # file_out.close()
+                #
+
+
+
+
+
+
+
+
+            # self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count)
 
 
     # Write series to their own files
-
-    # Write series to one file
 
     # Chunk files by year
 
     #
 
+
+    # Write series to one file
 
     def StopActions(self):
         if self.ThreadedFunction is not None: # and self.ThreadedFunction.is_alive():

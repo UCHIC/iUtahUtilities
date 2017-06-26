@@ -282,7 +282,6 @@ class SeriesService():
         # logger.debug("%s" % self._edit_session.query(Series).order_by(Series.id).all())
         return self._edit_session.query(Series).order_by(Series.id).all()
 
-
     def get_series_by_site(self, site_id):
         """
 
@@ -323,7 +322,7 @@ class SeriesService():
     def get_series_by_site_and_qc_level(self, site_code, qc):
         try:
             values = self._edit_session.query(Series).filter(Series.site_code == site_code,
-                                                           Series.quality_control_level_id == qc).all()
+                                                             Series.quality_control_level_id == qc).all()
             return values
         except Exception as ex:
             return None
@@ -338,6 +337,21 @@ class SeriesService():
             return []
 
     def get_all_values_by_site_id_date(self, my_site_id, first_date_time, end_date_time):
+        try:
+            q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
+                                                                          DataValue.local_date_time >= first_date_time,
+                                                                          DataValue.local_date_time <= end_date_time,
+                                                                          DataValue.variable_id == Variable.id,
+                                                                          DataValue.quality_control_level_id == 0)
+
+            query = q.statement.compile(dialect=self._session_factory.engine.dialect)
+            array = pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params)
+            return array
+        except Exception as e:
+            print e
+            return []
+
+    def get_all_values_by_site_id(self, my_site_id):
         try:
             q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == my_site_id,
                                                                           DataValue.local_date_time >= first_date_time,
@@ -424,6 +438,35 @@ class SeriesService():
         else:
             return None
 
+    # Data Value Methods
+    def get_values_by_series_and_year(self, series, year=None):
+        '''
+
+        :param series_id:  Series id
+        :return: pandas dataframe
+        '''
+        if year:
+            year_start = '{}-01-01 00:00:00'.format(year)
+            year_end = '{}-12-31 23:59:59'.format(year)
+            q = self._edit_session.query(DataValue).filter(Series.end_date_time.between(year_start, year_end),
+                                                          site_id=series.site_id,
+                                                          variable_id=series.variable_id,
+                                                          method_id=series.method_id,
+                                                          source_id=series.source_id,
+                                                          quality_control_level_id=series.quality_control_level_id).all()
+        else:
+            q = self._edit_session.query(DataValue).filter_by(
+                    site_id=series.site_id,
+                    variable_id=series.variable_id,
+                    method_id=series.method_id,
+                    source_id=series.source_id,
+                    quality_control_level_id=series.quality_control_level_id)
+
+        query = q.statement.compile(dialect=self._session_factory.engine.dialect)
+        data = pandas.read_sql_query(sql=query, con=self._session_factory.engine,
+                                     params=query.params)
+        return data
+
     def get_all_values_df(self):
         """
 
@@ -503,7 +546,7 @@ class SeriesService():
              dv.local_date_time.strftime('%Y'))
             for dv in series.data_values
             if dv.data_value != noDataValue if dv.local_date_time >= startDate if dv.local_date_time <= endDate
-            ]
+        ]
         data = pandas.DataFrame(DataValues, columns=["DataValue", "LocalDateTime", "CensorCode", "Month", "Year"])
         data.set_index(data['LocalDateTime'], inplace=True)
         data["Season"] = data.apply(self.calcSeason, axis=1)
@@ -585,7 +628,8 @@ class SeriesService():
         """
         # Save As case
         if self.series_exists(series):
-            msg = "There is already an existing file with this information. Please select 'Save' or 'Save Existing' to overwrite"
+            msg = "There is already an existing file with this information. Please select 'Save' or 'Save Existing' " \
+                  "to overwrite"
             logger.info(msg)
             raise Exception(msg)
         else:

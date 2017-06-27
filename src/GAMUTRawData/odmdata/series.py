@@ -147,7 +147,6 @@ class Series(Base):
                  self.end_date_time, self.begin_date_time_utc, self.end_date_time_utc, self.value_count]
         return OrderedDict(zip(keys, values))
 
-
 def returnDict():
     keys = ['SeriesID', 'SiteID', 'SiteCode', 'SiteName', 'VariableID', 'VariableCode', 'VariableName', 'Speciation',
             'VariableUnitsID', 'VariableUnitsName', 'SampleMedium', 'ValueType', 'TimeSupport', 'TimeUnitsID',

@@ -142,6 +142,8 @@ class SeriesService():
         except:
             return None
 
+    # def get_values_variables_by_(self):
+
     def get_variables_by_site_code(self, site_code):  # covers NoDV, VarUnits, TimeUnits
         """
         Finds all of variables at a site
@@ -366,6 +368,21 @@ class SeriesService():
             print e
             return []
 
+    def get_values_by_filters(self, site_id, qc_id, source_id, method_id, var_ids):
+        try:
+            q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == site_id,
+                                                                          DataValue.variable_id.in_(var_ids),
+                                                                          DataValue.variable_id == Variable.id,
+                                                                          DataValue.quality_control_level_id == qc_id,
+                                                                          DataValue.source_id == source_id,
+                                                                          DataValue.method_id.in_(method_id))
+            query = q.statement.compile(dialect=self._session_factory.engine.dialect)
+            return pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params,
+                                         coerce_float=False)
+        except Exception as e:
+            print e
+            return []
+
     def get_variables_by_site_id_qc(self, variable_id, my_site_id, qc):
         """
 
@@ -449,11 +466,11 @@ class SeriesService():
             year_start = '{}-01-01 00:00:00'.format(year)
             year_end = '{}-12-31 23:59:59'.format(year)
             q = self._edit_session.query(DataValue).filter(Series.end_date_time.between(year_start, year_end),
-                                                          site_id=series.site_id,
-                                                          variable_id=series.variable_id,
-                                                          method_id=series.method_id,
-                                                          source_id=series.source_id,
-                                                          quality_control_level_id=series.quality_control_level_id).all()
+                                                           site_id=series.site_id,
+                                                           variable_id=series.variable_id,
+                                                           method_id=series.method_id,
+                                                           source_id=series.source_id,
+                                                           quality_control_level_id=series.quality_control_level_id).all()
         else:
             q = self._edit_session.query(DataValue).filter_by(
                     site_id=series.site_id,

@@ -14,7 +14,7 @@ import jsonpickle
 from pubsub import pub
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility, ResourceTemplate
 from Utilities.DatasetGenerator import OdmDatasetConnection
-from Utilities.H2OServices import H2OService, H2ODataset
+from Utilities.H2OServices import H2OService, H2ODataset, OdmSeriesHelper, H20Series
 # from Utilities.H2OServices import *
 from Utilities.Odm2Wrapper import *
 from GAMUTRawData.odmservices import ServiceManager
@@ -25,21 +25,10 @@ from ResourceTemplatesDialog import HydroShareResourceTemplateDialog
 from InputValidator import *
 
 service_manager = ServiceManager()
-RE_SERIES_INFO = re.compile(r'^(?P<id>\d+) +(?P<site>\S+) +(?P<var>\S+) +QC (?P<qc>[\d.]+)$', re.I)
-series_to_string = lambda series: (str(series.id).ljust(6) + series.site_code.ljust(22) +
-                                   series.variable_code.ljust(25) + ' QC {}'.format(series.quality_control_level_code))
-series_matcher_dict = {
-    'Site': lambda series_dict, check_series: series_dict['site'] == check_series.site_code,
-    'Variable': lambda series_dict, check_series: series_dict['var'] == check_series.variable_code,
-    'QC Code': lambda series_dict, check_series: series_dict['qc'] == check_series.quality_control_level_code
-}
-
 
 class CHOICE_DEFAULTS:
     NEW_TEMPLATE_CHOICE = 'Create a new resource template'
     SELECT_TEMPLATE_CHOICE = 'Select a resource template'
-
-
 
 class VisualH2OWindow(wx.Frame):
     def __init__(self, parent, id, title):
@@ -55,7 +44,9 @@ class VisualH2OWindow(wx.Frame):
         # self.ActiveOdmConnection = None  # type: # ServiceManager
         self.ActiveHydroshare = None  # type: HydroShareUtility
 
-        self._series_dict = {}  # type: dict[int, Series]
+        self.odm_series_dict = {} # type: dict[str, Series]
+        self.h2o_series_dict = {} # type: dict[str, H2OSeries]
+
         self._resources = None  # type: list[HydroShareResource]
 
         # Widgets
@@ -90,7 +81,7 @@ class VisualH2OWindow(wx.Frame):
             (self.OnTestDatabaseAuth, 'db_auth_test'),
             (self.OnRemoveDatabaseAuth, 'db_auth_remove'),
             (self.OnPrintLog, 'logger'),
-            (self.OnPrintLog, 'Dataset_Started'),
+            (self._update_status_gauge, 'Dataset_Started'),
             (self._update_status_gauge, 'Dataset_Generated')
         ]
 
@@ -225,26 +216,32 @@ class VisualH2OWindow(wx.Frame):
             series_service = service_manager.get_series_service()
             series_list = series_service.get_all_series()
             for series in series_list:
-                self._series_dict[series.id] = series
+                h2o_series = OdmSeriesHelper.CreateH2OSeriesFromOdmSeries(series)
+                if h2o_series is None:
+                    continue
+                self.h2o_series_dict[str(h2o_series)] = h2o_series
+                self.odm_series_dict[str(h2o_series)] = series
             self.UpdateSeriesInGrid()
         else:
             self.OnPrintLog('Unable to authenticate using connection {}'.format(connection.name))
 
     def SetHydroShareConnection(self, account_details):
         busy = wx.BusyInfo("Loading HydroShare account information for {}".format(account_details.name))
-
-        self.ActiveHydroshare = HydroShareUtility()
-        if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
-            self._resources = self.ActiveHydroshare.getAllResources()
-            self.OnPrintLog('Successfully authenticated HydroShare account details')
-        else:
+        try:
+            self.ActiveHydroshare = HydroShareUtility()
+            if self.ActiveHydroshare.authenticate(**account_details.to_dict()):
+                self._resources = self.ActiveHydroshare.getAllResources()
+                self.OnPrintLog('Successfully authenticated HydroShare account details')
+            else:
+                self.OnPrintLog('Unable to authenticate HydroShare account - please check your credentials')
+        except:
             self.OnPrintLog('Unable to authenticate HydroShare account - please check your credentials')
 
     def on_database_chosen(self, event):
         self.available_series_listbox.Clear()
         self.selected_series_listbox.Clear()
         if event.GetSelection() > 0:
-            self._series_dict.clear()
+            self.h2o_series_dict.clear()
             selection_string = self.database_connection_choice.GetStringSelection()
             self.SetOdmConnection(self.H2OService.DatabaseConnections[selection_string])
         else:
@@ -259,7 +256,7 @@ class VisualH2OWindow(wx.Frame):
         self._update_target_choices()
 
     def UpdateSeriesInGrid(self, event=None):
-        if self._series_dict is None or len(self._series_dict) == 0:
+        if self.h2o_series_dict is None or len(self.h2o_series_dict) == 0:
             self.selected_series_listbox.SetItems(['No Selected Series'])
             self.selected_series_listbox.SetItems(['No Available Series'])
             self.remove_from_selected_button.Disable()
@@ -267,14 +264,17 @@ class VisualH2OWindow(wx.Frame):
             return
 
         self.available_series_listbox.Clear()
-        for series in self._series_dict.values():
-            self.available_series_listbox.Append(series_to_string(series))
+        for series_string in self.h2o_series_dict.keys():
+            self.available_series_listbox.Append(series_string)
 
         self.remove_from_selected_button.Enable()
         self.add_to_selected_button.Enable()
 
     def _build_category_context_menu(self, selected_item, evt_parent):
         series_category_menu = wx.Menu()
+        if self.h2o_series_dict is None or len(self.h2o_series_dict) == 0:
+            return
+
         menu_strings = [u"Site: Select All", u"Site: Deselect All", u"Variable: Select All", u"Variable: Deselect All",
                         u"QC Code: Select All", u"QC Code: Deselect All"]
         listbox = self.selected_series_listbox if evt_parent == 'Selected Listbox' else self.available_series_listbox
@@ -305,7 +305,7 @@ class VisualH2OWindow(wx.Frame):
 
         selected = [self.selected_series_listbox.GetString(i) for i in self.selected_series_listbox.GetSelections()]
         for item in selected:
-            self.available_series_listbox.Insert(item, 0)
+            self.available_series_listbox.Append(item)
             self.selected_series_listbox.Delete(self.selected_series_listbox.FindString(item))
 
         if len(self.selected_series_listbox.Items) == 0:
@@ -314,7 +314,9 @@ class VisualH2OWindow(wx.Frame):
     def OnAvailableCategoryRightClick(self, event):
         item_int = WxHelper.GetMouseClickIndex(event, self.available_series_listbox)
         if item_int >= 0:
-            self.PopupMenu(self._build_category_context_menu(item_int, 'Available Listbox'))
+            menu = self._build_category_context_menu(item_int, 'Available Listbox')
+            if menu is not None:
+                self.PopupMenu(menu)
 
     def OnSelectedCategoryRightClick(self, event):
         item_int = WxHelper.GetMouseClickIndex(event, self.selected_series_listbox)
@@ -323,10 +325,15 @@ class VisualH2OWindow(wx.Frame):
 
     def _category_selection(self, event, direction, control, curr_index):
         category, action = direction.split(u': ')
-        check_series = self._series_dict[int(RE_SERIES_INFO.match(control.Items[curr_index]).groupdict()['id'])]
+        check_series = OdmSeriesHelper.PopulateH2OSeriesFromString(control.Items[curr_index])
+
+        if check_series is None:
+            print('Unable to parse information for {}'.format(control.Items[curr_index]))
+            return
+
         for ctrl_index in range(0, len(control.Items)):
-            series_dict = RE_SERIES_INFO.match(control.Items[ctrl_index]).groupdict()
-            if series_matcher_dict[category](series_dict, check_series):
+            temp_series = OdmSeriesHelper.PopulateH2OSeriesFromString(control.Items[ctrl_index])
+            if OdmSeriesHelper.MATCH_ON_ATTRIBUTE[category](temp_series, check_series):
                 if action == 'Select All':
                     control.Select(ctrl_index)
                 elif action == 'Deselect All':
@@ -359,9 +366,15 @@ class VisualH2OWindow(wx.Frame):
         if not self._verify_dataset_selections():
             return
 
+        series_items = []
+        for item in self.selected_series_listbox.Items:
+            check_series = OdmSeriesHelper.PopulateH2OSeriesFromString(item)
+            if check_series is None or str(check_series) not in self.h2o_series_dict.keys():
+                continue
+            series_items.append(self.h2o_series_dict[str(check_series)])
+
         curr_dataset = H2ODataset(name=self.dataset_name_input.Value,
-                                  odm_series=[int(RE_SERIES_INFO.match(item).groupdict()['id']) for item in
-                                              self.selected_series_listbox.Items],
+                                  odm_series=series_items,
                                   destination_resource=self.destination_resource_choice.GetStringSelection(),
                                   hs_account_name=self.hydroshare_account_choice.GetStringSelection(),
                                   odm_db_name=self.database_connection_choice.GetStringSelection(),
@@ -435,11 +448,11 @@ class VisualH2OWindow(wx.Frame):
         selected = []
         available = []
 
-        for id, series in self._series_dict.iteritems():
-            if id in dataset.odm_series:
-                selected.append(series_to_string(series))
+        for series in self.h2o_series_dict.keys():
+            if series in dataset.odm_series:
+                selected.append(str(series))
             else:
-                available.append(series_to_string(series))
+                available.append(str(series))
 
         self.available_series_listbox.SetItems(available)
         self.selected_series_listbox.SetItems(selected)
@@ -462,12 +475,20 @@ class VisualH2OWindow(wx.Frame):
         if self.destination_resource_choice.GetStringSelection() == CHOICE_DEFAULTS.NEW_TEMPLATE_CHOICE:
             self.OnEditResourceTemplates(None)
 
-    def _update_status_gauge(self, completed):
-        print (completed)
-        self.status_gauge.SetValue(completed)
+    def _update_status_gauge(self, resource, completed=None, started=None):
+        message = ' generating files for resource {}'.format(resource)
+        state = 'None'
+        if completed is not None:
+            state = 'Finished'
+            self.status_gauge.SetValue(completed)
+        elif started is not None:
+            state = 'Starting'
+            self.status_gauge.SetValue(started)
 
-    def GetLabel(self, label):
-        return WxHelper.GetLabel(self.panel, label)
+        self.OnPrintLog(state + message)
+
+    def GetLabel(self, label, font=None):
+        return WxHelper.GetLabel(self.panel, label, font)
 
     def _build_main_window(self):
         ######################################
@@ -512,13 +533,12 @@ class VisualH2OWindow(wx.Frame):
         self.selected_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Selected Series'],
                                                            on_right_click=self.OnSelectedCategoryRightClick, size_x=375,
                                                            size_y=200, font=self.WX_MONOSPACE)
-        self.available_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Available Series'],
+        self.available_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Available Series'], flags=wx.LB_EXTENDED | wx.LB_SORT,
                                                             on_right_click=self.OnAvailableCategoryRightClick,
                                                             size_x=375, size_y=200, font=self.WX_MONOSPACE)
 
         self.grouping_radio_buttons = WxHelper.GetRadioBox(self.panel, u"Series File Grouping",
-                                                           [u"Single File for all series",
-                                                            u"One file per series"])
+                                                           [u"Single File for all series", u"One file per series"])
 
         self.chunk_by_year_checkbox = wx.CheckBox(self.panel, wx.ID_ANY, u"Chunk file(s) by year", wx.Point(-1, -1),
                                                   wx.DefaultSize, 0)
@@ -557,8 +577,8 @@ class VisualH2OWindow(wx.Frame):
                                                         self._delete_dataset_clicked, size_x=100, size_y=30)
 
         # Dataset choice and input
-        self.hydroshare_resources_choice = WxHelper.GetChoice(self, self.panel, self._get_dataset_choices() )#,
-                                                              # on_change=self.OnDatasetChoiceModified)
+        self.hydroshare_resources_choice = WxHelper.GetChoice(self, self.panel, self._get_dataset_choices(),
+                                                              on_change=self.OnDatasetChoiceModified)
 
         self.dataset_name_input = wx.TextCtrl(self.panel, wx.ID_ANY, u'', wx.DefaultPosition, wx.DefaultSize, 7,
                                               validator=CharValidator(PATTERNS.CV_WORD))
@@ -568,21 +588,25 @@ class VisualH2OWindow(wx.Frame):
         # Most things, but with the options all on left   #
         ###################################################
 
-        dataset_sizer.Add(self.GetLabel(u'Available Series'), pos=(6, 0), span=(1, 1),
-                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
-        dataset_sizer.Add(self.GetLabel(u'Selected Series'), pos=(6, 5), span=(1, 1),
-                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=5)
-        dataset_sizer.Add(self.available_series_listbox, pos=(7, 0), span=(6, 4),
+        series_label = u'Site                    Variable                  QC Level   Source  Method'
+        dataset_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(7, 0), span=(1, 3),
+                          flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
+        dataset_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(7, 5), span=(1, 4),
+                          flag=wx.ALIGN_LEFT | wx.RIGHT, border=12)
+        dataset_sizer.Add(self.GetLabel(u'Available Series'), pos=(6, 0), span=(1, 3), flag=wx.ALIGN_CENTER | wx.TOP, border=8)
+        dataset_sizer.Add(self.GetLabel(u'Selected Series'), pos=(6, 5), span=(1, 4), flag=wx.ALIGN_CENTER | wx.TOP, border=8)
+        dataset_sizer.Add(self.available_series_listbox, pos=(8, 0), span=(6, 4),
                           flag=wx.ALIGN_CENTER | wx.LEFT | wx.EXPAND, border=7)
-        dataset_sizer.Add(self.selected_series_listbox, pos=(7, 5), span=(6, 4),
+        dataset_sizer.Add(self.selected_series_listbox, pos=(8, 5), span=(6, 4),
                           flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND, border=7)
-        dataset_sizer.Add(self.add_to_selected_button, pos=(9, 4), span=(1, 1),
+        dataset_sizer.Add(self.add_to_selected_button, pos=(10, 4), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.TOP | wx.BOTTOM, border=2)
-        dataset_sizer.Add(self.remove_from_selected_button, pos=(10, 4), span=(1, 1),
+        dataset_sizer.Add(self.remove_from_selected_button, pos=(11, 4), span=(1, 1),
                           flag=wx.ALIGN_CENTER | wx.BOTTOM | wx.TOP, border=2)
 
-        dataset_sizer.Add(self.GetLabel(u'HydroShare Resources'), pos=(0, 0), span=(1, 1),
-                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
+        # dataset_sizer.Add(self.GetLabel(u'HydroShare Resources'), pos=(0, 0), span=(1, 1),
+        dataset_sizer.Add(self.GetLabel(u'Select a dataset'), pos=(0, 0), span=(1, 1),
+                                            flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
         dataset_sizer.Add(self.hydroshare_resources_choice, pos=(1, 0), span=(1, 4),
                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
         dataset_sizer.Add(self.GetLabel(u'Name'), pos=(0, 5), span=(1, 1),

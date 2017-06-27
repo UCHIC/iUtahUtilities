@@ -1,4 +1,3 @@
-
 import datetime
 import os
 import re
@@ -14,6 +13,7 @@ import pandas
 from threading import Thread
 
 from GAMUTRawData.odmservices import ServiceManager
+from GAMUTRawData.odmdata import Series
 from Utilities.DatasetGenerator import OdmDatasetConnection, H2ODataset
 from Utilities.HydroShareUtility import HydroShareAccountDetails, HydroShareUtility, ResourceTemplate
 from Utilities.Odm2Wrapper import *
@@ -22,7 +22,6 @@ from GAMUTRawData.CSVDataFileGenerator import *
 from Utilities.DatasetGenerator import *
 from exceptions import IOError
 from Utilities.HydroShareUtility import HydroShareUtility, HydroShareException, HydroShareUtilityException
-
 
 __title__ = 'H2O Service'
 WINDOWS_OS = 'nt' in os.name
@@ -33,7 +32,6 @@ sys.path.append(os.path.dirname(PROJECT_DIR))
 use_debug_file_naming_conventions = True
 
 
-
 class H2ODefaults:
     SETTINGS_FILE_NAME = './operations_file.json'.format()
     PROJECT_DIR = '{}'.format(os.path.dirname(os.path.realpath(__file__)))
@@ -41,11 +39,18 @@ class H2ODefaults:
     LOGFILE_DIR = '{}/../logs/'.format(PROJECT_DIR)
     SERIES_COLUMN_NAME = lambda series: '{} & {} & QC {}'.format(series.site_code, series.variable_code,
                                                                  series.quality_control_level_code)
+    CSV_COLUMNS = ["LocalDateTime", "UTCOffset", "DateTimeUTC"]
+    
     GUI_PUBLICATIONS = {
         'logger': lambda message: {'message': message},
-        'Dataset_Started': lambda done, total, name: {'message': '{}/{}: Creating dataset {}'.format(done, total, name)},
-        'Dataset_Generated': lambda done, total: {'completed': (done * 100) / total}
+        'Dataset_Started': lambda resource, done, total: {'started': ((done * 100) / total) - 1, 'resource': resource},
+        'Dataset_Generated': lambda resource, done, total: {'completed': (done * 100) / total, 'resource': resource}
     }
+
+
+class CSV_DEFAULTS:
+    DEFAULT_COLS = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC']
+
 
 class H2OLogger:
     def __init__(self, logfile_dir=H2ODefaults.LOGFILE_DIR, log_to_gui=False):
@@ -61,37 +66,86 @@ class H2OLogger:
         self.terminal.write(message)
         self.LogFile.write(message)
         # if self.log_to_gui:
-        #     pub.sendMessage('logger', message=message)
-
-class H2OService:
-    def __init__(self, hydroshare_connections=None, odm_connections=None, resource_templates=None, datasets=None,
-                 subscriptions=None):
-        self.HydroShareConnections = hydroshare_connections if hydroshare_connections is not None else {}  # type: dict[str, HydroShareAccountDetails]
-        self.DatabaseConnections = odm_connections if odm_connections is not None else {}  # type: dict[str, OdmDatasetConnection]
-        self.ResourceTemplates = resource_templates if resource_templates is not None else {}  # type: dict[str, ResourceTemplate]
-        self.Datasets = datasets if datasets is not None else {}  # type: dict[str, H2ODataset]
-        self.Subscriptions = subscriptions if subscriptions is not None else [] # type: list[str]
-
-        self._initialize_directories([H2ODefaults.DATASET_DIR, H2ODefaults.LOGFILE_DIR])
-        sys.stdout = H2OLogger(log_to_gui='logger' in self.Subscriptions)
-
-        self.ThreadedFunction = None # type: Thread
-        self.ThreadKiller = ['Continue']
+        #     pub.sendMessage('logger', message='H2OService: ' + str(message))
 
 
-        self.csv_indexes = ["LocalDateTime", "UTCOffset", "DateTimeUTC"]
-        self.qualifier_columns = ["QualifierID", "QualifierCode", "QualifierDescription"]
-        self.csv_columns = ["DataValue", "LocalDateTime", "UTCOffset", "DateTimeUTC"]
+class OdmSeriesHelper:
+    RE_STRING_PARSER = re.compile(r'^(?P<SiteCode>\w+) +(?P<VariableCode>\S+) +QC (?P<QualityControlLevelCode>\S+) +'
+                                  r'(?P<SourceID>[\d.]+) +(?P<MethodID>[\d.]+)$', re.I)
+    MATCH_ON_ATTRIBUTE = {
+        'Site': lambda first_series, second_series: first_series.SiteCode == second_series.SiteCode,
+        'Variable': lambda first_series, second_series: first_series.VariableCode == second_series.VariableCode,
+        'QC Code': lambda first_series, second_series: first_series.QualityControlLevelCode ==
+                                                       second_series.QualityControlLevelCode,
+        'Source': lambda first_series, second_series: first_series.SourceID == second_series.SourceID,
+        'Method': lambda first_series, second_series: first_series.MethodID == second_series.MethodID
+    }
+    FORMAT_STRING = '{:<22} {:<27} QC {:<7} {:<5} {}'
+
+    @staticmethod
+    def SeriesToString(series):
+        format_string = OdmSeriesHelper.FORMAT_STRING
+        if isinstance(series, H20Series):
+            return format_string.format(series.SiteCode, series.VariableCode, series.QualityControlLevelCode,
+                                           series.SourceID, series.MethodID)
+        elif isinstance(series, Series):
+            return format_string.format(series.site_code, series.variable_code, series.quality_control_level_code,
+                                        series.source_id, series.method_id)
+        return 'Unable to create string from object type {}'.format(type(series))
 
 
-    def createFile(self, filepath):
+    @staticmethod
+    def OdmSeriesToString(series):
+        if series is not None:
+            return str(OdmSeriesHelper.CreateH2OSeriesFromOdmSeries(series))
+        else:
+            return "A series cannot be type (None)"
+
+    @staticmethod
+    def CreateH2OSeriesFromOdmSeries(series):
+        """
+        :type series: Series
+        """
+        return H20Series(SeriesID=series.id, SiteID=series.site_id, VariableID=series.variable_id,
+                         MethodID=series.method_id, SourceID=series.source_id, VariableCode=series.variable_code,
+                         QualityControlLevelID=series.quality_control_level_id, SiteCode=series.site_code,
+                         QualityControlLevelCode=series.quality_control_level_code)
+
+    @staticmethod
+    def HashOdmSeriesObject(series):
+        """
+        :type series: Series
+        """
+        return hash(str(series))
+
+    @staticmethod
+    def PopulateH2OSeriesFromString(series_string):
+        regex_results = OdmSeriesHelper.RE_STRING_PARSER.match(series_string)
+        if regex_results is not None:
+            return H20Series(**regex_results.groupdict())
+        else:
+            return None
+
+
+class CsvFileHelper:
+    @staticmethod
+    def DetermineSeriesChunking(series_list):
         """
 
-        :param file_path:
-        :type file_path:
-        :return:
-        :rtype:
+        :type series_list: list[H2OSeries]
         """
+        csv_files = {}
+
+        for series in series_list:
+            series_tuple = (series.SiteID, series.SourceID, series.QualityControlLevelID)
+            if series_tuple not in csv_files.keys():
+                csv_files[series_tuple] = []
+            csv_files[series_tuple].append(series)
+
+        return csv_files
+
+    @staticmethod
+    def createFile(filepath):
         try:
             print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
             file_out = open(filepath, 'w')
@@ -100,11 +154,102 @@ class H2OService:
             print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
             return None
 
+class H20Series:
+    def __init__(self, SeriesID=None, SiteID=None, SiteCode=None, VariableID=None, VariableCode=None, MethodID=None,
+                 SourceID=None, QualityControlLevelID=None, QualityControlLevelCode=None):
+        self.SeriesID = SeriesID if SeriesID is not None else -1  # type: int
+        self.SiteID = SiteID if SiteID is not None else -1  # type: int
+        self.SiteCode = SiteCode if SiteCode is not None else ""  # type: str
+        self.VariableID = VariableID if VariableID is not None else -1  # type: int
+        self.VariableCode = VariableCode if VariableCode is not None else ""  # type: str
+        self.MethodID = MethodID if MethodID is not None else -1  # type: int
+        self.SourceID = SourceID if SourceID is not None else -1  # type: int
+        self.QualityControlLevelID = QualityControlLevelID if QualityControlLevelID is not None else -1  # type: int
+        self.QualityControlLevelCode = QualityControlLevelCode if QualityControlLevelCode is not None else -1  # type: float
+
+    def __hash__(self):
+        return hash((self.SiteCode, self.VariableCode, self.MethodID, self.SourceID, self.QualityControlLevelCode))
+
+    def __str__(self):
+        return OdmSeriesHelper.SeriesToString(self)
+
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return str(self) == str(other)
+        else:
+            comp_tuple = (self.SiteCode, self.VariableCode, self.MethodID, self.SourceID, self.QualityControlLevelCode)
+            other_tuple = None
+            if isinstance(other, H20Series):
+                other_tuple = (other.SiteCode, other.VariableCode, other.MethodID, other.SourceID,
+                               other.QualityControlLevelCode)
+            elif isinstance(other, Series):
+                other_tuple = (other.site_code, other.variable_code, other.method_id, other.source_id,
+                               other.quality_control_level_code)
+            elif isinstance(other, dict):
+                other_tuple = (other.get('SiteCode', None), other.get('VariableCode', None),
+                               other.get('MethodID', None), other.get('SourceID', None),
+                               other.get('QualityControlLevelCode', None))
+            if other_tuple is None:
+                print('Object types are not similar enough to match anything. "other" was type {}'.format(type(other)))
+            return comp_tuple == other_tuple
+
+    def __ne__(self, other):
+        return not (self == other)
+
+
+class H2OService:
+    def __init__(self, hydroshare_connections=None, odm_connections=None, resource_templates=None, datasets=None,
+                 subscriptions=None):
+        self.HydroShareConnections = hydroshare_connections if hydroshare_connections is not None else {}  # type: dict[str, HydroShareAccountDetails]
+        self.DatabaseConnections = odm_connections if odm_connections is not None else {}  # type: dict[str, OdmDatasetConnection]
+        self.ResourceTemplates = resource_templates if resource_templates is not None else {}  # type: dict[str, ResourceTemplate]
+        self.Datasets = datasets if datasets is not None else {}  # type: dict[str, H2ODataset]
+        self.Subscriptions = subscriptions if subscriptions is not None else []  # type: list[str]
+
+        self._initialize_directories([H2ODefaults.DATASET_DIR, H2ODefaults.LOGFILE_DIR])
+        sys.stdout = H2OLogger(log_to_gui='logger' in self.Subscriptions)
+
+        self.ThreadedFunction = None  # type: Thread
+        self.ThreadKiller = ['Continue']
+
+        self.csv_indexes = ["LocalDateTime", "UTCOffset", "DateTimeUTC"]
+        self.qualifier_columns = ["QualifierID", "QualifierCode", "QualifierDescription"]
+        self.csv_columns = ["DataValue", "LocalDateTime", "UTCOffset", "DateTimeUTC"]
+
+
+    def _process_csv_file(self, series_service, dataset, site_id, qc_id, source_id, series_list):
+        self._thread_checkpoint()
+        csv_str = '{}{}_{}_Source_{}_and_QC_Level_{}.csv'
+        file_out = CsvFileHelper.createFile(csv_str.format(H2ODefaults.DATASET_DIR, dataset.name, 
+                                                           series_list[0].SiteCode, source_id, qc_id))
+        if file_out is None:
+            print('Unable to create output file for {}'.format(dataset.name))
+
+        vars = set([series.VariableID for series in series_list])
+        methods = set([series.MethodID for series in series_list])
+        self._thread_checkpoint()
+
+        dataframe = series_service.get_values_by_filters(site_id, qc_id, source_id, methods, vars)
+
+        if len(dataframe) == 0:
+            return
+        self._thread_checkpoint()
+
+        csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
+                                        columns="VariableCode", values="DataValue")
+
+        del dataframe
+        csv_table.to_csv(file_out)
+        file_out.close()
+
+        exit(0)
+        
+
     def _thread_checkpoint(self):
         return self.ThreadKiller[0] == 'Continue'
 
     def _threaded_dataset_generation(self):
-        generated_files = [] # type: list[FileDetails]
+        generated_files = []  # type: list[FileDetails]
 
         dataset_count = len(self.Datasets)
         current_dataset = 0
@@ -112,96 +257,27 @@ class H2OService:
             self._thread_checkpoint()
 
             current_dataset += 1
-            self.NotifyVisualH20('Dataset_Started', current_dataset, dataset_count, dataset.name)
+            self.NotifyVisualH20('Dataset_Started', dataset.destination_resource, current_dataset, dataset_count)
 
             odm_service = ServiceManager()
             odm_service._current_connection = self.DatabaseConnections[dataset.odm_db_name].ToDict()
             series_service = odm_service.get_series_service()
 
-            series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series]  # type: list[Series]
-            cols_to_use = DatasetHelper.GetCsvColumns(series_list)
-            print 'Dataset: {}\n{}\n'.format(dataset.name, cols_to_use)
+            chunks = CsvFileHelper.DetermineSeriesChunking(dataset.odm_series)
 
-            dataframe = None # pandas.DataFrame(index=["LocalDateTime", "UTCOffset", "DateTimeUTC"])
+            for csv_file, series_list in chunks.iteritems():
+                if len(series_list) == 0:
+                    print 'Unable to process csv file {}'.format(csv_file)
+                    continue
 
-            sleep(1)
-
-            self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count)
-            # for series in series_list:
-                # file_out = self.createFile(H2ODefaults.DATASET_DIR + dataset.name + str(series.id) + '.csv')
-                # if file_out is None:
-                #     print('Unable to create output file for {}'.format(dataset.name))
-                #
-                # dvs = series_service.get_values_by_series_and_year(series)
-                # dvs.set_index(self.csv_indexes, inplace=True)
-                #
-                # # dvs.rename(columns={"DataValue": '{} & {} & {}'.format(series.site_code, series.variable_code, series.quality_control_level_code)}, inplace=True)
-                #
-                # for column in dvs.columns.tolist():
-                #     if column not in self.csv_columns and column not in self.csv_indexes:
-                #         print 'Dropping column {}'.format(column)
-                #         dvs.drop(column, axis=1, inplace=True)
-                #
-                # if dataframe is None:
-                #     dataframe = dvs
-                #     continue
-                #
-                # print 'Dataframe keys: {}'.format(dataframe.keys())
-                # print 'DVS keys      : {}'.format(dvs.keys())
-                #
-                # result = dataframe.merge(dvs)
-                #
-                # # dataframe = result
-                #
-                # # print result
-                # # dataframe = result
-                # # dataframe.set_index(self.csv_indexes, inplace=True)
-                #
-                # # dataframe.insert(1, 'DataValues', dvs, allow_duplicates=True)
-                #
-                # # df = pandas.pivot_table(dvs, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
-                # #                          values="DataValue")
-                # # dv_raw = series_service.get_variables_by_site_id_qc(series.variable_id, series.site_id, 1)  # type:
-                #
-                # # Get the qualifiers that we use in this series, merge it with our DataValue set
-                # # q_list = [[q.id, q.code, q.description] for q in series_service.get_qualifiers_by_series_id(series.id)]
-                # # q_df = pandas.DataFrame(data=q_list, columns=self.qualifier_columns)
-                # # dv_set = dv_raw.merge(q_df, how='left', on="QualifierID")  # type: pandas.DataFrame
-                # # del dv_raw
-                # # dv_set.set_index(self.csv_indexes, inplace=True)
-                #
-                # # Drop the columns that we aren't interested in, and correct any names afterwards
-                # # for column in dv_set.columns.tolist():
-                # #     if column not in self.csv_columns:
-                # #         dv_set.drop(column, axis=1, inplace=True)
-                # # dv_set.rename(columns={"DataValue": series.variable_code}, inplace=True)
-                #
-                # del dvs
-                # result.to_csv(file_out)
-                # file_out.close()
-                #
+                self._process_csv_file(series_service, dataset, csv_file[0], csv_file[2], csv_file[1], series_list)
 
 
+            self.NotifyVisualH20('Dataset_Generated', dataset.destination_resource, current_dataset, dataset_count)
 
-
-
-
-
-
-            # self.NotifyVisualH20('Dataset_Generated', current_dataset, dataset_count)
-
-
-    # Write series to their own files
-
-    # Chunk files by year
-
-    #
-
-
-    # Write series to one file
 
     def StopActions(self):
-        if self.ThreadedFunction is not None: # and self.ThreadedFunction.is_alive():
+        if self.ThreadedFunction is not None:  # and self.ThreadedFunction.is_alive():
             self.ThreadedFunction.join(1)
             self.ThreadKiller = None
 
@@ -215,8 +291,6 @@ class H2OService:
         self.ThreadedFunction.start()
 
     def UploadDatasetsToHydroShare(self, blocking=False):
-        # if blocking:
-        #     return
         if self.ThreadedFunction is not None and self.ThreadedFunction.is_alive():
             self.ThreadedFunction.join(3)
         self.ThreadKiller = ['Continue']
@@ -227,8 +301,8 @@ class H2OService:
         if pub_key in self.Subscriptions and pub_key in H2ODefaults.GUI_PUBLICATIONS.keys():
             result = H2ODefaults.GUI_PUBLICATIONS[pub_key](*args)
             pub.sendMessage(pub_key, **result)
-        # else:
-        #     print('We can\'t publish {}, no one is subscribed'.format(pub_key))
+            # else:
+            #     print('We can\'t publish {}, no one is subscribed'.format(pub_key))
 
     def to_json(self):
         return {'odm_connections': self.DatabaseConnections,

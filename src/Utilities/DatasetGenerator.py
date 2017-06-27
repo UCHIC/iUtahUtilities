@@ -69,14 +69,11 @@ class DatasetHelper:
 
     @staticmethod
     def GetCsvColumns(series_list):
-        site_codes = set([series.site_code for series in series_list])
-        var_codes = set([series.variable_code for series in series_list])
-        qc_codes = set([series.quality_control_level_code for series in series_list])
 
         cols_to_use = DatasetHelper.DEFAULT_COLS
-        if len(qc_codes) > 1:
-            cols_to_use.append('QC_Code')
-        cols_to_use += ['SiteCode', 'DataValue'] if len(site_codes) > 1 else list(var_codes)
+        # if len(qc_codes) > 1:
+        #     cols_to_use.append('QC_Code')
+        # cols_to_use += ['SiteCode', 'DataValue'] if len(site_codes) > 1 else list(var_codes)
 
         return cols_to_use
 
@@ -97,12 +94,11 @@ class FileDetails(object):
         fd_str = '{site} - {s_name} - {f_name}'
         return fd_str.format(site=self.site_code, s_name=self.site_name, f_name=self.file_name)
 
-
 class H2ODataset:
     def __init__(self, name='', odm_series=None, destination_resource='', hs_account_name='', odm_db_name='',
                  create_resource=False, single_file=False, chunk_by_year=False):
         self.name = name  # type: str
-        self.odm_series = odm_series if odm_series is not None else {}  # type: dict # {'odm_db_name': [1, 2, 4]}
+        self.odm_series = odm_series if odm_series is not None else {}  # type: dict[int, H20Series]
         self.destination_resource = destination_resource  # type: str
         self.hs_account_name = hs_account_name  # type: str
         self.odm_db_name = odm_db_name  # type: str

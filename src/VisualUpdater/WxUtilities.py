@@ -64,8 +64,11 @@ class WxHelper:
         return choice
 
     @staticmethod
-    def GetLabel(parent, text):
-        return wx.StaticText(parent, wx.ID_ANY, text)
+    def GetLabel(parent, text, font=None):
+        label = wx.StaticText(parent, wx.ID_ANY, text)
+        if font is not None:
+            label.SetFont(font)
+        return label
 
     @staticmethod
     def AddNewMenuItem(app, menu, label, on_click=None, return_item=False):

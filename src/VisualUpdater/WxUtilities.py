@@ -1,4 +1,5 @@
 import wx
+from InputValidator import *
 # import wx.dataview
 # import wx.grid
 
@@ -27,6 +28,27 @@ class WxHelper:
                                wx.RA_SPECIFY_ROWS)
         radiobox.SetSelection(0)
         return radiobox
+
+    @staticmethod
+    def GetWxSize(size_x, size_y):
+        size_x = -1 if size_x is None else size_x
+        size_y = -1 if size_y is None else size_y
+        return wx.Size(size_x, size_y)
+
+    @staticmethod
+    def GetTextInput(parent, placeholder_text=u'', size_x=None, size_y=None, validator=CharValidator(PATTERNS.ANY),
+                     max_length=None, wrap_text=False):
+        if wrap_text:
+            text_ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=placeholder_text, pos=wx.DefaultPosition, size=wx.DefaultSize,
+                                    style=wx.TE_BESTWRAP | wx.TE_MULTILINE, validator=validator)
+        else:
+            text_ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=placeholder_text, pos=wx.DefaultPosition, size=wx.DefaultSize,
+                                    style=7, validator=validator)
+        text_ctrl.SetMinSize(WxHelper.GetWxSize(size_x, size_y))
+        text_ctrl.SetMaxSize(WxHelper.GetWxSize(size_x, size_y))
+        if max_length is not None:
+            text_ctrl.SetMaxLength(max_length)
+        return text_ctrl
 
     @staticmethod
     def GetListBox(app, parent, items, on_right_click=None, size_x=None, size_y=None, font=None, flags=wx.LB_EXTENDED):
@@ -101,3 +123,4 @@ class WxHelper:
         evt_pos = event.GetPosition()
         list_pos = control.ScreenToClient(evt_pos)
         return control.HitTest(list_pos)
+

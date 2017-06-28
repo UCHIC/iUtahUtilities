@@ -129,27 +129,24 @@ class OdmSeriesHelper:
 
 class CsvFileHelper:
     @staticmethod
-    def DetermineSeriesChunking(series_list):
+    def DetermineForcedSeriesChunking(series_list):
         """
 
         :type series_list: list[H2OSeries]
         """
         csv_files = {}
-
         for series in series_list:
             series_tuple = (series.SiteID, series.SourceID, series.QualityControlLevelID)
             if series_tuple not in csv_files.keys():
                 csv_files[series_tuple] = []
             csv_files[series_tuple].append(series)
-
         return csv_files
 
     @staticmethod
     def createFile(filepath):
         try:
-            print formatString % (datetime.datetime.now(), "handleConnection", "Creating a new file " + filepath)
-            file_out = open(filepath, 'w')
-            return file_out
+            print 'Creating new file {}'.format(filepath)
+            return open(filepath, 'w')
         except Exception as e:
             print('---\nIssue encountered while creating a new file: \n{}\n{}\n---'.format(e, e.message))
             return None
@@ -216,68 +213,113 @@ class H2OService:
         self.qualifier_columns = ["QualifierID", "QualifierCode", "QualifierDescription"]
         self.csv_columns = ["DataValue", "LocalDateTime", "UTCOffset", "DateTimeUTC"]
 
+    def _get_year_range(self, series_service, series_list):
+        start_date = None
+        end_date = None
+        for series in series_list:
+            odm_series = series_service.get_series_from_filter(series.SiteID, series.VariableID,
+                                                               series.QualityControlLevelID, series.SourceID,
+                                                               series.MethodID)
+            if start_date is None or start_date > odm_series.begin_date_time:
+                start_date = odm_series.begin_date_time
+            if end_date is None or end_date < odm_series.end_date_time:
+                end_date = odm_series.end_date_time
+        return range(start_date.year, end_date.year + 1)
 
-    def _process_csv_file(self, series_service, dataset, site_id, qc_id, source_id, series_list):
-        self._thread_checkpoint()
-        csv_str = '{}{}_{}_Source_{}_and_QC_Level_{}.csv'
-        file_out = CsvFileHelper.createFile(csv_str.format(H2ODefaults.DATASET_DIR, dataset.name, 
-                                                           series_list[0].SiteCode, source_id, qc_id))
-        if file_out is None:
-            print('Unable to create output file for {}'.format(dataset.name))
-
+    def _process_csv_file(self, series_service, dataset, site_id, qc_id, source_id, series_list, year=None):
+        # Perform the query for the data we want
         vars = set([series.VariableID for series in series_list])
         methods = set([series.MethodID for series in series_list])
-        self._thread_checkpoint()
 
-        dataframe = series_service.get_values_by_filters(site_id, qc_id, source_id, methods, vars)
+        if dataset.single_file:
+            dataframe = series_service.get_values_by_filters(site_id, qc_id, source_id, methods, vars, year)
+            if len(dataframe) == 0:
+                return
 
-        if len(dataframe) == 0:
-            return
-        self._thread_checkpoint()
+            # CSV file generation
+            site_code = series_list[0].SiteCode
+            if dataset.chunk_by_year:
+                csv_str = '{}ODM_Series_at_{}_Source_{}_QC_Code_{}_{}.csv'.format(H2ODefaults.DATASET_DIR, site_code,
+                                                                                  source_id, qc_id, year)
+            else:
+                csv_str = '{}ODM_Series_at_{}_Source_{}_QC_Code_{}.csv'.format(H2ODefaults.DATASET_DIR, site_code,
+                                                                               source_id, qc_id)
+            file_out = CsvFileHelper.createFile(csv_str)
+            if file_out is None:
+                print('Unable to create output file for {}'.format(dataset.name))
 
-        csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
-                                        columns="VariableCode", values="DataValue")
+            # Set up our table and prepare for CSV output
+            csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
+                                           columns="VariableCode", values="DataValue")
+            del dataframe
+            csv_table.to_csv(file_out)
+            file_out.close()
+        else:
+            for series in series_list:
+                self._thread_checkpoint()
+                # CSV file generation
+                dataframe = series_service.get_values_by_filters(site_id, qc_id, source_id, methods, [series.VariableID], year)
+                if len(dataframe) == 0:
+                    return
 
-        del dataframe
-        csv_table.to_csv(file_out)
-        file_out.close()
+                if dataset.chunk_by_year:
+                    csv_str = '{}ODM_Series_{}_at_{}_Source_{}_QC_Code_{}_{}.csv'.format(H2ODefaults.DATASET_DIR, series.VariableCode,
+                                                                                         series.SiteCode, source_id, qc_id, year)
+                else:
+                    csv_str = '{}ODM_Series_{}_at_{}_Source_{}_QC_Code_{}.csv'.format(H2ODefaults.DATASET_DIR, series.VariableCode,
+                                                                                      series.SiteCode, source_id, qc_id)
+                file_out = CsvFileHelper.createFile(csv_str)
+                if file_out is None:
+                    print('Unable to create output file for {}'.format(dataset.name))
 
-        exit(0)
-        
+                # Set up our table and prepare for CSV output
+                csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
+                                               columns="VariableCode", values="DataValue")
+                del dataframe
+                csv_table.to_csv(file_out)
+                file_out.close()
 
-    def _thread_checkpoint(self):
-        return self.ThreadKiller[0] == 'Continue'
 
     def _threaded_dataset_generation(self):
         generated_files = []  # type: list[FileDetails]
+        try:
+            dataset_count = len(self.Datasets)
+            current_dataset = 0
+            for name, dataset in self.Datasets.iteritems():
+                self._thread_checkpoint()
 
-        dataset_count = len(self.Datasets)
-        current_dataset = 0
-        for name, dataset in self.Datasets.iteritems():
-            self._thread_checkpoint()
+                current_dataset += 1
+                self.NotifyVisualH20('Dataset_Started', dataset.destination_resource, current_dataset, dataset_count)
 
-            current_dataset += 1
-            self.NotifyVisualH20('Dataset_Started', dataset.destination_resource, current_dataset, dataset_count)
+                chunks = CsvFileHelper.DetermineForcedSeriesChunking(dataset.odm_series)
 
-            odm_service = ServiceManager()
-            odm_service._current_connection = self.DatabaseConnections[dataset.odm_db_name].ToDict()
-            series_service = odm_service.get_series_service()
+                for csv_file, series_list in chunks.iteritems():
+                    self._thread_checkpoint()
+                    if len(series_list) == 0:
+                        print 'Unable to process csv file {}'.format(csv_file)
+                        continue
 
-            chunks = CsvFileHelper.DetermineSeriesChunking(dataset.odm_series)
+                    odm_service = ServiceManager()
+                    odm_service._current_connection = self.DatabaseConnections[dataset.odm_db_name].ToDict()
+                    series_service = odm_service.get_series_service()
 
-            for csv_file, series_list in chunks.iteritems():
-                if len(series_list) == 0:
-                    print 'Unable to process csv file {}'.format(csv_file)
-                    continue
+                    if dataset.chunk_by_year:
+                        years = self._get_year_range(series_service, series_list)
+                        for year in years:
+                            self._thread_checkpoint()
+                            self._process_csv_file(series_service, dataset, csv_file[0], csv_file[2], csv_file[1], series_list, year=year)
+                    else:
+                        self._process_csv_file(series_service, dataset, csv_file[0], csv_file[2], csv_file[1], series_list)
 
-                self._process_csv_file(series_service, dataset, csv_file[0], csv_file[2], csv_file[1], series_list)
-
-
-            self.NotifyVisualH20('Dataset_Generated', dataset.destination_resource, current_dataset, dataset_count)
+                self.NotifyVisualH20('Dataset_Generated', dataset.destination_resource, current_dataset, dataset_count)
+        except TypeError as e:
+            print 'Dataset generation stopped'
+        except Exception as e:
+            print 'Exception encountered while generating datasets:\n{}'.format(e)
 
 
     def StopActions(self):
-        if self.ThreadedFunction is not None:  # and self.ThreadedFunction.is_alive():
+        if self.ThreadedFunction is not None:
             self.ThreadedFunction.join(1)
             self.ThreadKiller = None
 
@@ -356,3 +398,6 @@ class H2OService:
             if connection.VerifyConnection():
                 valid_odm_connections[name] = connection
         return valid_odm_connections
+
+    def _thread_checkpoint(self):
+        return self.ThreadKiller[0] == 'Continue'

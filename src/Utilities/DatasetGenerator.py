@@ -30,54 +30,6 @@ service_manager = ServiceManager()
 
 UPDATE_CACHE = True
 
-
-class DatasetHelper:
-    DEFAULT_COLS = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC']
-    ALTERNATIVE_COLS = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC', 'SiteCode', 'VariableCode', 'QcCode', 'DataValue']
-    MAIN_COLS = ['SiteCode & VarCode & QcCode']
-    #
-    # @staticmethod
-    # def ToCsvFile(dataset, odm_connection, output_path='./'):
-    #     """
-    #     :type dataset: H2ODataset
-    #     :type odm_connection: OdmDatasetConnection
-    #     :type output_path: str
-    #     """
-    #     generated_files = [] # type: list[FileDetails]
-    #
-    #     print 'Starting dataset helper ToCsvFunction'
-    #
-    #     odm_service = ServiceManager()
-    #     odm_service._current_connection = odm_connection.ToDict()
-    #     series_service = odm_service.get_series_service()
-    #
-    #     columns = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC', 'SiteCode', 'VariableCode', 'QcCode', 'DataValue']
-    #     series_list = [series_service.get_series_by_id(id) for id in dataset.odm_series] # type: Series
-    #     # results = [series_service.get_values_by_series(id) for id in dataset.odm_series]
-    #
-    #     site_codes = set([series.site_code for series in series_list])
-    #     var_codes = set([series.variable_code for series in series_list])
-    #     qc_codes = set([series.quality_control_level_code for series in series_list])
-    #     # site_codes = set([series.site_code for series in series_list])
-    #
-    #     cols_to_use = ['LocalDateTime', 'UTCOffset', 'DateTimeUTC']
-    #     if len(qc_codes) > 1:
-    #         cols_to_use.append('QC_Code')
-    #     cols_to_use += ['SiteCode', 'DataValue'] if len(site_codes) > 1 else list(var_codes)
-    #
-    #     print 'Dataset: {}\n{}\n'.format(dataset.name, cols_to_use)
-
-    @staticmethod
-    def GetCsvColumns(series_list):
-
-        cols_to_use = DatasetHelper.DEFAULT_COLS
-        # if len(qc_codes) > 1:
-        #     cols_to_use.append('QC_Code')
-        # cols_to_use += ['SiteCode', 'DataValue'] if len(site_codes) > 1 else list(var_codes)
-
-        return cols_to_use
-
-
 class FileDetails(object):
     def __init__(self, site_code="", site_name="", file_path="", file_name="", variable_names=None):
         self.coverage_start = None

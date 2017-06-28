@@ -142,8 +142,6 @@ class SeriesService():
         except:
             return None
 
-    # def get_values_variables_by_(self):
-
     def get_variables_by_site_code(self, site_code):  # covers NoDV, VarUnits, TimeUnits
         """
         Finds all of variables at a site
@@ -368,14 +366,25 @@ class SeriesService():
             print e
             return []
 
-    def get_values_by_filters(self, site_id, qc_id, source_id, method_id, var_ids):
+    def get_values_by_filters(self, site_id, qc_id, source_id, method_id, var_ids, year=None):
         try:
-            q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == site_id,
+            if year is None:
+                q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.site_id == site_id,
                                                                           DataValue.variable_id.in_(var_ids),
                                                                           DataValue.variable_id == Variable.id,
                                                                           DataValue.quality_control_level_id == qc_id,
                                                                           DataValue.source_id == source_id,
                                                                           DataValue.method_id.in_(method_id))
+            else:
+                year_start = '{}-01-01 00:00:00'.format(year)
+                year_end = '{}-12-31 23:59:59'.format(year)
+                q = self._edit_session.query(DataValue, Variable.code).filter(DataValue.local_date_time.between(year_start, year_end),
+                                                               DataValue.site_id == site_id,
+                                                               DataValue.variable_id.in_(var_ids),
+                                                               DataValue.variable_id == Variable.id,
+                                                               DataValue.quality_control_level_id == qc_id,
+                                                               DataValue.source_id == source_id,
+                                                               DataValue.method_id.in_(method_id))
             query = q.statement.compile(dialect=self._session_factory.engine.dialect)
             return pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params,
                                          coerce_float=False)
@@ -426,9 +435,25 @@ class SeriesService():
         except:
             return None
 
-    def get_series_from_filter(self):
-        # Pass in probably a Series object, match it against the database
-        pass
+    def get_series_from_filter(self, site_id, variable_id, qc_level_id, source_id, method_id):
+        try:
+            # q = self._edit_session.query(Series).filter(Series.site_id == site_id,
+            #                                             Series.variable_id == variable_id,
+            #                                             Series.quality_control_level_id == qc_level_id,
+            #                                             Series.source_id == source_id,
+            #                                             Series.method_id == method_id)
+
+            return self._edit_session.query(Series).filter(Series.site_id == site_id,
+                                                        Series.variable_id == variable_id,
+                                                        Series.quality_control_level_id == qc_level_id,
+                                                        Series.source_id == source_id,
+                                                        Series.method_id == method_id).first()
+            # query = q.statement.compile(dialect=self._session_factory.engine.dialect)
+            # return pandas.read_sql_query(sql=query, con=self._session_factory.engine, params=query.params,
+            #                              coerce_float=False)
+        except Exception as e:
+            print e
+            return []
 
     # Data Value Methods
     def get_values_by_series(self, series_id):

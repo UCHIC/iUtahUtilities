@@ -20,7 +20,7 @@ from Utilities.Odm2Wrapper import *
 from GAMUTRawData.odmservices import ServiceManager
 from EditConnectionsDialog import DatabaseConnectionDialog
 from EditAccountsDialog import HydroShareAccountDialog
-from WxUtilities import WxHelper, Orientation
+from WxUtilities import WxHelper, Orientation, PADDING, ALIGN
 from ResourceTemplatesDialog import HydroShareResourceTemplateDialog
 from InputValidator import *
 
@@ -519,23 +519,18 @@ class VisualH2OWindow(wx.Frame):
         #   Build connection details sizer   #
         ######################################
         edit_hydroshare_button = WxHelper.GetButton(self, self.panel, u'Edit...', on_click=self.on_edit_hydroshare)
-
         self.hydroshare_account_choice = WxHelper.GetChoice(self, self.panel, self._get_hydroshare_choices(),
                                                             on_change=self.on_hydroshare_chosen, size_x=310, size_y=23)
 
-        hs_account_sizer.Add(self.GetLabel(u'Select a HydroShare account to continue'), pos=(0, 0),
-                              span=(1, 4), flag=wx.ALIGN_LEFT | wx.LEFT | wx.EXPAND | wx.RIGHT, border=5)
-        hs_account_sizer.Add(self.hydroshare_account_choice, pos=(1, 0), span=(1, 4),
-                              flag=wx.ALIGN_LEFT | wx.EXPAND | wx.LEFT, border=5)
-        hs_account_sizer.Add(edit_hydroshare_button, pos=(1, 4), span=(1, 1),
-                              flag=wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT, border=5)
+        hs_account_sizer.Add(self.GetLabel(u'Select a HydroShare account to continue'), pos=(0, 0), span=(1, 4), flag=ALIGN.LEFT)
+        hs_account_sizer.Add(self.hydroshare_account_choice, pos=(1, 0), span=(1, 4), flag=ALIGN.LEFT)
+        hs_account_sizer.Add(edit_hydroshare_button, pos=(1, 4), span=(1, 1), flag=ALIGN.LEFT)
 
         ###################################################
         #   Sizer for HydroShare resource metadata        #
         ###################################################
 
-        self.hs_resource_choice = WxHelper.GetChoice(self.panel, self.panel,
-                                                     self._get_destination_resource_choices(),
+        self.hs_resource_choice = WxHelper.GetChoice(self.panel, self.panel, self._get_destination_resource_choices(),
                                                      on_change=self._destination_resource_changed)
 
         self.resource_title_input = WxHelper.GetTextInput(self.panel)
@@ -545,54 +540,32 @@ class VisualH2OWindow(wx.Frame):
         self.resource_award_title_input = WxHelper.GetTextInput(self.panel)
         self.resource_award_number_input = WxHelper.GetTextInput(self.panel)
 
-
-        # self.hydroshare_destination_radio = WxHelper.GetRadioBox(self.panel, u"HydroShare Resource",
-        #                                                          [u"Create new resource from template",
-        #                                                           u"Use an existing HydroShare resource"])
-        # self.hydroshare_destination_radio.SetSelection(1)
-        # self.Bind(wx.EVT_RADIOBOX, self._update_target_choices, self.hydroshare_destination_radio)
-
-
         # Dataset action buttons
         self.save_dataset_button = WxHelper.GetButton(self, self.panel, u" Apply Changes ", self._save_dataset_clicked,
                                                       size_x=100, size_y=30)
-        # self.copy_dataset_button = WxHelper.GetButton(self, self.panel, u" Copy Dataset ", self._copy_dataset_clicked,
-        #                                               size_x=100, size_y=30)
-        # self.delete_dataset_button = WxHelper.GetButton(self, self.panel, u"",
-        #                                                 self._delete_dataset_clicked, size_x=100, size_y=30)
 
-        # Dataset choice and input
-        # self.hydroshare_resources_choice_delete_me = WxHelper.GetChoice(self, self.panel, self._get_dataset_choices(),
-        #                                                                 on_change=self.OnDatasetChoiceModified)
+        col_base = 5
+        row_base = 5
+        flags = ALIGN.CENTER
 
-        base = 5
-        flags = wx.ALIGN_CENTER | wx.EXPAND | wx.RIGHT | wx.LEFT
+        resource_sizer.Add(self.GetLabel(u'Select a resource'), pos=(0, 0), span=(1, 1), flag=ALIGN.CENTER)
+        resource_sizer.Add(self.hs_resource_choice, pos=(1, 0), span=(1, 8), flag=ALIGN.CENTER)
 
-        resource_sizer.Add(self.GetLabel(u'Select a resource'), pos=(0, 0), span=(1, 1),
-                          flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT | wx.TOP, border=7)
-        resource_sizer.Add(self.hs_resource_choice, pos=(1, 0), span=(1, 4),
-                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        resource_sizer.Add(self.GetLabel(u'Resource Title'), pos=(2, 0), span=(1, 1))
+        resource_sizer.Add(self.GetLabel(u'Resource Abstract'), pos=(4, 0), span=(1, 1))
+        resource_sizer.Add(self.resource_title_input, pos=(3, 0), span=(1, 8), flag=ALIGN.LEFT)
+        resource_sizer.Add(self.resource_abstract_input, pos=(row_base, 0), span=(4,4), flag=ALIGN.CENTER)
 
-        resource_sizer.Add(self.GetLabel(u'Resource Title'), pos=(0, base), span=(1, 1), flag= wx.TOP, border=7)
-        resource_sizer.Add(self.GetLabel(u'Resource Abstract'), pos=(2, 0), span=(1, 1), flag= wx.TOP | wx.LEFT, border=7)
-        resource_sizer.Add(self.resource_title_input, pos=(1, base), span=(1, 4), flag=wx.ALIGN_LEFT | wx.EXPAND | wx.RIGHT,
-                           border=7)
-        resource_sizer.Add(self.resource_abstract_input, pos=(3, 0), span=(4,4),
-                           flag=wx.ALIGN_CENTER | wx.EXPAND | wx.LEFT, border=7)
+        resource_sizer.Add(self.GetLabel(u'Funding Agency'), pos=(row_base, col_base), span=(1, 1), flag=flags)
+        resource_sizer.Add(self.GetLabel(u'Agency Website'), pos=(row_base + 1, col_base), span=(1, 1), flag=flags)
+        resource_sizer.Add(self.GetLabel(u'Award Title'),    pos=(row_base + 2, col_base), span=(1, 1), flag=flags)
+        resource_sizer.Add(self.GetLabel(u'Award Number'),   pos=(row_base + 3, col_base), span=(1, 1), flag=flags)
+        resource_sizer.Add(self.resource_funding_agency_input, pos=(row_base, col_base + 1), span=(1,2), flag=flags)
+        resource_sizer.Add(self.resource_agency_website_input, pos=(row_base + 1, col_base + 1), span=(1,2), flag=flags)
+        resource_sizer.Add(self.resource_award_title_input,    pos=(row_base + 2, col_base + 1), span=(1,2), flag=flags)
+        resource_sizer.Add(self.resource_award_number_input,   pos=(row_base + 3, col_base + 1), span=(1,2), flag=flags)
 
-        resource_sizer.Add(self.GetLabel(u'Resource Metadata'), pos=(2, base), span=(1, 3), flag=wx.ALIGN_CENTER | wx.TOP, border=7)
-        resource_sizer.Add(self.GetLabel(u'Funding Agency'), pos=(3, base), span=(1, 1), flag=flags, border=7)
-        resource_sizer.Add(self.GetLabel(u'Agency Website'), pos=(4, base), span=(1, 1), flag=flags, border=7)
-        resource_sizer.Add(self.GetLabel(u'Award Title'),    pos=(5, base), span=(1, 1), flag=flags, border=7)
-        resource_sizer.Add(self.GetLabel(u'Award Number'),   pos=(6, base), span=(1, 1), flag=flags, border=7)
-        resource_sizer.Add(self.resource_funding_agency_input, pos=(3, base + 1), span=(1,2), flag=flags, border=7)
-        resource_sizer.Add(self.resource_agency_website_input, pos=(4, base + 1), span=(1,2), flag=flags, border=7)
-        resource_sizer.Add(self.resource_award_title_input,    pos=(5, base + 1), span=(1,2), flag=flags, border=7)
-        resource_sizer.Add(self.resource_award_number_input,   pos=(6, base + 1), span=(1,2), flag=flags, border=7)
-
-        # resource_sizer.Add(self.delete_dataset_button, pos=(9, 6), span=(1, 1), flag=wx.ALIGN_LEFT | wx.ALL, border=2)
-        # resource_sizer.Add(self.copy_dataset_button, pos=(9, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
-        resource_sizer.Add(self.save_dataset_button, pos=(7, 7), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL, border=2)
+        resource_sizer.Add(self.save_dataset_button, pos=(row_base + 4, 7), span=(1, 1), flag=wx.ALIGN_CENTER)
 
         ###################################################
         #         ODM Series selection sizer              #
@@ -602,12 +575,10 @@ class VisualH2OWindow(wx.Frame):
         left_arrow = WxHelper.GetBitmap('./VisualUpdater/previous_icon.png', 20, 20)
         right_arrow = WxHelper.GetBitmap('./VisualUpdater/next_icon.png', 20, 20)
 
-        self.add_to_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, right_arrow, wx.DefaultPosition,
-                                                      wx.DefaultSize)
+        self.add_to_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, right_arrow, wx.DefaultPosition, wx.DefaultSize)
         self.Bind(wx.EVT_BUTTON, self._move_to_selected_series, self.add_to_selected_button)
 
-        self.remove_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, left_arrow, wx.DefaultPosition,
-                                                      wx.DefaultSize)
+        self.remove_selected_button = wx.BitmapButton(self.panel, wx.ID_ANY, left_arrow, wx.DefaultPosition, wx.DefaultSize)
         self.Bind(wx.EVT_BUTTON, self._move_from_selected_series, self.remove_selected_button)
 
         self.remove_selected_button.Disable()
@@ -615,13 +586,10 @@ class VisualH2OWindow(wx.Frame):
 
         # Database connection items
         edit_database_button = WxHelper.GetButton(self, self.panel, u'Edit...', on_click=self.on_edit_database)
-        self.database_connection_choice = WxHelper.GetChoice(self, self.panel, self._get_database_choices(),
-                                                             on_change=self.on_database_chosen)
-        odm_series_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(0, 0), span=(1, 3),
-                             flag=wx.ALIGN_LEFT | wx.LEFT | wx.TOP, border=7)
-        odm_series_sizer.Add(self.database_connection_choice, pos=(1, 0), span=(1, 3),
-                             flag=wx.ALIGN_LEFT | wx.EXPAND | wx.LEFT | wx.TOP | wx.BOTTOM, border=5)
-        odm_series_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 2), flag=wx.ALIGN_LEFT | wx.TOP | wx.BOTTOM, border=5)
+        self.database_connection_choice = WxHelper.GetChoice(self, self.panel, self._get_database_choices(), on_change=self.on_database_chosen)
+        odm_series_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(0, 0), span=(1, 3), flag=wx.ALIGN_LEFT)
+        odm_series_sizer.Add(self.database_connection_choice, pos=(1, 0), span=(1, 3), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=ALIGN.LEFT)
 
         # File chunking options
         self.grouping_radio_buttons = WxHelper.GetRadioBox(self.panel, u"Series File Grouping",
@@ -629,21 +597,17 @@ class VisualH2OWindow(wx.Frame):
 
         self.chunk_by_year_checkbox = wx.CheckBox(self.panel, wx.ID_ANY, u"Chunk file(s) by year", wx.Point(-1, -1),
                                                   wx.DefaultSize, 0)
-        odm_series_sizer.Add(self.grouping_radio_buttons, pos=(0, 5), span=(2, 3), flag=wx.ALIGN_LEFT | wx.TOP, border=7)
-        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(0, 8), span=(2, 1), flag=wx.ALIGN_CENTER | wx.RIGHT| wx.TOP,
-                          border=7)
+        odm_series_sizer.Add(self.grouping_radio_buttons, pos=(0, 5), span=(2, 3), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(0, 8), span=(2, 1), flag=ALIGN.CENTER)
 
         # Series selection controls
+        bold_font = wx.Font(11, wx.DEFAULT, wx.NORMAL, wx.NORMAL)
         series_label = u'Site                    Variable                  QC Level   Source  Method'
-        odm_series_sizer.Add(self.GetLabel(u'Available Series'), pos=(2, 0), span=(1, 4), flag=wx.ALIGN_CENTER | wx.TOP,
-                             border=8)
-        odm_series_sizer.Add(self.GetLabel(u'Selected Series'), pos=(2, 5), span=(1, 4), flag=wx.ALIGN_CENTER | wx.TOP,
-                             border=8)
+        odm_series_sizer.Add(self.GetLabel(u'Available Series', font=bold_font), pos=(2, 0), span=(1, 4), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.GetLabel(u'Selected Series', font=bold_font), pos=(2, 5), span=(1, 4), flag=wx.ALIGN_CENTER)
 
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 0), span=(1, 4),
-                             flag=wx.ALIGN_LEFT | wx.LEFT, border=10)
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 5), span=(1, 4),
-                             flag=wx.ALIGN_LEFT | wx.RIGHT, border=12)
+        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 0), span=(1, 4), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 5), span=(1, 4), flag=ALIGN.RIGHT)
 
 
         self.selected_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Selected Series'],
@@ -653,15 +617,11 @@ class VisualH2OWindow(wx.Frame):
                                                             flags=wx.LB_EXTENDED | wx.LB_SORT,
                                                             on_right_click=self.OnAvailableCategoryRightClick,
                                                             size_x=375, size_y=200, font=self.WX_MONOSPACE)
-        odm_series_sizer.Add(self.available_series_listbox, pos=(4, 0), span=(6, 4),
-                             flag=wx.ALIGN_CENTER | wx.LEFT | wx.EXPAND, border=7)
-        odm_series_sizer.Add(self.selected_series_listbox, pos=(4, 5), span=(6, 4),
-                             flag=wx.ALIGN_CENTER | wx.RIGHT | wx.EXPAND, border=7)
+        odm_series_sizer.Add(self.available_series_listbox, pos=(4, 0), span=(6, 4), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.selected_series_listbox, pos=(4, 5), span=(6, 4), flag=ALIGN.CENTER)
 
-        odm_series_sizer.Add(self.add_to_selected_button, pos=(5, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM,
-                             border=6)
-        odm_series_sizer.Add(self.remove_selected_button, pos=(6, 4), span=(1, 1), flag=wx.ALIGN_CENTER | wx.BOTTOM,
-                             border=6)
+        odm_series_sizer.Add(self.add_to_selected_button, pos=(5, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.remove_selected_button, pos=(6, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
 
         ######################################
         # Build action sizer and logging box #
@@ -673,29 +633,24 @@ class VisualH2OWindow(wx.Frame):
         self.status_gauge = wx.Gauge(self.panel, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
 
-        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=920, size_y=150,
-                                                       font=self.WX_MONOSPACE)
+        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=920, size_y=150, font=self.WX_MONOSPACE)
 
-        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND,
-                                border=7)
-        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1),
-                                flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, border=7)
-        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=wx.ALIGN_CENTER | wx.ALL | wx.EXPAND,
-                                border=7)
-        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10),
-                                flag=wx.ALIGN_CENTER | wx.EXPAND | wx.ALL, border=7)
+        action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=ALIGN.CENTER)
+        action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=ALIGN.CENTER)
+        action_status_sizer.Add(save_config_button, pos=(0, 8), span=(1, 1), flag=ALIGN.CENTER)
+        action_status_sizer.Add(self.log_message_listbox, pos=(1, 0), span=(2, 10), flag=ALIGN.CENTER)
 
         ######################################
         # Build menu bar and setup callbacks #
         ######################################
 
-        self.AddGridBagToMainSizer(main_sizer, hs_account_sizer, expand=False)
-        main_sizer.Add(wx.StaticLine(self.panel), 0, flag=wx.ALL | wx.EXPAND, border=5)
-        self.AddGridBagToMainSizer(main_sizer, selection_label_sizer)
-        self.AddGridBagToMainSizer(main_sizer, resource_sizer)
-        self.AddGridBagToMainSizer(main_sizer, odm_series_sizer)
-        main_sizer.Add(wx.StaticLine(self.panel), 0, flag=wx.ALL | wx.EXPAND, border=5)
-        self.AddGridBagToMainSizer(main_sizer, action_status_sizer)
+        self.AddGridBagToMainSizer(main_sizer, hs_account_sizer, expand=False, flags=PADDING.HORIZONTAL)
+        self.AddLineToMainSizer(main_sizer, flags=PADDING.ALL)
+        self.AddGridBagToMainSizer(main_sizer, selection_label_sizer, flags=PADDING.HORIZONTAL)
+        self.AddGridBagToMainSizer(main_sizer, resource_sizer, flags=PADDING.HORIZONTAL)
+        self.AddGridBagToMainSizer(main_sizer, odm_series_sizer, flags=PADDING.HORIZONTAL)
+        self.AddLineToMainSizer(main_sizer, flags=PADDING.ALL)
+        self.AddGridBagToMainSizer(main_sizer, action_status_sizer,flags=WxHelper.GetFlags(top=False))
 
         ######################################
         # Build menu bar and setup callbacks #
@@ -718,7 +673,10 @@ class VisualH2OWindow(wx.Frame):
         self.SetAutoLayout(True)
         main_sizer.Fit(self.panel)
 
-    def AddGridBagToMainSizer(self, parent, child, expand=True, border=5):
+    def AddLineToMainSizer(self, parent, border=15, flags=wx.ALL | wx.EXPAND):
+        parent.Add(wx.StaticLine(self.panel), 0, flag=flags, border=border)
+
+    def AddGridBagToMainSizer(self, parent, child, expand=True, border=15, flags=None):
         """
         :type parent: wx.BoxSizer
         :type child: wx.GridBagSizer
@@ -730,4 +688,8 @@ class VisualH2OWindow(wx.Frame):
                 child.AddGrowableCol(x)
             for y in range(0, child.GetRows()):
                 child.AddGrowableRow(y)
-        parent.Add(child, flag=wx.ALL | wx.EXPAND, border=border)
+        if flags is None:
+            flags = WxHelper.GetFlags()
+        parent.Add(child, flag=flags, border=border)
+
+

@@ -7,7 +7,17 @@ class Orientation:
     VERTICAL = 1
     HORIZONTAL = 0
 
+
 class WxHelper:
+    @staticmethod
+    def GetFlags(flags=0, expand=True, top=True, bottom=True, left=True, right=True):
+        flags |= wx.EXPAND if expand else 0
+        flags |= wx.TOP if top else 0
+        flags |= wx.LEFT if left else 0
+        flags |= wx.RIGHT if right else 0
+        flags |= wx.BOTTOM if bottom else 0
+        return flags
+
     @staticmethod
     def GetBitmap(path, size_x=None, size_y=None):
         image = wx.Bitmap.ConvertToImage(wx.Bitmap(path, wx.BITMAP_TYPE_ANY))
@@ -16,7 +26,7 @@ class WxHelper:
         return wx.Bitmap(image)
 
     @staticmethod
-    def GetGridBagSizer(padding_x=5, padding_y=5):
+    def GetGridBagSizer(padding_x=8, padding_y=8):
         sizer = wx.GridBagSizer(vgap=padding_y, hgap=padding_x)
         sizer.SetFlexibleDirection(direction=wx.BOTH)
         sizer.SetNonFlexibleGrowMode(mode=wx.FLEX_GROWMODE_ALL)
@@ -124,3 +134,14 @@ class WxHelper:
         list_pos = control.ScreenToClient(evt_pos)
         return control.HitTest(list_pos)
 
+
+
+class PADDING:
+    VERTICAL = WxHelper.GetFlags(left=False, right=False)
+    HORIZONTAL = WxHelper.GetFlags(top=False, bottom=False)
+    ALL = WxHelper.GetFlags()
+
+class ALIGN:
+    CENTER = wx.ALIGN_CENTER | wx.EXPAND
+    LEFT = wx.ALIGN_LEFT | wx.EXPAND
+    RIGHT = wx.ALIGN_RIGHT | wx.EXPAND

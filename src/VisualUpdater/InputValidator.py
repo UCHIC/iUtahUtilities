@@ -12,16 +12,6 @@ class PATTERNS:
     USERNAME = ALPHANUMERIC + '_.@'
     ANY = string.printable
 
-class TextValidator:
-    ALPHANUMERIC = lambda: CharValidator(PATTERNS.ALPHANUMERIC)
-    WORD = lambda: CharValidator(PATTERNS.WORD)
-    DIGIT_ONLY = lambda: CharValidator(PATTERNS.DIGIT_ONLY)
-    ALPHA_ONLY = lambda: CharValidator(PATTERNS.ALPHA_ONLY)
-    DENY_CUSTOM = lambda: CharValidator(PATTERNS.DENY_CUSTOM)
-    HOSTNAME = lambda: CharValidator(PATTERNS.HOSTNAME)
-    USERNAME = lambda: CharValidator(PATTERNS.USERNAME)
-    ANY = lambda: CharValidator(PATTERNS.ANY)
-
 class CharValidator(wx.Validator):
     ''' Validates data as it is entered into the text controls. '''
 

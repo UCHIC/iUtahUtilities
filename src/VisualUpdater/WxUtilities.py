@@ -1,14 +1,84 @@
 import wx
 from InputValidator import *
 # import wx.dataview
-# import wx.grid
+import wx.grid
 
 class Orientation:
     VERTICAL = 1
     HORIZONTAL = 0
 
+class GRID_SELECTION_MODES:
+    CELLS = 0
+    ROWS = 1
+    COLUMNS = 2
+    ROWS_OR_COLUMNS = 3
 
 class WxHelper:
+    class SeriesGrid(wx.grid.Grid):
+        def __init__(self, app, parent, font=wx.SMALL_FONT):
+            wx.grid.Grid.__init__(self, parent, wx.ID_ANY, wx.DefaultPosition, wx.DefaultSize)#, wx.SIMPLE_BORDER)
+
+            self.labels = ['Site\nId', 'Site\nName', 'Variable\nCode', 'Variable\nName', 'QC\nLevel', 'Source\nId',
+                             'Source\nDescription', 'Method\nId', 'Method\nDescription']
+
+            self.CreateGrid(0, len(self.labels))
+            self.EnableEditing(False)
+            self.EnableCellEditControl(False)
+            self.EnableScrolling(True, True)
+            self.EnableGridLines(True)
+            self.EnableDragGridSize(False)
+            self.SetMargins(4, 4)
+            self.LabelFont = font
+            self.SetSelectionMode(GRID_SELECTION_MODES.ROWS)
+
+            self.DisableCellEditControl()
+
+            for i in range(0, len(self.labels)):
+                self.SetColLabelValue(i, self.labels[i])
+                self.SetColSize(i, 100)
+
+            self.EnableDragColMove(True)
+            self.EnableDragColSize(True)
+            self.SetColLabelSize(40)
+            self.SetColLabelAlignment(wx.ALIGN_CENTRE, wx.ALIGN_CENTRE)
+
+            self.EnableDragRowSize(True)
+            self.SetRowLabelSize(0)
+            self.SetRowLabelAlignment(wx.ALIGN_CENTRE, wx.ALIGN_CENTRE)
+            self.SetDefaultCellAlignment(wx.ALIGN_LEFT, wx.ALIGN_TOP)
+
+            app.Bind(wx.PyEventBinder(wx.grid.wxEVT_GRID_CELL_RIGHT_CLICK, 1), self.OnCellRightClick, self)
+
+        def AddGridRow(self, values):
+            """
+
+            :type values: list[object]
+            :type grid: wx.grid.Grid
+            """
+            num_cols = len(values) if len(values) <= self.NumberCols else self.NumberCols
+            self.AppendRows(1)
+            for i in range(0, num_cols):
+                self.SetCellValue(self.GetNumberRows() - 1, i, unicode(values[i]))
+
+        def AppendSeries(self, series):
+            values = [series.site_code, series.site_name, series.variable_code, series.variable_name,
+                      series.quality_control_level_code, series.source_id, series.source_description,
+                      series.method_id, series.method_description]
+            self.AddGridRow(values)
+
+        def OnCellRightClick(self, event):
+            """
+
+            :type event: wx.grid.GridEvent
+            """
+            print 'cell right clicked'
+            if event.GetRow() not in self.SelectedRows:
+                self.SelectRow(event.GetRow(), addToSelected=True)
+            else:
+                self.DeselectRow(event.GetRow())
+            # event.Skip()
+
+
     @staticmethod
     def GetFlags(flags=0, expand=True, top=True, bottom=True, left=True, right=True):
         flags |= wx.EXPAND if expand else 0
@@ -46,14 +116,14 @@ class WxHelper:
         return wx.Size(size_x, size_y)
 
     @staticmethod
-    def GetTextInput(parent, placeholder_text=u'', size_x=None, size_y=None, validator=CharValidator(PATTERNS.ANY),
+    def GetTextInput(parent, placeholder_text=u'', size_x=None, size_y=None, valid_input=PATTERNS.ANY,
                      max_length=None, wrap_text=False):
         if wrap_text:
             text_ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=placeholder_text, pos=wx.DefaultPosition, size=wx.DefaultSize,
-                                    style=wx.TE_BESTWRAP | wx.TE_MULTILINE, validator=validator)
+                                    style=wx.TE_BESTWRAP | wx.TE_MULTILINE, validator=CharValidator(valid_input))
         else:
             text_ctrl = wx.TextCtrl(parent, wx.ID_ANY, value=placeholder_text, pos=wx.DefaultPosition, size=wx.DefaultSize,
-                                    style=7, validator=validator)
+                                    style=7, validator=CharValidator(valid_input))
         text_ctrl.SetMinSize(WxHelper.GetWxSize(size_x, size_y))
         text_ctrl.SetMaxSize(WxHelper.GetWxSize(size_x, size_y))
         if max_length is not None:
@@ -96,11 +166,21 @@ class WxHelper:
         return choice
 
     @staticmethod
+    def GetCheckBox(app, parent, label, on_change=None, checked=False):
+        checkbox = wx.CheckBox(parent, wx.ID_ANY, label, wx.Point(-1, -1), wx.DefaultSize, 0)
+        if checked:
+            checkbox.SetValue(wx.CHK_CHECKED)
+        if on_change is not None:
+            app.Bind(wx.EVT_CHECKBOX, on_change, checkbox)
+        return checkbox
+
+    @staticmethod
     def GetLabel(parent, text, font=None):
         label = wx.StaticText(parent, wx.ID_ANY, text)
         if font is not None:
             label.SetFont(font)
         return label
+
 
     @staticmethod
     def AddNewMenuItem(app, menu, label, on_click=None, return_item=False):
@@ -133,8 +213,6 @@ class WxHelper:
         evt_pos = event.GetPosition()
         list_pos = control.ScreenToClient(evt_pos)
         return control.HitTest(list_pos)
-
-
 
 class PADDING:
     VERTICAL = WxHelper.GetFlags(left=False, right=False)

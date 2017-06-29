@@ -43,7 +43,6 @@ class VisualH2OWindow(wx.Frame):
         supported_notifications = ['logger', 'Dataset_Started', 'Dataset_Generated']
         self.H2OService = H2OService(subscriptions=supported_notifications)
 
-        # self.ActiveOdmConnection = None  # type: # ServiceManager
         self.ActiveHydroshare = None  # type: HydroShareUtility
 
         self.odm_series_dict = {}  # type: dict[str, Series]
@@ -268,9 +267,13 @@ class VisualH2OWindow(wx.Frame):
             self.add_to_selected_button.Disable()
             return
 
+        if self.odm_series_grid.NumberRows > 0:
+            self.odm_series_grid.DeleteRows(0, self.odm_series_grid.NumberRows)
         self.available_series_listbox.Clear()
         for series_string in self.h2o_series_dict.keys():
             self.available_series_listbox.Append(series_string)
+        for series in self.odm_series_dict.values():
+            self.odm_series_grid.AppendSeries(series)
 
         self.remove_selected_button.Enable()
         self.add_to_selected_button.Enable()
@@ -386,7 +389,7 @@ class VisualH2OWindow(wx.Frame):
                                   hs_account_name=self.hydroshare_account_choice.GetStringSelection(),
                                   odm_db_name=self.database_connection_choice.GetStringSelection(),
                                   create_resource=False,  #self.hydroshare_destination_radio.GetSelection() == 0,
-                                  single_file=self.grouping_radio_buttons.GetSelection() == 1,
+                                  single_file=not self.chunk_by_series_checkbox.IsChecked(),
                                   chunk_by_year=self.chunk_by_year_checkbox.Value)
 
         # if we aren't making a new dataset, let's remove the old one from the dictionary
@@ -468,12 +471,9 @@ class VisualH2OWindow(wx.Frame):
 
         self.resource_title_input.Value = dataset.name
 
-        # self.hydroshare_resources_choice_delete_me.SetStringSelection(dataset.name)
-
-        # self.hydroshare_destination_radio.SetSelection(0 if dataset.create_resource else 1)
         self._update_target_choices()  # Update these before we try to set our destination
         self.hs_resource_choice.SetStringSelection(dataset.destination_resource)
-        self.grouping_radio_buttons.SetSelection(0 if dataset.single_file else 1)
+        self.chunk_by_series_checkbox.SetValue(wx.CHK_CHECKED if not dataset.single_file else wx.CHK_UNCHECKED)
         self.chunk_by_year_checkbox.Value = dataset.chunk_by_year
 
     def OnDatasetChoiceModified(self, event):
@@ -571,6 +571,9 @@ class VisualH2OWindow(wx.Frame):
         #         ODM Series selection sizer              #
         ###################################################
 
+        col = 0
+        row = 0
+
         # Buttons (and bitmaps) to add or remove series from the active dataset
         left_arrow = WxHelper.GetBitmap('./VisualUpdater/previous_icon.png', 20, 20)
         right_arrow = WxHelper.GetBitmap('./VisualUpdater/next_icon.png', 20, 20)
@@ -585,29 +588,27 @@ class VisualH2OWindow(wx.Frame):
         self.add_to_selected_button.Disable()
 
         # Database connection items
+        span = 3
         edit_database_button = WxHelper.GetButton(self, self.panel, u'Edit...', on_click=self.on_edit_database)
         self.database_connection_choice = WxHelper.GetChoice(self, self.panel, self._get_database_choices(), on_change=self.on_database_chosen)
-        odm_series_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(0, 0), span=(1, 3), flag=wx.ALIGN_LEFT)
-        odm_series_sizer.Add(self.database_connection_choice, pos=(1, 0), span=(1, 3), flag=ALIGN.LEFT)
-        odm_series_sizer.Add(edit_database_button, pos=(1, 3), span=(1, 1), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(self.GetLabel(u'Select a database connection'), pos=(row, 0), span=(1, span), flag=wx.ALIGN_LEFT)
+        odm_series_sizer.Add(self.database_connection_choice, pos=(row + 1, 0), span=(1, span), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(edit_database_button, pos=(row + 1, span), span=(1, 1))
 
         # File chunking options
-        self.grouping_radio_buttons = WxHelper.GetRadioBox(self.panel, u"Series File Grouping",
-                                                           [u"Many series to one file", u"One series to one file"])
-
-        self.chunk_by_year_checkbox = wx.CheckBox(self.panel, wx.ID_ANY, u"Chunk file(s) by year", wx.Point(-1, -1),
-                                                  wx.DefaultSize, 0)
-        odm_series_sizer.Add(self.grouping_radio_buttons, pos=(0, 5), span=(2, 3), flag=ALIGN.LEFT)
-        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(0, 8), span=(2, 1), flag=ALIGN.CENTER)
+        self.chunk_by_year_checkbox = WxHelper.GetCheckBox(self, self.panel, u'Chunk files by year')
+        self.chunk_by_series_checkbox = WxHelper.GetCheckBox(self, self.panel, u'One series per file')
+        odm_series_sizer.Add(self.chunk_by_series_checkbox, pos=(row + 1, 6), span=(1, 1), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(row + 1, 8), span=(1, 1), flag=ALIGN.CENTER)
 
         # Series selection controls
         bold_font = wx.Font(11, wx.DEFAULT, wx.NORMAL, wx.NORMAL)
         series_label = u'Site                    Variable                  QC Level   Source  Method'
-        odm_series_sizer.Add(self.GetLabel(u'Available Series', font=bold_font), pos=(2, 0), span=(1, 4), flag=wx.ALIGN_CENTER)
-        odm_series_sizer.Add(self.GetLabel(u'Selected Series', font=bold_font), pos=(2, 5), span=(1, 4), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.GetLabel(u'Available Series', font=bold_font), pos=(row + 2, 0), span=(1, 4), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.GetLabel(u'Selected Series', font=bold_font), pos=(row + 2, 5), span=(1, 4), flag=wx.ALIGN_CENTER)
 
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 0), span=(1, 4), flag=ALIGN.LEFT)
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(3, 5), span=(1, 4), flag=ALIGN.RIGHT)
+        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(row + 3, 0), span=(1, 4), flag=ALIGN.LEFT)
+        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(row + 3, 5), span=(1, 4), flag=ALIGN.RIGHT)
 
 
         self.selected_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Selected Series'],
@@ -617,11 +618,14 @@ class VisualH2OWindow(wx.Frame):
                                                             flags=wx.LB_EXTENDED | wx.LB_SORT,
                                                             on_right_click=self.OnAvailableCategoryRightClick,
                                                             size_x=375, size_y=200, font=self.WX_MONOSPACE)
-        odm_series_sizer.Add(self.available_series_listbox, pos=(4, 0), span=(6, 4), flag=ALIGN.CENTER)
-        odm_series_sizer.Add(self.selected_series_listbox, pos=(4, 5), span=(6, 4), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.available_series_listbox, pos=(row + 4, 0), span=(6, 4), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.selected_series_listbox, pos=(row + 4, 5), span=(6, 4), flag=ALIGN.CENTER)
 
-        odm_series_sizer.Add(self.add_to_selected_button, pos=(5, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
-        odm_series_sizer.Add(self.remove_selected_button, pos=(6, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.add_to_selected_button, pos=(row + 5, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.remove_selected_button, pos=(row + 7, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
+
+        self.odm_series_grid = WxHelper.SeriesGrid(self, self.panel)
+        odm_series_sizer.Add(self.odm_series_grid, pos=(row + 10, 0), span=(6, 9), flag=ALIGN.CENTER)
 
         ######################################
         # Build action sizer and logging box #
@@ -673,10 +677,10 @@ class VisualH2OWindow(wx.Frame):
         self.SetAutoLayout(True)
         main_sizer.Fit(self.panel)
 
-    def AddLineToMainSizer(self, parent, border=15, flags=wx.ALL | wx.EXPAND):
+    def AddLineToMainSizer(self, parent, border=10, flags=wx.ALL | wx.EXPAND):
         parent.Add(wx.StaticLine(self.panel), 0, flag=flags, border=border)
 
-    def AddGridBagToMainSizer(self, parent, child, expand=True, border=15, flags=None):
+    def AddGridBagToMainSizer(self, parent, child, expand=True, border=12, flags=None):
         """
         :type parent: wx.BoxSizer
         :type child: wx.GridBagSizer

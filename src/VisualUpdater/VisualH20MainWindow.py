@@ -3,7 +3,6 @@ import os
 import re
 import smtplib
 import sys
-from collections import defaultdict
 from functools import partial
 
 import wx
@@ -30,6 +29,8 @@ service_manager = ServiceManager()
 class CHOICE_DEFAULTS:
     NEW_TEMPLATE_CHOICE = 'Create a new resource template'
     SELECT_TEMPLATE_CHOICE = 'Select a resource template'
+    CREATE_NEW_RESOURCE = 'Create a new resource'
+    CONNECT_TO_HYDROSHARE = 'Please connect to a HydroShare account'
 
 
 class VisualH2OWindow(wx.Frame):
@@ -48,14 +49,14 @@ class VisualH2OWindow(wx.Frame):
         self.odm_series_dict = {}  # type: dict[str, Series]
         self.h2o_series_dict = {}  # type: dict[str, H2OSeries]
 
-        self._resources = None  # type: list[HydroShareResource]
+        self._resources = None  # type: dict[HydroShareResource]
 
         # Widgets
         self.status_gauge = None  # type: WxHelper.SimpleGauge
         self.database_connection_choice = None  # type: wx.Choice
         self.hydroshare_account_choice = None  # type: wx.Choice
         self.mapping_grid = None  # type: H20Widget
-        self.available_series_listbox = None  # type: wx.ListBox
+        # self.available_series_listbox = None  # type: # wx.ListBox
 
         # just technicalities, honestly
         wx.Frame.__init__(self, parent, id, title, style=wx.MAXIMIZE_BOX | wx.RESIZE_BORDER | wx.CAPTION | wx.CLOSE_BOX,
@@ -187,11 +188,11 @@ class VisualH2OWindow(wx.Frame):
     def _get_destination_resource_choices(self):
         # if self.hydroshare_destination_radio.GetSelection() == 1 and self._resources is None:
         if self._resources is None:
-            choices = ['Please connect to a HydroShare account']
+            choices = [CHOICE_DEFAULTS.CONNECT_TO_HYDROSHARE]
         elif len(self._resources) > 1:
 
         # elif self.hydroshare_destination_radio.GetSelection() == 1 and len(self._resources) > 1:
-            choices = ['Create a new resource'] + [item.title for item in self._resources]
+            choices = [CHOICE_DEFAULTS.CREATE_NEW_RESOURCE] + [item.title for item in self._resources]
         else:
             choices = [CHOICE_DEFAULTS.SELECT_TEMPLATE_CHOICE, CHOICE_DEFAULTS.NEW_TEMPLATE_CHOICE] + list(
                     [str(item) for item in self.H2OService.ResourceTemplates])
@@ -223,8 +224,8 @@ class VisualH2OWindow(wx.Frame):
                 h2o_series = OdmSeriesHelper.CreateH2OSeriesFromOdmSeries(series)
                 if h2o_series is None:
                     continue
-                self.h2o_series_dict[str(h2o_series)] = h2o_series
-                self.odm_series_dict[str(h2o_series)] = series
+                self.h2o_series_dict[h2o_series.SeriesID] = h2o_series
+                self.odm_series_dict[h2o_series.SeriesID] = series
             self.UpdateSeriesInGrid()
         else:
             self.OnPrintLog('Unable to authenticate using connection {}'.format(connection.name))
@@ -242,8 +243,8 @@ class VisualH2OWindow(wx.Frame):
             self.OnPrintLog('Unable to authenticate HydroShare account - please check your credentials')
 
     def on_database_chosen(self, event):
-        self.available_series_listbox.Clear()
-        self.selected_series_listbox.Clear()
+        self.available_series_grid.Clear()
+        self.selected_series_grid.Clear()
         if event.GetSelection() > 0:
             self.h2o_series_dict.clear()
             selection_string = self.database_connection_choice.GetStringSelection()
@@ -260,20 +261,16 @@ class VisualH2OWindow(wx.Frame):
         self._update_target_choices()
 
     def UpdateSeriesInGrid(self, event=None):
+        self.available_series_grid.ClearGrid()
+        self.selected_series_grid.ClearGrid()
+
         if self.h2o_series_dict is None or len(self.h2o_series_dict) == 0:
-            self.selected_series_listbox.SetItems(['No Selected Series'])
-            self.selected_series_listbox.SetItems(['No Available Series'])
             self.remove_selected_button.Disable()
             self.add_to_selected_button.Disable()
             return
 
-        if self.odm_series_grid.NumberRows > 0:
-            self.odm_series_grid.DeleteRows(0, self.odm_series_grid.NumberRows)
-        self.available_series_listbox.Clear()
-        for series_string in self.h2o_series_dict.keys():
-            self.available_series_listbox.Append(series_string)
         for series in self.odm_series_dict.values():
-            self.odm_series_grid.AppendSeries(series)
+            self.available_series_grid.AppendSeries(series)
 
         self.remove_selected_button.Enable()
         self.add_to_selected_button.Enable()
@@ -285,49 +282,33 @@ class VisualH2OWindow(wx.Frame):
 
         menu_strings = [u"Site: Select All", u"Site: Deselect All", u"Variable: Select All", u"Variable: Deselect All",
                         u"QC Code: Select All", u"QC Code: Deselect All"]
-        listbox = self.selected_series_listbox if evt_parent == 'Selected Listbox' else self.available_series_listbox
+        grid = self.selected_series_grid if evt_parent == 'Selected Grid' else self.available_series_grid
 
         for text in menu_strings:
             WxHelper.AddNewMenuItem(self, series_category_menu, text, on_click=partial(self._category_selection,
-                                                                                       control=listbox, direction=text,
+                                                                                       control=grid, direction=text,
                                                                                        curr_index=selected_item))
         return series_category_menu
 
     def _move_to_selected_series(self, event):
-        if len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(
-                0) == 'No Selected Series':
-            self.selected_series_listbox.Delete(0)
-
-        selected = [self.available_series_listbox.GetString(i) for i in self.available_series_listbox.GetSelections()]
-        for item in selected:
-            self.selected_series_listbox.Append(item)
-            self.available_series_listbox.Delete(self.available_series_listbox.FindString(item))
-
-        if len(self.available_series_listbox.Items) == 0:
-            self.available_series_listbox.Append('No Available Series')
+        for id in self.available_series_grid.GetSelectedSeries():
+            self.selected_series_grid.AppendSeries(self.odm_series_dict[id])
+        self.available_series_grid.RemoveSelectedRows()
 
     def _move_from_selected_series(self, event):
-        if len(self.available_series_listbox.Items) == 1 and self.available_series_listbox.GetString(
-                0) == 'No Available Series':
-            self.available_series_listbox.Delete(0)
-
-        selected = [self.selected_series_listbox.GetString(i) for i in self.selected_series_listbox.GetSelections()]
-        for item in selected:
-            self.available_series_listbox.Append(item)
-            self.selected_series_listbox.Delete(self.selected_series_listbox.FindString(item))
-
-        if len(self.selected_series_listbox.Items) == 0:
-            self.selected_series_listbox.Append('No Selected Series')
+        for id in self.selected_series_grid.GetSelectedSeries():
+            self.available_series_grid.AppendSeries(self.odm_series_dict[id])
+        self.selected_series_grid.RemoveSelectedRows()
 
     def OnAvailableCategoryRightClick(self, event):
-        item_int = WxHelper.GetMouseClickIndex(event, self.available_series_listbox)
+        item_int = WxHelper.GetMouseClickIndex(event, self.available_series_grid)
         if item_int >= 0:
             menu = self._build_category_context_menu(item_int, 'Available Listbox')
             if menu is not None:
                 self.PopupMenu(menu)
 
     def OnSelectedCategoryRightClick(self, event):
-        item_int = WxHelper.GetMouseClickIndex(event, self.selected_series_listbox)
+        item_int = WxHelper.GetMouseClickIndex(event, self.selected_series_grid)
         if item_int >= 0:
             self.PopupMenu(self._build_category_context_menu(item_int, 'Selected Listbox'))
 
@@ -377,18 +358,25 @@ class VisualH2OWindow(wx.Frame):
             return
 
         series_items = []
-        for item in self.selected_series_listbox.Items:
-            check_series = OdmSeriesHelper.PopulateH2OSeriesFromString(item)
-            if check_series is None or str(check_series) not in self.h2o_series_dict.keys():
-                continue
-            series_items.append(self.h2o_series_dict[str(check_series)])
+
+        series_items = [self.h2o_series_dict.get(series_id, None) for series_id in self.selected_series_grid.GetSelectedSeries()]
+        for item in series_items:
+            print item
+
+        # for series_id in self.selected_series_grid.GetSelectedSeries():
+        #     series_items
+        # for item in self.selected_series_listbox.Items:
+        #     check_series = OdmSeriesHelper.PopulateH2OSeriesFromString(item)
+        #     if check_series is None or str(check_series) not in self.h2o_series_dict.keys():
+        #         continue
+        #     series_items.append(self.h2o_series_dict[str(check_series)])
 
         curr_dataset = H2ODataset(name=self.resource_title_input.Value,
                                   odm_series=series_items,
                                   destination_resource=self.hs_resource_choice.GetStringSelection(),
                                   hs_account_name=self.hydroshare_account_choice.GetStringSelection(),
                                   odm_db_name=self.database_connection_choice.GetStringSelection(),
-                                  create_resource=False,  #self.hydroshare_destination_radio.GetSelection() == 0,
+                                  create_resource=False,
                                   single_file=not self.chunk_by_series_checkbox.IsChecked(),
                                   chunk_by_year=self.chunk_by_year_checkbox.Value)
 
@@ -403,15 +391,15 @@ class VisualH2OWindow(wx.Frame):
         # self.hydroshare_resources_choice_delete_me.SetStringSelection(curr_dataset.name)
 
     def _verify_dataset_selections(self):
-        if len(self.selected_series_listbox.Items) == 0:
-            self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
-        elif len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(
-                0) == 'No Selected Series':
-            self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
-        elif self.hydroshare_account_choice.GetSelection() == 0:
+        # if len(self.selected_series_listbox.Items) == 0:
+        #     self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
+        # elif len(self.selected_series_listbox.Items) == 1 and self.selected_series_listbox.GetString(
+        #         0) == 'No Selected Series':
+        #     self.OnPrintLog('Invalid options - please select the ODM series you would like to add to the dataset')
+
+        if self.hydroshare_account_choice.GetSelection() == 0:
             self.OnPrintLog('Invalid options - please select a HydroShare account to use')
-        # elif self.hydroshare_destination_radio.GetSelection() == '1' and \
-        #                 self.hs_resource_choice.GetSelection() == 0:
+        # elif self.hydroshare_destination_radio.GetSelection() == '1' and self.hs_resource_choice.GetSelection() == 0:
         #     self.OnPrintLog('Invalid options - please select a destination HydroShare resource or template')
         elif len(self.resource_title_input.Value) == 0:
             self.OnPrintLog('Invalid options - please enter a dataset name')
@@ -460,14 +448,14 @@ class VisualH2OWindow(wx.Frame):
         selected = []
         available = []
 
-        for series in self.h2o_series_dict.keys():
+        print self.selected_series_grid.GetSelectedRows()
+        print self.available_series_grid.GetSelectedRows()
+
+        for series in self.odm_series_dict.keys():
             if series in dataset.odm_series:
                 selected.append(str(series))
             else:
                 available.append(str(series))
-
-        self.available_series_listbox.SetItems(available)
-        self.selected_series_listbox.SetItems(selected)
 
         self.resource_title_input.Value = dataset.name
 
@@ -483,8 +471,21 @@ class VisualH2OWindow(wx.Frame):
         event.Skip()
 
     def _destination_resource_changed(self, event):
-        if self.hs_resource_choice.GetStringSelection() == CHOICE_DEFAULTS.NEW_TEMPLATE_CHOICE:
+        if self.hs_resource_choice.GetStringSelection() == CHOICE_DEFAULTS.CREATE_NEW_RESOURCE:
             self.OnEditResourceTemplates(None)
+        elif len(self._resources) > 2:
+            resource = self._resources[self.hs_resource_choice.GetSelection() - 1]
+            print resource
+            self.ActiveHydroshare.getMetadataForResource(resource)
+            self.FillResourceFields(resource)
+
+    def FillResourceFields(self, resource):
+        self.resource_title_input.Value = resource.title
+        self.resource_abstract_input.Value = resource.abstract
+        self.resource_agency_website_input.Value = resource.agency_url
+        self.resource_award_number_input.Value = resource.award_number
+        self.resource_award_title_input.Value = resource.award_title
+        self.resource_funding_agency_input.Value = resource.funding_agency
 
     def update_status_gauge(self, resource="None", completed=None, started=None):
         message = ' generating files for resource {}'.format(resource)
@@ -544,9 +545,10 @@ class VisualH2OWindow(wx.Frame):
         self.save_dataset_button = WxHelper.GetButton(self, self.panel, u" Apply Changes ", self._save_dataset_clicked,
                                                       size_x=100, size_y=30)
 
-        col_base = 5
+        col_base = 4
         row_base = 5
         flags = ALIGN.CENTER
+        text_flags = wx.ALIGN_RIGHT | wx.ALIGN_CENTER_VERTICAL
 
         resource_sizer.Add(self.GetLabel(u'Select a resource'), pos=(0, 0), span=(1, 1), flag=ALIGN.CENTER)
         resource_sizer.Add(self.hs_resource_choice, pos=(1, 0), span=(1, 8), flag=ALIGN.CENTER)
@@ -556,23 +558,20 @@ class VisualH2OWindow(wx.Frame):
         resource_sizer.Add(self.resource_title_input, pos=(3, 0), span=(1, 8), flag=ALIGN.LEFT)
         resource_sizer.Add(self.resource_abstract_input, pos=(row_base, 0), span=(4,4), flag=ALIGN.CENTER)
 
-        resource_sizer.Add(self.GetLabel(u'Funding Agency'), pos=(row_base, col_base), span=(1, 1), flag=flags)
-        resource_sizer.Add(self.GetLabel(u'Agency Website'), pos=(row_base + 1, col_base), span=(1, 1), flag=flags)
-        resource_sizer.Add(self.GetLabel(u'Award Title'),    pos=(row_base + 2, col_base), span=(1, 1), flag=flags)
-        resource_sizer.Add(self.GetLabel(u'Award Number'),   pos=(row_base + 3, col_base), span=(1, 1), flag=flags)
-        resource_sizer.Add(self.resource_funding_agency_input, pos=(row_base, col_base + 1), span=(1,2), flag=flags)
-        resource_sizer.Add(self.resource_agency_website_input, pos=(row_base + 1, col_base + 1), span=(1,2), flag=flags)
-        resource_sizer.Add(self.resource_award_title_input,    pos=(row_base + 2, col_base + 1), span=(1,2), flag=flags)
-        resource_sizer.Add(self.resource_award_number_input,   pos=(row_base + 3, col_base + 1), span=(1,2), flag=flags)
+        resource_sizer.Add(self.GetLabel(u'Funding Agency'), pos=(row_base, col_base), span=(1, 1), flag=text_flags)
+        resource_sizer.Add(self.GetLabel(u'Agency Website'), pos=(row_base + 1, col_base), span=(1, 1), flag=text_flags)
+        resource_sizer.Add(self.GetLabel(u'Award Title'),    pos=(row_base + 2, col_base), span=(1, 1), flag=text_flags)
+        resource_sizer.Add(self.GetLabel(u'Award Number'),   pos=(row_base + 3, col_base), span=(1, 1), flag=text_flags)
+        resource_sizer.Add(self.resource_funding_agency_input, pos=(row_base, col_base + 1), span=(1,3), flag=flags)
+        resource_sizer.Add(self.resource_agency_website_input, pos=(row_base + 1, col_base + 1), span=(1,3), flag=flags)
+        resource_sizer.Add(self.resource_award_title_input,    pos=(row_base + 2, col_base + 1), span=(1,3), flag=flags)
+        resource_sizer.Add(self.resource_award_number_input,   pos=(row_base + 3, col_base + 1), span=(1,3), flag=flags)
 
         resource_sizer.Add(self.save_dataset_button, pos=(row_base + 4, 7), span=(1, 1), flag=wx.ALIGN_CENTER)
 
         ###################################################
         #         ODM Series selection sizer              #
         ###################################################
-
-        col = 0
-        row = 0
 
         # Buttons (and bitmaps) to add or remove series from the active dataset
         left_arrow = WxHelper.GetBitmap('./VisualUpdater/previous_icon.png', 20, 20)
@@ -588,6 +587,7 @@ class VisualH2OWindow(wx.Frame):
         self.add_to_selected_button.Disable()
 
         # Database connection items
+        row = 0
         span = 3
         edit_database_button = WxHelper.GetButton(self, self.panel, u'Edit...', on_click=self.on_edit_database)
         self.database_connection_choice = WxHelper.GetChoice(self, self.panel, self._get_database_choices(), on_change=self.on_database_chosen)
@@ -596,36 +596,28 @@ class VisualH2OWindow(wx.Frame):
         odm_series_sizer.Add(edit_database_button, pos=(row + 1, span), span=(1, 1))
 
         # File chunking options
+        text_flags = wx.ALIGN_CENTER | wx.ALIGN_CENTER_VERTICAL
         self.chunk_by_year_checkbox = WxHelper.GetCheckBox(self, self.panel, u'Chunk files by year')
         self.chunk_by_series_checkbox = WxHelper.GetCheckBox(self, self.panel, u'One series per file')
-        odm_series_sizer.Add(self.chunk_by_series_checkbox, pos=(row + 1, 6), span=(1, 1), flag=ALIGN.LEFT)
-        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(row + 1, 8), span=(1, 1), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.GetLabel(u'File options:    '), pos=(row + 1, 6), span=(1, 1), flag=text_flags)
+        odm_series_sizer.Add(self.chunk_by_series_checkbox, pos=(row + 1, 7), span=(1, 1), flag=text_flags)
+        odm_series_sizer.Add(self.chunk_by_year_checkbox, pos=(row + 1, 8), span=(1, 1), flag=text_flags)
 
         # Series selection controls
         bold_font = wx.Font(11, wx.DEFAULT, wx.NORMAL, wx.NORMAL)
-        series_label = u'Site                    Variable                  QC Level   Source  Method'
         odm_series_sizer.Add(self.GetLabel(u'Available Series', font=bold_font), pos=(row + 2, 0), span=(1, 4), flag=wx.ALIGN_CENTER)
         odm_series_sizer.Add(self.GetLabel(u'Selected Series', font=bold_font), pos=(row + 2, 5), span=(1, 4), flag=wx.ALIGN_CENTER)
 
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(row + 3, 0), span=(1, 4), flag=ALIGN.LEFT)
-        odm_series_sizer.Add(self.GetLabel(series_label, font=self.WX_MONOSPACE), pos=(row + 3, 5), span=(1, 4), flag=ALIGN.RIGHT)
+        x = 500
+        y = 450
+        self.selected_series_grid = WxHelper.SeriesGrid(self, self.panel, max_size=wx.Size(x, y))
+        self.available_series_grid = WxHelper.SeriesGrid(self, self.panel, max_size=wx.Size(x, y))
 
+        odm_series_sizer.Add(self.available_series_grid, pos=(row + 3, 0), span=(6, 4), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.selected_series_grid, pos=(row + 3, 5), span=(6, 4), flag=ALIGN.CENTER)
 
-        self.selected_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Selected Series'],
-                                                           on_right_click=self.OnSelectedCategoryRightClick, size_x=375,
-                                                           size_y=200, font=self.WX_MONOSPACE)
-        self.available_series_listbox = WxHelper.GetListBox(self, self.panel, ['No Available Series'],
-                                                            flags=wx.LB_EXTENDED | wx.LB_SORT,
-                                                            on_right_click=self.OnAvailableCategoryRightClick,
-                                                            size_x=375, size_y=200, font=self.WX_MONOSPACE)
-        odm_series_sizer.Add(self.available_series_listbox, pos=(row + 4, 0), span=(6, 4), flag=ALIGN.CENTER)
-        odm_series_sizer.Add(self.selected_series_listbox, pos=(row + 4, 5), span=(6, 4), flag=ALIGN.CENTER)
-
-        odm_series_sizer.Add(self.add_to_selected_button, pos=(row + 5, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
-        odm_series_sizer.Add(self.remove_selected_button, pos=(row + 7, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
-
-        self.odm_series_grid = WxHelper.SeriesGrid(self, self.panel)
-        odm_series_sizer.Add(self.odm_series_grid, pos=(row + 10, 0), span=(6, 9), flag=ALIGN.CENTER)
+        odm_series_sizer.Add(self.add_to_selected_button, pos=(row + 4, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
+        odm_series_sizer.Add(self.remove_selected_button, pos=(row + 6, 4), span=(1, 1), flag=wx.ALIGN_CENTER)
 
         ######################################
         # Build action sizer and logging box #
@@ -637,7 +629,7 @@ class VisualH2OWindow(wx.Frame):
         self.status_gauge = wx.Gauge(self.panel, wx.ID_ANY, 100, wx.DefaultPosition, wx.DefaultSize, wx.GA_HORIZONTAL)
         self.status_gauge.SetValue(0)
 
-        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=920, size_y=150, font=self.WX_MONOSPACE)
+        self.log_message_listbox = WxHelper.GetListBox(self, self.panel, [], size_x=920, size_y=100, font=self.WX_MONOSPACE)
 
         action_status_sizer.Add(self.status_gauge, pos=(0, 0), span=(1, 8), flag=ALIGN.CENTER)
         action_status_sizer.Add(toggle_execute_button, pos=(0, 9), span=(1, 1), flag=ALIGN.CENTER)

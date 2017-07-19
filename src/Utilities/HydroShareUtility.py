@@ -34,10 +34,18 @@ class HydroShareResource:
         self.id = resource_dict['resource_id'] if 'resource_id' in resource_dict else ""
         self.owner = resource_dict['creator'] if 'creator' in resource_dict else ""
         self.title = resource_dict['resource_title'] if 'resource_title' in resource_dict else ""
+        self.abstract = ""
+        self.keywords = []
+        self.funding_agency = ""
+        self.agency_url = ""
+        self.award_title = ""
+        self.award_number = ""
         self.files = []
+        self.subjects = []
         self.period_start = None
         self.period_end = None
         self.metadata_xml = None
+        self.public = resource_dict['public'] if 'public' in resource_dict else False
 
     def __str__(self):
         return '{} with {} files'.format(self.title, len(self.files))
@@ -64,67 +72,6 @@ class ResourceTemplate:
 
     def __str__(self):
         return self.template_name
-
-# def getNewQC1ResourceInformation(site_code, valid_files=None):
-#     """
-#
-#     :param site_code: The site code, used to get site details from the iutahdbs server
-#     :type site_code: str
-#     :param valid_files: File Details for the files we will be uploading to the resource
-#     :type valid_files: list of FileDetails
-#     :return:
-#     :rtype:
-#     """
-#     db_code = site_code.split('_')[0]
-#     service_manager._current_connection = {'engine': 'mssql', 'user': 'webapplication', 'password': 'W3bAppl1c4t10n!',
-#                                            'address': 'iutahdbs.uwrl.usu.edu', 'db': DB_CODE_LOOKUP[db_code]}
-#     series_service = service_manager.get_series_service()
-#     site = series_service.get_site_by_code(site_code)  # type: Site
-#     new_resource = GenericResourceDetails()
-#     new_resource.resource_name = "iUTAH GAMUT Network Quality Control Level 1 Data at " \
-#                                  "{site_name} ({site_code})".format(site_name=site.name, site_code=site.code)
-#     new_resource.abstract = QC1_RESOURCE_ABSTRACT.format(site_name=site.name, site_code=site.code)
-#     new_resource.keywords = [site.name, site.type, 'time series', 'iUTAH', 'GAMUT', 'Quality Controlled Level 1']
-#     if valid_files is not None and len(valid_files) > 0:
-#         variables = set([v.variable_names.replace(',', ' -') for v in valid_files if len(v.variable_names) > 0])
-#         new_resource.keywords.extend(list(variables))
-#         coverage_start_list = [v.coverage_start for v in valid_files if len(v.variable_names) > 0]
-#         coverage_end_list = [v.coverage_end for v in valid_files if len(v.variable_names) > 0]
-#         start_cov = min(coverage_start_list) if len(coverage_start_list) > 0 else None
-#         end_cov = max(coverage_end_list) if len(coverage_end_list) > 0 else None
-#         if start_cov is not None and end_cov is not None:
-#             temporal_data = {"coverage":
-#                              {"type": "period",
-#                               "value": {"start": start_cov.strftime(time_format),
-#                                         "end": end_cov.strftime(time_format)}}}
-#             new_resource.metadata.append(temporal_data)
-#
-#     # Add Credits
-#     credit_dict = {'fundingagency': {'agency_name': 'National Science Foundation',
-#                                      'award_title': 'iUTAH-innovative Urban Transitions and Aridregion '
-#                                                     'Hydro-sustainability',
-#                                      'award_number': '1208732',
-#                                      'agency_url': 'http://www.nsf.gov'}}
-#     new_resource.metadata.append(credit_dict)
-#
-#     authors = {"creator": {"organization": 'iUTAH GAMUT Working Group'}}
-#     new_resource.metadata.append(authors)
-#
-#     spatial_coverage = dict(coverage={'type': 'point',
-#                                       'value': {
-#                                           'east': '{}'.format(site.longitude),
-#                                           'north': '{}'.format(site.latitude),
-#                                           'units': 'Decimal degrees',
-#                                           'name': '{}'.format(site.name),
-#                                           'elevation': '{}'.format(site.elevation_m),
-#                                           'projection': '{}'.format(site.spatial_ref.srs_name)
-#                                       }})
-#     new_resource.metadata.append(spatial_coverage)
-#
-#     for contrib in contributors:
-#         new_resource.metadata.append(contrib)
-#
-#     return new_resource
 
 
 class HydroShareUtilityException(Exception):
@@ -288,10 +235,32 @@ class HydroShareUtility:
         all_resources = self.client.resources(owner=owner)
         for resource in all_resources:
             resource_object = HydroShareResource(resource)
-            # resource_object.files = [os.path.basename(f['url']) for f in self.getResourceFileList(resource_object.id)]
             filtered_resources.append(resource_object)
         return filtered_resources
 
+    def getMetadataForResource(self, resource):
+        """
+
+        :type resource: HydroShareResource
+        """
+        metadata = self.client.getScienceMetadata(resource.id)
+        resource.subjects = [item['value'] for item in metadata['subjects']]
+        resource.abstract = metadata['description']
+        resource.agency_url = metadata['funding_agencies'][0]['agency_url']
+        resource.funding_agency = metadata['funding_agencies'][0]['agency_name']
+        resource.award_number = metadata['funding_agencies'][0]['award_number']
+        resource.award_title = metadata['funding_agencies'][0]['award_title']
+
+    def updateResourceMetadata(self, resource):
+        """
+
+        :type resource: HydroShareResource
+        """
+        return self.client.updateScienceMetadata(resource.id, resource.to_json())
+
+    def getFileListForResource(self, resource):
+        resource.files = [os.path.basename(f['url']) for f in self.getResourceFileList(resource.id)]
+        return resource.files
 
     def filterResourcesByRegex(self, regex_string=None, owner=None, regex_flags=re.IGNORECASE):
         """

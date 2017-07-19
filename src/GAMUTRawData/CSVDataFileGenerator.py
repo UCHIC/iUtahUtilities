@@ -548,40 +548,6 @@ class QC1_CsvLocalDataset:
 
         return site_files
 
-    def generateHeader(self):
-        """
-        :return: Returns a string to be inserted as the CSV file's header
-        :rtype: str
-        """
-        file_str = "# ------------------------------------------------------------------------------------------\n"
-        file_str += "# WARNING: The data are released on the condition that neither iUTAH nor any of its \n"
-        file_str += "# participants may be held liable for any damages resulting from their use. The following \n"
-        file_str += "# metadata describe the data in this file:\n"
-        file_str += "# ------------------------------------------------------------------------------------------\n"
-        file_str += "#\n"
-        file_str += "# Quality Control Level Information\n"
-        file_str += "# -----------------------------------------------\n"
-        file_str += "# These data have passed QA/QC procedures such as sensor calibration and \n"
-        file_str += "# visual inspection and removal of obvious errors. These data are approved \n"
-        file_str += "# by Technicians as the best available version of the data. See published\n"
-        file_str += "# script for correction steps specific to this data series. \n"
-        file_str += "#\n"
-        return file_str
-
-    def generateQualifierHeader(self, qualifier_list):
-        """
-        :return: Returns a string to be inserted as the CSV qualifier header portion
-        :rtype: str
-        """
-        sorted_list = sorted(qualifier_list, key=lambda x: x[0])
-        file_str = "# Qualifier Information\n"
-        file_str += "# ----------------------------------\n"
-        file_str += "# Code   Description\n"
-        for q_id, code, description in sorted_list:
-            file_str += "# " + code.ljust(7) + description + "\n"
-        file_str += "#\n"
-        return file_str
-
 
 class RawDataCsvLocalDataset:
     def __init__(self, dump_location, location, site, year, file_cache=None):
@@ -694,20 +660,52 @@ class RawDataCsvLocalDataset:
             print('---\nIssue encountered while writing data to file: \n{}\n{}\n---'.format(type(e), e))
         return site_files
 
-    def generateHeader(self):
-        """
-        :return: Returns a string to be inserted as the CSV file's header
-        :rtype: str
-        """
-        file_str = "# ------------------------------------------------------------------------------------------\n"
-        file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
-        file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
-        file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
-        file_str += "# resulting from their use. The following metadata describe the data in this file:\n"
-        file_str += "# ------------------------------------------------------------------------------------------\n"
-        file_str += "#\n"
-        return file_str
 
+
+def generateQC1Header():
+    """
+    :return: Returns a string to be inserted as the CSV file's header
+    :rtype: str
+    """
+    file_str = "# ------------------------------------------------------------------------------------------\n"
+    file_str += "# WARNING: The data are released on the condition that neither iUTAH nor any of its \n"
+    file_str += "# participants may be held liable for any damages resulting from their use. The following \n"
+    file_str += "# metadata describe the data in this file:\n"
+    file_str += "# ------------------------------------------------------------------------------------------\n"
+    file_str += "#\n"
+    file_str += "# Quality Control Level Information\n"
+    file_str += "# -----------------------------------------------\n"
+    file_str += "# These data have passed QA/QC procedures such as sensor calibration and \n"
+    file_str += "# visual inspection and removal of obvious errors. These data are approved \n"
+    file_str += "# by Technicians as the best available version of the data. See published\n"
+    file_str += "# script for correction steps specific to this data series. \n"
+    file_str += "#\n"
+    return file_str
+
+def generateQualifierHeader(qualifier_list):
+    """
+    :return: Returns a string to be inserted as the CSV qualifier header portion
+    :rtype: str
+    """
+    sorted_list = sorted(qualifier_list, key=lambda x: x[0])
+    file_str = "# Qualifier Information\n"
+    file_str += "# ----------------------------------\n"
+    file_str += "# Code   Description\n"
+    for q_id, code, description in sorted_list:
+        file_str += "# " + code.ljust(7) + description + "\n"
+    file_str += "#\n"
+    return file_str
+
+
+def getHeaderDisclaimer():
+    file_str = "# ------------------------------------------------------------------------------------------\n"
+    file_str += "# WARNING: These are raw and unprocessed data that have not undergone quality control.\n"
+    file_str += "# They are provisional and subject to revision. The data are released on the condition \n"
+    file_str += "# that neither iUTAH nor any of its participants may be held liable for any damages\n"
+    file_str += "# resulting from their use. The following metadata describe the data in this file:\n"
+    file_str += "# ------------------------------------------------------------------------------------------\n"
+    file_str += "#\n"
+    return file_str
 
 def generateSiteInformation(site, network):
     """

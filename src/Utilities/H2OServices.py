@@ -252,6 +252,9 @@ class H2OService:
             csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
                                            columns="VariableCode", values="DataValue")
             del dataframe
+
+            # Generate header for the CSV file
+
             csv_table.to_csv(file_out)
             file_out.close()
         else:
@@ -272,10 +275,26 @@ class H2OService:
                 if file_out is None:
                     print('Unable to create output file for {}'.format(dataset.name))
 
+                # # Get the qualifiers that we use in this series, merge it with our DataValue set
+                # q_list = [[q.id, q.code, q.description] for q in series_service.get_qualifiers_by_series_id(series.id)]
+                # q_df = pandas.DataFrame(data=q_list, columns=self.qualifier_columns)
+                # dv_set = dv_raw.merge(q_df, how='left', on="QualifierID")  # type: pandas.DataFrame
+                # del dv_raw
+                # dv_set.set_index(self.csv_indexes, inplace=True)
+                #
+                # # Drop the columns that we aren't interested in, and correct any names afterwards
+                # for column in dv_set.columns.tolist():
+                #     if column not in self.csv_columns:
+                #         dv_set.drop(column, axis=1, inplace=True)
+                # dv_set.rename(columns={"DataValue": series.variable_code}, inplace=True)
+
                 # Set up our table and prepare for CSV output
                 csv_table = pandas.pivot_table(dataframe, index=["LocalDateTime", "UTCOffset", "DateTimeUTC"],
                                                columns="VariableCode", values="DataValue")
                 del dataframe
+
+                # Generate headers for each CSV file
+
                 csv_table.to_csv(file_out)
                 file_out.close()
 
@@ -343,8 +362,6 @@ class H2OService:
         if pub_key in self.Subscriptions and pub_key in H2ODefaults.GUI_PUBLICATIONS.keys():
             result = H2ODefaults.GUI_PUBLICATIONS[pub_key](*args)
             pub.sendMessage(pub_key, **result)
-            # else:
-            #     print('We can\'t publish {}, no one is subscribed'.format(pub_key))
 
     def to_json(self):
         return {'odm_connections': self.DatabaseConnections,
